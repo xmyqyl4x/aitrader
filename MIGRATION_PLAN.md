@@ -17,6 +17,7 @@ This document captures the current-state audit of the repository and a target ar
 | Security baseline (JWT auth & role protection) | Completed | Added stateless JWT auth with role-based API access and container env configuration. |
 | Positions & portfolio snapshot APIs | Completed | Added services/controllers for positions and portfolio snapshots with stop-loss updates and filtering by account. |
 | Upload ingestion APIs | Completed | Added upload metadata endpoints (create/list/get/status update) to track ingestion lifecycle. |
+| Analytics summary API | Completed | Added account-level PnL/return/drawdown summary endpoint backed by portfolio snapshots. |
 
 ## Phase 1 — Deep Discovery
 

@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PortfolioSnapshotRepository extends JpaRepository<PortfolioSnapshot, UUID> {
 
   List<PortfolioSnapshot> findByAccountIdOrderByAsOfDateDesc(UUID accountId);
+
+  List<PortfolioSnapshot> findByAccountIdOrderByAsOfDateAsc(UUID accountId);
 }
