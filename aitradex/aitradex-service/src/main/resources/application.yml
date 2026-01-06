@@ -4,6 +4,12 @@ spring:
 app:
   cors:
     allowed-origins: "*"
+  security:
+    jwt:
+      secret: ${APP_JWT_SECRET:dev-insecure-jwt-secret-change-me-please}
+      issuer: ${APP_JWT_ISSUER:aitradex}
+      audience: ${APP_JWT_AUDIENCE:aitradex-ui}
+      clock-skew-seconds: ${APP_JWT_CLOCK_SKEW_SECONDS:60}
   datasource:
     url: jdbc:postgresql://localhost:5432/aitradex
     username: aitradex
@@ -39,6 +45,7 @@ springdoc:
 logging:
   level:
     root: INFO
+    org.springframework.security: INFO
 
 ---
 spring:

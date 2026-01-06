@@ -21,6 +21,7 @@ services:
       POSTGRES_USER: aitradex
       POSTGRES_PASSWORD: aitradex
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/aitradex
+      APP_JWT_SECRET: change-me-in-prod-please-use-32-bytes-minimum
     depends_on:
       - db
     ports:

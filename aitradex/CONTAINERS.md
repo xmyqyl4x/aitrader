@@ -31,6 +31,8 @@ docker-compose up --build
 ## Environment toggles
 - `SPRING_PROFILES_ACTIVE=prod` (default in Compose)
 - `SPRING_DATASOURCE_URL`/`POSTGRES_USER`/`POSTGRES_PASSWORD` override DB connection.
+- `APP_JWT_SECRET` sets the HS256 signing key for API auth (required for production; defaults to a dev secret).
+- `APP_JWT_ISSUER`/`APP_JWT_AUDIENCE` optional JWT validation settings (default: `aitradex` / `aitradex-ui`).
 - `JAVA_OPTS` can be supplied to the backend container for memory and GC tuning.
 - Swagger UI available at `http://localhost:8080/api/swagger-ui.html` when service is up.
 - CORS origins for the API are configured via `APP_CORS_ALLOWED_ORIGINS` (defaults to `*`).
