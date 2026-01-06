@@ -1,0 +1,15 @@
+target
+.git
+.gitignore
+.editorconfig
+.idea
+.vscode
+node_modules
+dist
+*.log
+**/.angular
+**/.npm
+**/.cache
+**/.DS_Store
+**/coverage
+**/tmp
