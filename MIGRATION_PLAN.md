@@ -16,6 +16,7 @@ This document captures the current-state audit of the repository and a target ar
 | CORS and UI integration readiness | Completed | Configurable CORS for /api added for Angular dev and containerized UI. |
 | Security baseline (JWT auth & role protection) | Completed | Added stateless JWT auth with role-based API access and container env configuration. |
 | Positions & portfolio snapshot APIs | Completed | Added services/controllers for positions and portfolio snapshots with stop-loss updates and filtering by account. |
+| Upload ingestion APIs | Completed | Added upload metadata endpoints (create/list/get/status update) to track ingestion lifecycle. |
 
 ## Phase 1 — Deep Discovery
 
