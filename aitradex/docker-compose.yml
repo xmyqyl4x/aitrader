@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aitradex
+      POSTGRES_USER: aitradex
+      POSTGRES_PASSWORD: aitradex
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  service:
+    build:
+      context: .
+      dockerfile: aitradex-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      POSTGRES_USER: aitradex
+      POSTGRES_PASSWORD: aitradex
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/aitradex
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+
+  ui:
+    build:
+      context: ./aitradex-ui
+      dockerfile: Dockerfile
+    ports:
+      - "4200:80"
+    depends_on:
+      - service
+
+volumes:
+  pgdata:
