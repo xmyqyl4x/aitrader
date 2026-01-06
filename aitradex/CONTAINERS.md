@@ -32,6 +32,7 @@ docker-compose up --build
 - `SPRING_PROFILES_ACTIVE=prod` (default in Compose)
 - `SPRING_DATASOURCE_URL`/`POSTGRES_USER`/`POSTGRES_PASSWORD` override DB connection.
 - `JAVA_OPTS` can be supplied to the backend container for memory and GC tuning.
+- Swagger UI available at `http://localhost:8080/api/swagger-ui.html` when service is up.
 
 ## Notes
 - The backend Dockerfile uses multi-stage Maven build. Ensure network access to Maven Central when building the image.
