@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: aitradex-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aitradex
+    username: aitradex
+    password: aitradex
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aitradex
+    username: aitradex
+    password: aitradex
+  liquibase:
+    contexts: dev
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.springframework: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aitradex_test
+    username: aitradex
+    password: aitradex
+  liquibase:
+    contexts: test
+
+logging:
+  level:
+    root: WARN
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aitradex
+    username: ${POSTGRES_USER:aitradex}
+    password: ${POSTGRES_PASSWORD:aitradex}
+  liquibase:
+    contexts: prod
+
+server:
+  port: ${PORT:8080}

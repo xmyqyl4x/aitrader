@@ -1,0 +1,38 @@
+# Java / Maven
+target/
+*.iml
+.idea/
+.project
+.classpath
+.settings/
+mvnw
+mvnw.cmd
+.mvn/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Liquibase
+/aitradex-service/src/main/resources/db/changelog/*.properties
+
+# Node / Angular
+aitradex-ui/node_modules/
+aitradex-ui/dist/
+aitradex-ui/.angular/cache/
+aitradex-ui/.angular/
+aitradex-ui/.npm/
+aitradex-ui/.eslintcache
+aitradex-ui/package-lock.json
+aitradex-ui/yarn.lock
+
+# Env
+.env
+*.env
+
+# Editor
+.vscode/
