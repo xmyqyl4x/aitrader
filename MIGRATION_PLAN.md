@@ -15,6 +15,7 @@ This document captures the current-state audit of the repository and a target ar
 | API docs & observability | Completed | Swagger UI enabled via springdoc; actuator health/info exposed for container/compose runs. |
 | CORS and UI integration readiness | Completed | Configurable CORS for /api added for Angular dev and containerized UI. |
 | Security baseline (JWT auth & role protection) | Completed | Added stateless JWT auth with role-based API access and container env configuration. |
+| Positions & portfolio snapshot APIs | Completed | Added services/controllers for positions and portfolio snapshots with stop-loss updates and filtering by account. |
 
 ## Phase 1 — Deep Discovery
 
