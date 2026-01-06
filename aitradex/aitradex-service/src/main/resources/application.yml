@@ -1,6 +1,9 @@
 spring:
   application:
     name: aitradex-service
+app:
+  cors:
+    allowed-origins: "*"
   datasource:
     url: jdbc:postgresql://localhost:5432/aitradex
     username: aitradex

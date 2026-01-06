@@ -13,6 +13,7 @@ This document captures the current-state audit of the repository and a target ar
 | Service & API layer (core CRUD) | Completed | Added baseline services/controllers, DTOs, validation, and API exception handling. |
 | Containerization (Docker build/package/run) | Completed | Added backend/UI Dockerfiles, compose stack, and container run documentation. |
 | API docs & observability | Completed | Swagger UI enabled via springdoc; actuator health/info exposed for container/compose runs. |
+| CORS and UI integration readiness | In Progress | Adding configurable CORS for /api to support Angular dev and containerized UI. |
 
 ## Phase 1 — Deep Discovery
 
