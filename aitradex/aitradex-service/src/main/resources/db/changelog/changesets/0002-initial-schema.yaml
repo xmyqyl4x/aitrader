@@ -1,0 +1,250 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0002-initial-schema
+      author: aitradex
+      context: dev,test,prod
+      logicalFilePath: db/changelog/changesets/0002-initial-schema.yaml
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: email, type: varchar(255), constraints: {nullable: false, unique: true}}
+              - column: {name: display_name, type: varchar(255), constraints: {nullable: false}}
+              - column: {name: role, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: api_key_hash, type: text}
+              - column: {name: oidc_subject, type: varchar(255)}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz}
+
+        - createTable:
+            tableName: accounts
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: user_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: base_currency, type: varchar(12), constraints: {nullable: false}}
+              - column: {name: cash_balance, type: numeric(19,4), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz}
+        - addForeignKeyConstraint:
+            baseTableName: accounts
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_accounts_user
+        - createIndex:
+            tableName: accounts
+            indexName: idx_accounts_user
+            columns:
+              - column: {name: user_id}
+
+        - createTable:
+            tableName: positions
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: quantity, type: numeric(19,8), constraints: {nullable: false}}
+              - column: {name: cost_basis, type: numeric(19,8), constraints: {nullable: false}}
+              - column: {name: stop_loss, type: numeric(19,8)}
+              - column: {name: opened_at, type: timestamptz, constraints: {nullable: false}}
+              - column: {name: closed_at, type: timestamptz}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz}
+        - addForeignKeyConstraint:
+            baseTableName: positions
+            baseColumnNames: account_id
+            referencedTableName: accounts
+            referencedColumnNames: id
+            constraintName: fk_positions_account
+        - createIndex:
+            tableName: positions
+            indexName: idx_positions_account
+            columns:
+              - column: {name: account_id}
+
+        - createTable:
+            tableName: orders
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: side, type: varchar(12), constraints: {nullable: false}}
+              - column: {name: type, type: varchar(16), constraints: {nullable: false}}
+              - column: {name: status, type: varchar(24), constraints: {nullable: false}}
+              - column: {name: limit_price, type: numeric(19,8)}
+              - column: {name: stop_price, type: numeric(19,8)}
+              - column: {name: quantity, type: numeric(19,8), constraints: {nullable: false}}
+              - column: {name: routed_at, type: timestamptz}
+              - column: {name: filled_at, type: timestamptz}
+              - column: {name: source, type: varchar(24), constraints: {nullable: false}}
+              - column: {name: notes, type: varchar(512)}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz}
+        - addForeignKeyConstraint:
+            baseTableName: orders
+            baseColumnNames: account_id
+            referencedTableName: accounts
+            referencedColumnNames: id
+            constraintName: fk_orders_account
+        - createIndex:
+            tableName: orders
+            indexName: idx_orders_account
+            columns:
+              - column: {name: account_id}
+        - createIndex:
+            tableName: orders
+            indexName: idx_orders_symbol
+            columns:
+              - column: {name: symbol}
+
+        - createTable:
+            tableName: executions
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: order_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: price, type: numeric(19,8), constraints: {nullable: false}}
+              - column: {name: quantity, type: numeric(19,8), constraints: {nullable: false}}
+              - column: {name: venue, type: varchar(64)}
+              - column: {name: executed_at, type: timestamptz, constraints: {nullable: false}}
+        - addForeignKeyConstraint:
+            baseTableName: executions
+            baseColumnNames: order_id
+            referencedTableName: orders
+            referencedColumnNames: id
+            constraintName: fk_executions_order
+        - createIndex:
+            tableName: executions
+            indexName: idx_executions_order
+            columns:
+              - column: {name: order_id}
+
+        - createTable:
+            tableName: portfolio_snapshots
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: as_of_date, type: date, constraints: {nullable: false}}
+              - column: {name: equity, type: numeric(19,4), constraints: {nullable: false}}
+              - column: {name: cash, type: numeric(19,4), constraints: {nullable: false}}
+              - column: {name: pnl, type: numeric(19,4)}
+              - column: {name: drawdown, type: numeric(19,4)}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - addForeignKeyConstraint:
+            baseTableName: portfolio_snapshots
+            baseColumnNames: account_id
+            referencedTableName: accounts
+            referencedColumnNames: id
+            constraintName: fk_portfolio_snapshots_account
+        - createIndex:
+            tableName: portfolio_snapshots
+            indexName: idx_portfolio_snapshots_account
+            columns:
+              - column: {name: account_id}
+
+        - createTable:
+            tableName: trade_logs
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: action, type: varchar(64), constraints: {nullable: false}}
+              - column: {name: reason, type: varchar(512)}
+              - column: {name: metadata, type: jsonb}
+              - column: {name: occurred_at, type: timestamptz, constraints: {nullable: false}}
+        - addForeignKeyConstraint:
+            baseTableName: trade_logs
+            baseColumnNames: account_id
+            referencedTableName: accounts
+            referencedColumnNames: id
+            constraintName: fk_trade_logs_account
+        - createIndex:
+            tableName: trade_logs
+            indexName: idx_trade_logs_account
+            columns:
+              - column: {name: account_id}
+
+        - createTable:
+            tableName: uploads
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: user_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: type, type: varchar(24), constraints: {nullable: false}}
+              - column: {name: status, type: varchar(24), constraints: {nullable: false}}
+              - column: {name: file_name, type: varchar(255), constraints: {nullable: false}}
+              - column: {name: stored_path, type: varchar(512)}
+              - column: {name: parsed_row_count, type: int}
+              - column: {name: error_report, type: jsonb}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: completed_at, type: timestamptz}
+        - addForeignKeyConstraint:
+            baseTableName: uploads
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_uploads_user
+        - createIndex:
+            tableName: uploads
+            indexName: idx_uploads_user
+            columns:
+              - column: {name: user_id}
+
+        - createTable:
+            tableName: audit_logs
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: actor, type: varchar(64), constraints: {nullable: false}}
+              - column: {name: actor_type, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: action, type: varchar(128), constraints: {nullable: false}}
+              - column: {name: entity_ref, type: varchar(128), constraints: {nullable: false}}
+              - column: {name: before_state, type: jsonb}
+              - column: {name: after_state, type: jsonb}
+              - column: {name: occurred_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - createIndex:
+            tableName: audit_logs
+            indexName: idx_audit_logs_entity_ref
+            columns:
+              - column: {name: entity_ref}
+
+        - createTable:
+            tableName: benchmarks
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: name, type: varchar(255)}
+        - addUniqueConstraint:
+            tableName: benchmarks
+            columnNames: symbol
+            constraintName: uq_benchmarks_symbol
+
+        - createTable:
+            tableName: quote_snapshots
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: as_of, type: timestamptz, constraints: {nullable: false}}
+              - column: {name: open, type: numeric(19,8)}
+              - column: {name: high, type: numeric(19,8)}
+              - column: {name: low, type: numeric(19,8)}
+              - column: {name: close, type: numeric(19,8)}
+              - column: {name: volume, type: bigint}
+              - column: {name: source, type: varchar(64)}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+        - createIndex:
+            tableName: quote_snapshots
+            indexName: idx_quote_snapshots_symbol_asof
+            columns:
+              - column: {name: symbol}
+              - column: {name: as_of}
+
+      rollback:
+        - dropTable: {tableName: quote_snapshots}
+        - dropTable: {tableName: benchmarks}
+        - dropTable: {tableName: audit_logs}
+        - dropTable: {tableName: uploads}
+        - dropTable: {tableName: trade_logs}
+        - dropTable: {tableName: portfolio_snapshots}
+        - dropTable: {tableName: executions}
+        - dropTable: {tableName: orders}
+        - dropTable: {tableName: positions}
+        - dropTable: {tableName: accounts}
+        - dropTable: {tableName: users}
