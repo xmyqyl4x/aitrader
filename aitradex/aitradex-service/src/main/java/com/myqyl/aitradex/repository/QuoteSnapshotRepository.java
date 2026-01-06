@@ -5,4 +5,8 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface QuoteSnapshotRepository extends JpaRepository<QuoteSnapshot, UUID> {
+
+  List<QuoteSnapshot> findBySymbolOrderByAsOfDesc(String symbol);
+
+  List<QuoteSnapshot> findTop100ByOrderByAsOfDesc();
 }

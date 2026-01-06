@@ -19,6 +19,7 @@ This document captures the current-state audit of the repository and a target ar
 | Upload ingestion APIs | Completed | Added upload metadata endpoints (create/list/get/status update) to track ingestion lifecycle. |
 | Analytics summary API | Completed | Added account-level PnL/return/drawdown summary endpoint backed by portfolio snapshots. |
 | Audit & trade log APIs | Completed | Added create/list/get endpoints for audit logs and trade logs to improve observability and reporting. |
+| Quote snapshot API | Completed | Added quote snapshot endpoints (create/list/get with symbol filter) for market data ingestion/testing. |
 
 ## Phase 1 — Deep Discovery
 
