@@ -12,7 +12,7 @@ This document captures the current-state audit of the repository and a target ar
 | Data layer implementation | Completed | Added entities, repositories, and Liquibase schema for core trading, audit, and ingestion tables. |
 | Service & API layer (core CRUD) | Completed | Added baseline services/controllers, DTOs, validation, and API exception handling. |
 | Containerization (Docker build/package/run) | Completed | Added backend/UI Dockerfiles, compose stack, and container run documentation. |
-| API docs & observability | In Progress | Adding Swagger UI (springdoc) and exposing health/info endpoints. |
+| API docs & observability | Completed | Swagger UI enabled via springdoc; actuator health/info exposed for container/compose runs. |
 
 ## Phase 1 — Deep Discovery
 
