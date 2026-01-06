@@ -10,7 +10,7 @@ This document captures the current-state audit of the repository and a target ar
 | Project structure proposal | Completed | Approved layout for backend + Angular UI, configs, and changelog locations. |
 | Project scaffolding (backend + Angular) | Completed | Created Maven aggregator, Spring Boot skeleton with Liquibase placeholder, and Angular app scaffold. |
 | Data layer implementation | Completed | Added entities, repositories, and Liquibase schema for core trading, audit, and ingestion tables. |
-| Service & API layer (core CRUD) | In Progress | Building baseline services and controllers for users, accounts, benchmarks, and orders. |
+| Service & API layer (core CRUD) | Completed | Added baseline services/controllers, DTOs, validation, and API exception handling. |
 
 ## Phase 1 — Deep Discovery
 
