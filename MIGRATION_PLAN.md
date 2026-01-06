@@ -7,8 +7,7 @@ This document captures the current-state audit of the repository and a target ar
 | --- | --- | --- |
 | Update migration plan with Angular-first UI, Liquibase adoption, and testing commitments | Completed | Locked in Angular and Liquibase; documented testing expectations. |
 | Workflow recommendation | Completed | PR-based iteration with gated reviews approved. |
-| Project structure proposal | Completed | Approved layout for backend + Angular UI, configs, and changelog locations. |
-| Project scaffolding (backend + Angular) | Completed | Created Maven aggregator, Spring Boot skeleton with Liquibase placeholder, and Angular app scaffold. |
+| Project structure proposal | In Progress | Preparing Phase 1 proposal for approval. |
 
 ## Phase 1 — Deep Discovery
 
