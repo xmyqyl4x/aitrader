@@ -79,6 +79,26 @@ class OrderServiceTest {
   }
 
   @Test
+  void createStopLimitOrderRequiresStopAndLimitPrice() {
+    UUID accountId = UUID.randomUUID();
+    when(accountRepository.findById(accountId)).thenReturn(Optional.of(account(accountId)));
+
+    CreateOrderRequest request =
+        new CreateOrderRequest(
+            accountId,
+            "AAPL",
+            OrderSide.BUY,
+            OrderType.STOP_LIMIT,
+            OrderSource.MANUAL,
+            null,
+            BigDecimal.TEN,
+            BigDecimal.ONE,
+            null);
+
+    assertThrows(IllegalArgumentException.class, () -> orderService.create(request));
+  }
+
+  @Test
   void createBuyOrderRejectsWhenCashIsInsufficient() {
     UUID accountId = UUID.randomUUID();
     Account account = account(accountId);

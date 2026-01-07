@@ -47,6 +47,11 @@ This document captures the current-state audit of the repository and a target ar
 | Stop-loss manual trigger API | Completed | Added admin endpoint to run stop-loss checks on demand. |
 | Trading validation tests | Completed | Added unit tests covering order validation failures. |
 | Stop-loss automation tests | Completed | Added unit tests for stop-loss order creation and audit logging. |
+| Market data cache tests | Completed | Added unit test to assert cache hits within TTL. |
+| Upload validation tests | Completed | Added unit test to ensure CSV staging records row-level errors. |
+| Analytics per-symbol PnL tests | Completed | Added unit test ensuring per-symbol PnL results are sorted. |
+| Snapshot computation tests | Completed | Added unit test for snapshot equity/pnl calculation. |
+| Stop-limit order validation tests | Completed | Added unit test ensuring stop-limit requires stop + limit prices. |
 
 ## Phase 1 — Deep Discovery
 
