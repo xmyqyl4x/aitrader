@@ -6,7 +6,6 @@ import { PositionsComponent } from './features/positions/positions.component';
 import { UploadsComponent } from './features/uploads/uploads.component';
 import { AnalyticsComponent } from './features/analytics/analytics.component';
 import { AuditComponent } from './features/audit/audit.component';
-import { ConfigComponent } from './features/config/config.component';
 
 const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -16,7 +15,7 @@ const routes: Routes = [
   { path: 'uploads', component: UploadsComponent },
   { path: 'analytics', component: AnalyticsComponent },
   { path: 'audit', component: AuditComponent },
-  { path: 'config', component: ConfigComponent }
+  { path: '**', redirectTo: '' }
 ];
 
 @NgModule({
