@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(PortfolioSnapshotController.class)
@@ -26,7 +25,6 @@ class PortfolioSnapshotControllerTest {
   @MockBean private PortfolioSnapshotService snapshotService;
 
   @Test
-  @WithMockUser(roles = "ADMIN")
   void runSnapshotReturnsSnapshot() throws Exception {
     UUID accountId = UUID.randomUUID();
     PortfolioSnapshotDto dto =

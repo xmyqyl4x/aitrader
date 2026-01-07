@@ -7,9 +7,28 @@ app:
     max-size-mb: ${APP_UPLOADS_MAX_SIZE_MB:25}
     max-validation-errors: ${APP_UPLOADS_MAX_VALIDATION_ERRORS:50}
   market-data:
-    default-source: ${APP_MARKET_DATA_DEFAULT_SOURCE:quote-snapshots}
+    default-source: ${APP_MARKET_DATA_DEFAULT_SOURCE:alphavantage}
     cache-ttl: ${APP_MARKET_DATA_CACHE_TTL:30s}
     cache-evict-interval-ms: ${APP_MARKET_DATA_CACHE_EVICT_MS:300000}
+    stream-poll-interval: ${APP_MARKET_DATA_STREAM_POLL_INTERVAL:10s}
+    stream-max-duration: ${APP_MARKET_DATA_STREAM_MAX_DURATION:5m}
+    providers:
+      alphavantage:
+        enabled: true
+        priority: 1
+      yahoo:
+        enabled: true
+        priority: 2
+      stooq:
+        enabled: true
+        priority: 3
+      quote-snapshots:
+        enabled: true
+        priority: 4
+  alpha-vantage:
+    api-key: ${ALPHA_VANTAGE_API_KEY:B8IQ3ONTC1RTKRH7}
+    base-url: ${ALPHA_VANTAGE_BASE_URL:https://www.alphavantage.co}
+    enabled: ${ALPHA_VANTAGE_ENABLED:true}
   stop-loss:
     poll-interval-ms: ${APP_STOP_LOSS_POLL_MS:60000}
     source: ${APP_STOP_LOSS_SOURCE:quote-snapshots}
