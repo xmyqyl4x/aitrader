@@ -64,6 +64,11 @@ npm install
 npm run build</code></pre>
   <p>Build artifacts are emitted to <code>aitradex-ui/dist/aitradex-ui</code>.</p>
 
+  <h3>Container Images (optional)</h3>
+  <pre><code>cd aitradex
+docker build -t aitradex-service -f aitradex-service/Dockerfile .
+docker build -t aitradex-ui -f aitradex-ui/Dockerfile ./aitradex-ui</code></pre>
+
   <h2>Tests</h2>
 
   <h3>Backend</h3>

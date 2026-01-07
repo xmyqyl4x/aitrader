@@ -40,6 +40,14 @@ npm run build
 
 Build artifacts are emitted to `aitradex-ui/dist/aitradex-ui`.
 
+### Container Images (optional)
+
+```bash
+cd aitradex
+docker build -t aitradex-service -f aitradex-service/Dockerfile .
+docker build -t aitradex-ui -f aitradex-ui/Dockerfile ./aitradex-ui
+```
+
 ## Tests
 
 ### Backend
