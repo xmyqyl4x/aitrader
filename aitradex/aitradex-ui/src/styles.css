@@ -1,0 +1,10 @@
+/* Global styles for Aitradex Angular UI */
+:root {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  color: #1f2937;
+  background-color: #f9fafb;
+}
+
+body {
+  margin: 0;
+}
