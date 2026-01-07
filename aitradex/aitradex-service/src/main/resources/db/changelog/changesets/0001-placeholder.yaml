@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0001-placeholder
+      author: aitradex
+      context: dev,test,prod
+      comment: "Placeholder to initialize Liquibase pipeline; replace with real schema."
+      changes:
+        - sql:
+            sql: "SELECT 1;"

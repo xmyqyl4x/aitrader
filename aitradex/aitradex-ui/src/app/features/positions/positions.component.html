@@ -1,0 +1,38 @@
+<section class="page">
+  <header>
+    <h2>Positions</h2>
+    <p>Monitor open and closed positions.</p>
+  </header>
+
+  <div class="card">
+    <label>
+      Account ID
+      <input [(ngModel)]="accountId" placeholder="UUID" />
+    </label>
+    <label class="toggle">
+      <input type="checkbox" [(ngModel)]="openOnly" />
+      Open only
+    </label>
+    <button (click)="loadPositions()">Refresh</button>
+    <p class="error" *ngIf="error">{{ error }}</p>
+  </div>
+
+  <div class="table" *ngIf="positions.length">
+    <div class="row header">
+      <span>Symbol</span>
+      <span>Quantity</span>
+      <span>Cost Basis</span>
+      <span>Stop Loss</span>
+      <span>Opened</span>
+      <span>Status</span>
+    </div>
+    <div class="row" *ngFor="let position of positions">
+      <span>{{ position.symbol }}</span>
+      <span>{{ position.quantity }}</span>
+      <span>{{ position.costBasis | number: '1.2-2' }}</span>
+      <span>{{ position.stopLoss || '-' }}</span>
+      <span>{{ position.openedAt | date: 'short' }}</span>
+      <span>{{ position.closedAt ? 'Closed' : 'Open' }}</span>
+    </div>
+  </div>
+</section>
