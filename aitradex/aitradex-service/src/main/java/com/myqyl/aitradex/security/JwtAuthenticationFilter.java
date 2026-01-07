@@ -9,7 +9,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.WebUtils;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -51,7 +50,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
     // Skip filtering for Swagger/OpenAPI, health/info endpoints
-    String path = WebUtils.getPathWithinApplication(request);
+    String contextPath = request.getContextPath() == null ? "" : request.getContextPath();
+    String path = request.getRequestURI();
+    if (path.startsWith(contextPath)) {
+      path = path.substring(contextPath.length());
+    }
     return path.startsWith("/api/swagger-ui")
         || path.startsWith("/api/docs")
         || path.startsWith("/v3/api-docs")
