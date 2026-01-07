@@ -3,8 +3,8 @@ databaseChangeLog:
       name: defaultSchema
       value: public
   - include:
-      file: db/changelog/changesets/0001-placeholder.yaml
+      file: changesets/0001-placeholder.yaml
       relativeToChangelogFile: true
   - include:
-      file: db/changelog/changesets/0002-initial-schema.yaml
+      file: changesets/0002-initial-schema.yaml
       relativeToChangelogFile: true
