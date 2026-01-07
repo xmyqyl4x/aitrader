@@ -3,6 +3,7 @@ package com.myqyl.aitradex.api.controller;
 import com.myqyl.aitradex.api.dto.CreateUploadRequest;
 import com.myqyl.aitradex.api.dto.UpdateUploadStatusRequest;
 import com.myqyl.aitradex.api.dto.UploadDto;
+import com.myqyl.aitradex.domain.UploadStatus;
 import com.myqyl.aitradex.domain.UploadType;
 import com.myqyl.aitradex.service.UploadService;
 import jakarta.validation.Valid;
@@ -47,8 +48,10 @@ public class UploadController {
   }
 
   @GetMapping
-  public List<UploadDto> list() {
-    return uploadService.list();
+  public List<UploadDto> list(
+      @RequestParam(value = "userId", required = false) UUID userId,
+      @RequestParam(value = "status", required = false) UploadStatus status) {
+    return uploadService.list(userId, status);
   }
 
   @GetMapping("/{id}")

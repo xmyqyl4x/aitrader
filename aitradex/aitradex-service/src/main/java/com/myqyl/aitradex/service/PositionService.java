@@ -62,8 +62,16 @@ public class PositionService {
   }
 
   @Transactional(readOnly = true)
-  public List<PositionDto> list() {
-    return positionRepository.findAll().stream().map(this::toDto).toList();
+  public List<PositionDto> list(UUID accountId, boolean openOnly) {
+    List<Position> positions;
+    if (accountId != null && openOnly) {
+      positions = positionRepository.findByAccountIdAndClosedAtIsNullOrderByOpenedAtDesc(accountId);
+    } else if (accountId != null) {
+      positions = positionRepository.findByAccountIdOrderByOpenedAtDesc(accountId);
+    } else {
+      positions = positionRepository.findAll();
+    }
+    return positions.stream().map(this::toDto).toList();
   }
 
   @Transactional(readOnly = true)

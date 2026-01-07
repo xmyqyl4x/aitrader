@@ -29,6 +29,10 @@ This document captures the current-state audit of the repository and a target ar
 | Portfolio snapshot time-series filter | Completed | Added date range filtering for portfolio snapshots. |
 | Upload validation and size limits | Completed | Added upload size/type validation with configurable limit. |
 | Market data source selection | Completed | Added optional source selection for latest-quote API. |
+| Order list filtering | Completed | Added account/status filters for order listings. |
+| Position list filtering | Completed | Added account/open-only filters for position listings. |
+| Upload list filtering | Completed | Added user/status filters for upload listings. |
+| Audit log actor filter | Completed | Added actor filter for audit log queries. |
 
 ## Phase 1 — Deep Discovery
 

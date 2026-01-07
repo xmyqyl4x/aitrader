@@ -34,7 +34,11 @@ public class AuditLogController {
 
   @GetMapping
   public List<AuditLogDto> list(
-      @RequestParam(value = "entityRef", required = false) String entityRef) {
+      @RequestParam(value = "entityRef", required = false) String entityRef,
+      @RequestParam(value = "actor", required = false) String actor) {
+    if (actor != null && !actor.isBlank()) {
+      return auditLogService.listByActor(actor);
+    }
     return auditLogService.list(entityRef);
   }
 

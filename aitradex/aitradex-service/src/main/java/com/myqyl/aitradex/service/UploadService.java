@@ -106,8 +106,18 @@ public class UploadService {
   }
 
   @Transactional(readOnly = true)
-  public List<UploadDto> list() {
-    return uploadRepository.findAll().stream().map(this::toDto).toList();
+  public List<UploadDto> list(UUID userId, UploadStatus status) {
+    List<Upload> uploads;
+    if (userId != null && status != null) {
+      uploads = uploadRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status);
+    } else if (userId != null) {
+      uploads = uploadRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    } else if (status != null) {
+      uploads = uploadRepository.findByStatusOrderByCreatedAtDesc(status);
+    } else {
+      uploads = uploadRepository.findAll();
+    }
+    return uploads.stream().map(this::toDto).toList();
   }
 
   @Transactional(readOnly = true)

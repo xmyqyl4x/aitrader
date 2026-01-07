@@ -49,8 +49,18 @@ public class OrderService {
   }
 
   @Transactional(readOnly = true)
-  public List<OrderDto> list() {
-    return orderRepository.findAll().stream().map(this::toDto).toList();
+  public List<OrderDto> list(UUID accountId, OrderStatus status) {
+    List<Order> orders;
+    if (accountId != null && status != null) {
+      orders = orderRepository.findByAccountIdAndStatusOrderByCreatedAtDesc(accountId, status);
+    } else if (accountId != null) {
+      orders = orderRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
+    } else if (status != null) {
+      orders = orderRepository.findByStatusOrderByCreatedAtDesc(status);
+    } else {
+      orders = orderRepository.findAll();
+    }
+    return orders.stream().map(this::toDto).toList();
   }
 
   @Transactional(readOnly = true)

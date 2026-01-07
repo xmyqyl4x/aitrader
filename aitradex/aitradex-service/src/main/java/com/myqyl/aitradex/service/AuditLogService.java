@@ -45,6 +45,12 @@ public class AuditLogService {
   }
 
   @Transactional(readOnly = true)
+  public List<AuditLogDto> listByActor(String actor) {
+    List<AuditLog> logs = auditLogRepository.findByActorOrderByOccurredAtDesc(actor);
+    return logs.stream().map(this::toDto).toList();
+  }
+
+  @Transactional(readOnly = true)
   public AuditLogDto get(UUID id) {
     return auditLogRepository.findById(id).map(this::toDto).orElseThrow(() -> auditNotFound(id));
   }

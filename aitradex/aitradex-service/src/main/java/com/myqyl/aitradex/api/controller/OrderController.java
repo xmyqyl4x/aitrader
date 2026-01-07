@@ -3,6 +3,7 @@ package com.myqyl.aitradex.api.controller;
 import com.myqyl.aitradex.api.dto.CreateOrderRequest;
 import com.myqyl.aitradex.api.dto.OrderDto;
 import com.myqyl.aitradex.api.dto.UpdateOrderStatusRequest;
+import com.myqyl.aitradex.domain.OrderStatus;
 import com.myqyl.aitradex.service.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,8 +36,10 @@ public class OrderController {
   }
 
   @GetMapping
-  public List<OrderDto> listOrders() {
-    return orderService.list();
+  public List<OrderDto> listOrders(
+      @RequestParam(value = "accountId", required = false) UUID accountId,
+      @RequestParam(value = "status", required = false) OrderStatus status) {
+    return orderService.list(accountId, status);
   }
 
   @GetMapping("/{id}")
