@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ChatGPT Micro-Cap Experiment</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      line-height: 1.6;
+      color: #1b1b1b;
+    }
+    code, pre {
+      font-family: "Courier New", Courier, monospace;
+      background: #f6f8fa;
+    }
+    pre {
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    h1, h2, h3 {
+      color: #111827;
+    }
+    ul {
+      margin-left: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>ChatGPT Micro-Cap Experiment</h1>
+  <p>
+    Welcome to the repo behind my 6-month live trading experiment where ChatGPT manages a real-money
+    micro-cap portfolio.
+  </p>
+
+  <h2>Build, Test, and Run</h2>
+
+  <h3>Build / Install Dependencies</h3>
+  <p>This project is a Python application, so “build” means creating an isolated environment and installing dependencies:</p>
+  <pre><code>python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt</code></pre>
+
+  <p>If you plan to use the automated LLM workflow, also install the OpenAI SDK:</p>
+  <pre><code>pip install openai</code></pre>
+
+  <h3>Tests</h3>
+  <p>
+    There is no automated test suite in this repository right now. The recommended validation is to run
+    the scripts in dry-run or report mode and confirm the CSV outputs update as expected.
+  </p>
+
+  <h3>Run the Application</h3>
+
+  <h4>1) Manual daily workflow (primary trading script)</h4>
+  <p>Process a daily portfolio CSV file:</p>
+  <pre><code>python trading_script.py --file "Start Your Own/chatgpt_portfolio_update.csv"</code></pre>
+  <p>Process a historical date:</p>
+  <pre><code>python trading_script.py --asof 2025-08-27 --file "Start Your Own/chatgpt_portfolio_update.csv"</code></pre>
+
+  <h4>2) Generate performance graphs</h4>
+  <pre><code>python "Start Your Own/Generate_Graph.py" --start-equity 100</code></pre>
+  <p>Optional flags (full list in <code>Start Your Own/README.md</code>):</p>
+  <pre><code>python "Start Your Own/Generate_Graph.py" --start-date 2025-01-01 --end-date 2025-06-30 --output Results.png</code></pre>
+
+  <h4>3) Automated LLM workflow (optional)</h4>
+  <pre><code>export OPENAI_API_KEY="your-openai-api-key"
+python simple_automation.py --dry-run</code></pre>
+
+  <h3>Access the Application Outputs</h3>
+  <ul>
+    <li><strong>CSV data:</strong> Updated in <code>Start Your Own/</code> (e.g., <code>chatgpt_portfolio_update.csv</code>, <code>chatgpt_trade_log.csv</code>).</li>
+    <li><strong>Logs:</strong> Automated runs store LLM responses in <code>Start Your Own/llm_responses.jsonl</code> and <code>Start Your Own/automated_trades.jsonl</code>.</li>
+    <li><strong>Charts:</strong> <code>Generate_Graph.py</code> opens a chart window or saves a file when <code>--output</code> is provided.</li>
+  </ul>
+</body>
+</html>
