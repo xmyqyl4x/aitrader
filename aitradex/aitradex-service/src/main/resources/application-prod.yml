@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/aitradex
+    username: ${POSTGRES_USER:aitradex}
+    password: ${POSTGRES_PASSWORD:aitradex}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
