@@ -95,6 +95,69 @@ This project is an attempt to find out — with transparency, data, and a real b
 - Internet connection for market data
 - ~10MB storage for CSV data files
 
+# Build, Test, and Run
+
+## Build / Install Dependencies
+
+This project is a Python application, so "build" means creating an isolated environment and installing the required packages:
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+If you plan to use the automated LLM workflow, also install the OpenAI SDK:
+
+```bash
+pip install openai
+```
+
+## Tests
+
+There is no automated test suite in this repository right now. The recommended validation is to run the scripts in dry-run or report mode and confirm the CSV outputs update as expected.
+
+## Run the Application
+
+### 1) Manual daily workflow (primary trading script)
+
+Process a daily portfolio CSV file:
+
+```bash
+python trading_script.py --file "Start Your Own/chatgpt_portfolio_update.csv"
+```
+
+Process a historical date:
+
+```bash
+python trading_script.py --asof 2025-08-27 --file "Start Your Own/chatgpt_portfolio_update.csv"
+```
+
+### 2) Generate performance graphs
+
+```bash
+python "Start Your Own/Generate_Graph.py" --start-equity 100
+```
+
+Optional flags (full list in `Start Your Own/README.md`):
+
+```bash
+python "Start Your Own/Generate_Graph.py" --start-date 2025-01-01 --end-date 2025-06-30 --output Results.png
+```
+
+### 3) Automated LLM workflow (optional)
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+python simple_automation.py --dry-run
+```
+
+## Access the Application Outputs
+
+- **CSV data:** Updated in `Start Your Own/` (e.g., `chatgpt_portfolio_update.csv`, `chatgpt_trade_log.csv`).
+- **Logs:** Automated runs store LLM responses in `Start Your Own/llm_responses.jsonl` and `Start Your Own/automated_trades.jsonl`.
+- **Charts:** `Generate_Graph.py` opens a chart window or saves a file when `--output` is provided.
+
 # Follow Along
 The experiment runs from June 2025 to December 2025.  
 Every trading day I will update the portfolio CSV file.  
