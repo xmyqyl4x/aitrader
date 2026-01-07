@@ -21,6 +21,7 @@ This document captures the current-state audit of the repository and a target ar
 | Audit & trade log APIs | Completed | Added create/list/get endpoints for audit logs and trade logs to improve observability and reporting. |
 | Quote snapshot API | Completed | Added quote snapshot endpoints (create/list/get with symbol filter) for market data ingestion/testing. |
 | Market data adapter (snapshot-backed) | Completed | Added adapter/service/controller to expose latest quotes via stored quote snapshots. |
+| Order lifecycle status updates | Completed | Added endpoint to update order status and timestamps (routed/filled) for lifecycle tracking. |
 
 ## Phase 1 — Deep Discovery
 
