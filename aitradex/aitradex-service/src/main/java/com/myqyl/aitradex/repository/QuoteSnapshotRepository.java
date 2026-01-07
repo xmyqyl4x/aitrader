@@ -10,4 +10,6 @@ public interface QuoteSnapshotRepository extends JpaRepository<QuoteSnapshot, UU
   List<QuoteSnapshot> findBySymbolOrderByAsOfDesc(String symbol);
 
   List<QuoteSnapshot> findTop100ByOrderByAsOfDesc();
+
+  long countBySource(String source);
 }

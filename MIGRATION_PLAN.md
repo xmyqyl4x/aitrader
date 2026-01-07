@@ -33,6 +33,9 @@ This document captures the current-state audit of the repository and a target ar
 | Position list filtering | Completed | Added account/open-only filters for position listings. |
 | Upload list filtering | Completed | Added user/status filters for upload listings. |
 | Audit log actor filter | Completed | Added actor filter for audit log queries. |
+| Market data health telemetry | Completed | Added health endpoint exposing quote counts by source. |
+| Analytics equity time-series | Completed | Added equity curve endpoint backed by portfolio snapshots. |
+| Upload content-type validation | Completed | Added content-type validation for uploads. |
 
 ## Phase 1 — Deep Discovery
 

@@ -4,6 +4,7 @@ import com.myqyl.aitradex.api.dto.MarketDataQuoteDto;
 import com.myqyl.aitradex.service.MarketDataService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,5 +30,10 @@ public class MarketDataController {
   @GetMapping("/sources")
   public List<String> sources() {
     return marketDataService.listSources();
+  }
+
+  @GetMapping("/health")
+  public Map<String, Long> health() {
+    return marketDataService.sourceCounts();
   }
 }

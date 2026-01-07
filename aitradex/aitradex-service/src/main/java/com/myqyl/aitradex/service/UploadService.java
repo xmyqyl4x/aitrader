@@ -161,6 +161,21 @@ public class UploadService {
     if (file.getSize() > maxUploadBytes) {
       throw new IllegalArgumentException("Uploaded file exceeds size limit");
     }
+    String contentType = file.getContentType();
+    if (contentType != null && !contentType.isBlank()) {
+      boolean validContentType =
+          switch (type) {
+            case CSV -> contentType.equals("text/csv")
+                || contentType.equals("application/vnd.ms-excel");
+            case JSON -> contentType.equals("application/json");
+            case EXCEL -> contentType.equals("application/vnd.ms-excel")
+                || contentType.equals(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          };
+      if (!validContentType) {
+        throw new IllegalArgumentException("Uploaded file content type does not match type");
+      }
+    }
     String filename = file.getOriginalFilename();
     if (filename == null) {
       return;

@@ -1,6 +1,7 @@
 package com.myqyl.aitradex.service;
 
 import com.myqyl.aitradex.api.dto.AnalyticsSummaryDto;
+import com.myqyl.aitradex.api.dto.EquityPointDto;
 import com.myqyl.aitradex.domain.PortfolioSnapshot;
 import com.myqyl.aitradex.exception.NotFoundException;
 import com.myqyl.aitradex.repository.AccountRepository;
@@ -8,6 +9,7 @@ import com.myqyl.aitradex.repository.PortfolioSnapshotRepository;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -59,6 +61,19 @@ public class AnalyticsService {
         absolutePnl,
         returnPct,
         maxDrawdown);
+  }
+
+  @Transactional(readOnly = true)
+  public List<EquityPointDto> equityCurve(UUID accountId, LocalDate startDate, LocalDate endDate) {
+    accountRepository.findById(accountId).orElseThrow(() -> accountNotFound(accountId));
+    List<PortfolioSnapshot> snapshots =
+        snapshotRepository.findByAccountIdAndAsOfDateBetweenOrderByAsOfDateAsc(
+            accountId,
+            startDate != null ? startDate : LocalDate.of(1970, 1, 1),
+            endDate != null ? endDate : LocalDate.of(2999, 12, 31));
+    return snapshots.stream()
+        .map(snapshot -> new EquityPointDto(snapshot.getAsOfDate(), snapshot.getEquity(), snapshot.getDrawdown()))
+        .toList();
   }
 
   private BigDecimal calculateMaxDrawdown(List<PortfolioSnapshot> snapshots) {
