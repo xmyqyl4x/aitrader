@@ -1,0 +1,60 @@
+<section class="page">
+  <header>
+    <h2>Analytics</h2>
+    <p>Review performance summaries and equity curves.</p>
+  </header>
+
+  <div class="card">
+    <label>
+      Account ID
+      <input [(ngModel)]="accountId" placeholder="UUID" />
+    </label>
+    <button (click)="load()">Load Analytics</button>
+    <p class="error" *ngIf="error">{{ error }}</p>
+  </div>
+
+  <div class="summary" *ngIf="summary">
+    <div>
+      <h4>Equity Change</h4>
+      <span>{{ summary.startingEquity | number: '1.2-2' }} → {{ summary.endingEquity | number: '1.2-2' }}</span>
+    </div>
+    <div>
+      <h4>Return</h4>
+      <span>{{ summary.returnPct | number: '1.2-2' }}%</span>
+    </div>
+    <div>
+      <h4>Max Drawdown</h4>
+      <span>{{ summary.maxDrawdown | number: '1.2-2' }}%</span>
+    </div>
+  </div>
+
+  <div class="table" *ngIf="equity.length">
+    <div class="row header equity">
+      <span>Date</span>
+      <span>Equity</span>
+      <span>Drawdown</span>
+    </div>
+    <div class="row equity" *ngFor="let point of equity">
+      <span>{{ point.asOfDate }}</span>
+      <span>{{ point.equity | number: '1.2-2' }}</span>
+      <span>{{ point.drawdown || 0 | number: '1.2-2' }}%</span>
+    </div>
+  </div>
+
+  <div class="table" *ngIf="pnl.length">
+    <div class="row header pnl">
+      <span>Symbol</span>
+      <span>Quantity</span>
+      <span>Cost Basis</span>
+      <span>Last Price</span>
+      <span>Unrealized PnL</span>
+    </div>
+    <div class="row pnl" *ngFor="let item of pnl">
+      <span>{{ item.symbol }}</span>
+      <span>{{ item.quantity }}</span>
+      <span>{{ item.costBasis | number: '1.2-2' }}</span>
+      <span>{{ item.lastPrice | number: '1.2-2' }}</span>
+      <span>{{ item.unrealizedPnl | number: '1.2-2' }}</span>
+    </div>
+  </div>
+</section>
