@@ -6,6 +6,5 @@ import { Component } from '@angular/core';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  readonly title = 'Aitradex';
-  readonly tagline = 'Angular UI scaffold for trading and analytics';
+  title = 'Aitradex Control Center';
 }

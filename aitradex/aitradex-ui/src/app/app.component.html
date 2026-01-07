@@ -1,10 +1,16 @@
-<main class="hero">
-  <section class="hero__content">
+<div class="layout">
+  <aside class="sidebar">
     <h1>{{ title }}</h1>
-    <p>{{ tagline }}</p>
-    <div class="hero__actions">
-      <a class="button" routerLink="/">Dashboard (coming soon)</a>
-      <a class="button button--secondary" routerLink="/">API health</a>
-    </div>
-  </section>
-</main>
+    <nav>
+      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+      <a routerLink="/orders" routerLinkActive="active">Orders</a>
+      <a routerLink="/positions" routerLinkActive="active">Positions</a>
+      <a routerLink="/uploads" routerLinkActive="active">Uploads</a>
+      <a routerLink="/analytics" routerLinkActive="active">Analytics</a>
+      <a routerLink="/audit" routerLinkActive="active">Audit Log</a>
+    </nav>
+  </aside>
+  <main class="content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

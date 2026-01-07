@@ -62,6 +62,12 @@ This document captures the current-state audit of the repository and a target ar
 | Risk endpoint tests | Completed | Added controller test for stop-loss manual trigger. |
 | Snapshot endpoint tests | Completed | Added controller test for manual snapshot run. |
 | Spring security test support | Completed | Added spring-security-test dependency for controller tests. |
+| Angular dashboard | Completed | Added dashboard layout with summary metrics and account input. |
+| Angular orders | Completed | Added order form and order table view. |
+| Angular positions | Completed | Added position listing with account filters. |
+| Angular uploads | Completed | Added upload form, list view, and validation actions. |
+| Angular analytics | Completed | Added analytics summary, equity, and per-symbol PnL views. |
+| Angular audit log | Completed | Added audit log filtering and list view. |
 
 ## Phase 1 — Deep Discovery
 
