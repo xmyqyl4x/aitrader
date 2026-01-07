@@ -2,6 +2,7 @@ package com.myqyl.aitradex.api.controller;
 
 import com.myqyl.aitradex.api.dto.CreatePositionRequest;
 import com.myqyl.aitradex.api.dto.PositionDto;
+import com.myqyl.aitradex.api.dto.UpdatePositionCloseRequest;
 import com.myqyl.aitradex.api.dto.UpdateStopLossRequest;
 import com.myqyl.aitradex.service.PositionService;
 import jakarta.validation.Valid;
@@ -47,5 +48,10 @@ public class PositionController {
   public PositionDto updateStopLoss(
       @PathVariable UUID id, @Valid @RequestBody UpdateStopLossRequest request) {
     return positionService.updateStopLoss(id, request);
+  }
+
+  @PatchMapping("/{id}/close")
+  public PositionDto close(@PathVariable UUID id, @RequestBody UpdatePositionCloseRequest request) {
+    return positionService.close(id, request);
   }
 }

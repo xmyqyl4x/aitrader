@@ -2,6 +2,7 @@ package com.myqyl.aitradex.service;
 
 import com.myqyl.aitradex.api.dto.CreatePositionRequest;
 import com.myqyl.aitradex.api.dto.PositionDto;
+import com.myqyl.aitradex.api.dto.UpdatePositionCloseRequest;
 import com.myqyl.aitradex.api.dto.UpdateStopLossRequest;
 import com.myqyl.aitradex.domain.Account;
 import com.myqyl.aitradex.domain.Position;
@@ -9,6 +10,7 @@ import com.myqyl.aitradex.exception.NotFoundException;
 import com.myqyl.aitradex.repository.AccountRepository;
 import com.myqyl.aitradex.repository.PositionRepository;
 import java.math.RoundingMode;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -48,6 +50,14 @@ public class PositionService {
     Position position =
         positionRepository.findById(positionId).orElseThrow(() -> positionNotFound(positionId));
     position.setStopLoss(request.stopLoss());
+    return toDto(positionRepository.save(position));
+  }
+
+  @Transactional
+  public PositionDto close(UUID positionId, UpdatePositionCloseRequest request) {
+    Position position =
+        positionRepository.findById(positionId).orElseThrow(() -> positionNotFound(positionId));
+    position.setClosedAt(request.closedAt() != null ? request.closedAt() : OffsetDateTime.now());
     return toDto(positionRepository.save(position));
   }
 
