@@ -10,6 +10,7 @@ WORKDIR /workspace
 # Copy only pom files first for better layer caching
 COPY pom.xml .
 COPY aitradex-service/pom.xml aitradex-service/pom.xml
+COPY aitradex-ui/pom.xml aitradex-ui/pom.xml
 
 # Download dependencies (will be cached unless pom changes)
 RUN mvn -pl aitradex-service -am dependency:go-offline
