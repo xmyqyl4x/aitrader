@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aitradex</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      line-height: 1.6;
+      color: #1b1b1b;
+    }
+    code, pre {
+      font-family: "Courier New", Courier, monospace;
+      background: #f6f8fa;
+    }
+    pre {
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    h1, h2, h3 {
+      color: #111827;
+    }
+    ul {
+      margin-left: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Aitradex</h1>
+  <p>
+    Aitradex is a two-tier application composed of a Spring Boot backend and an Angular frontend, backed by PostgreSQL.
+  </p>
+
+  <h2>Components</h2>
+  <ul>
+    <li><strong>Backend:</strong> <code>aitradex-service</code> (Spring Boot 3, Java 21)</li>
+    <li><strong>Frontend:</strong> <code>aitradex-ui</code> (Angular 17)</li>
+    <li><strong>Database:</strong> PostgreSQL 16</li>
+  </ul>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>Java 21</li>
+    <li>Maven 3.9+</li>
+    <li>Node.js 18+ and npm</li>
+    <li>Docker + Docker Compose (optional)</li>
+  </ul>
+
+  <h2>Build / Install Dependencies</h2>
+
+  <h3>Backend (Spring Boot)</h3>
+  <pre><code>cd aitradex
+mvn -pl aitradex-service -am package</code></pre>
+
+  <p>If you want to skip tests during packaging:</p>
+  <pre><code>mvn -pl aitradex-service -am package -DskipTests</code></pre>
+
+  <h3>Frontend (Angular)</h3>
+  <pre><code>cd aitradex/aitradex-ui
+npm install
+npm run build</code></pre>
+  <p>Build artifacts are emitted to <code>aitradex-ui/dist/aitradex-ui</code>.</p>
+
+  <h2>Tests</h2>
+
+  <h3>Backend</h3>
+  <pre><code>cd aitradex
+mvn -pl aitradex-service test</code></pre>
+  <p>Tests use Testcontainers and require Docker to be running.</p>
+
+  <h3>Frontend</h3>
+  <pre><code>cd aitradex/aitradex-ui
+npm test</code></pre>
+  <p>Optional linting:</p>
+  <pre><code>npm run lint</code></pre>
+
+  <h2>Run the Application</h2>
+
+  <h3>Option 1: Run everything with Docker Compose (recommended)</h3>
+  <pre><code>cd aitradex
+docker-compose up --build</code></pre>
+
+  <p>Services and ports:</p>
+  <ul>
+    <li><strong>UI:</strong> <code>http://localhost:4200/</code></li>
+    <li><strong>API:</strong> <code>http://localhost:8080/api</code></li>
+    <li><strong>Swagger UI:</strong> <code>http://localhost:8080/api/swagger-ui.html</code></li>
+    <li><strong>Database:</strong> <code>localhost:5432</code> (user/pass: <code>aitradex</code> / <code>aitradex</code>)</li>
+  </ul>
+
+  <h3>Option 2: Run backend and frontend locally (dev)</h3>
+
+  <h4>Start PostgreSQL</h4>
+  <p>Using Docker:</p>
+  <pre><code>docker run --name aitradex-postgres -e POSTGRES_DB=aitradex -e POSTGRES_USER=aitradex -e POSTGRES_PASSWORD=aitradex -p 5432:5432 -d postgres:16-alpine</code></pre>
+
+  <h4>Run the backend</h4>
+  <pre><code>cd aitradex
+export APP_JWT_SECRET="change-me-in-dev"
+mvn -pl aitradex-service spring-boot:run</code></pre>
+  <p>The backend listens on <code>http://localhost:8080</code> and exposes API routes under <code>/api</code>.</p>
+
+  <h4>Run the frontend</h4>
+  <pre><code>cd aitradex/aitradex-ui
+npm install
+npm start</code></pre>
+  <p>The Angular dev server runs at <code>http://localhost:4200/</code> and targets <code>http://localhost:8080/api</code> via <code>environment.ts</code>.</p>
+
+  <h3>Option 3: Run only the backend</h3>
+  <pre><code>cd aitradex
+export APP_JWT_SECRET="change-me-in-dev"
+mvn -pl aitradex-service spring-boot:run</code></pre>
+
+  <h3>Option 4: Run only the frontend</h3>
+  <pre><code>cd aitradex/aitradex-ui
+npm install
+npm start</code></pre>
+  <p>Note: The UI expects the API at <code>http://localhost:8080/api</code> (see <code>aitradex-ui/src/environments/environment.ts</code>).</p>
+
+  <h2>Access the Application</h2>
+  <ul>
+    <li><strong>UI:</strong> <code>http://localhost:4200/</code></li>
+    <li><strong>API base URL:</strong> <code>http://localhost:8080/api</code></li>
+    <li><strong>Swagger UI:</strong> <code>http://localhost:8080/api/swagger-ui.html</code></li>
+    <li><strong>Health check:</strong> <code>http://localhost:8080/actuator/health</code></li>
+  </ul>
+
+  <h2>Environment Configuration</h2>
+  <p>The backend uses environment variables for configuration. Common ones include:</p>
+  <ul>
+    <li><code>APP_JWT_SECRET</code>: HS256 signing key (required for production)</li>
+    <li><code>APP_JWT_ISSUER</code>, <code>APP_JWT_AUDIENCE</code>: JWT validation settings</li>
+    <li><code>APP_CORS_ALLOWED_ORIGINS</code>: CORS origins (default: <code>*</code>)</li>
+    <li><code>SPRING_DATASOURCE_URL</code>, <code>POSTGRES_USER</code>, <code>POSTGRES_PASSWORD</code>: database connection</li>
+  </ul>
+  <p>See <code>aitradex/CONTAINERS.md</code> and <code>aitradex-service/src/main/resources/application.yml</code> for defaults and profiles.</p>
+</body>
+</html>
