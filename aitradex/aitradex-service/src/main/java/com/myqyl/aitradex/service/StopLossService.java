@@ -1,5 +1,7 @@
 package com.myqyl.aitradex.service;
 
+import com.myqyl.aitradex.api.dto.CreateAuditLogRequest;
+import com.myqyl.aitradex.domain.ActorType;
 import com.myqyl.aitradex.domain.Order;
 import com.myqyl.aitradex.domain.OrderSide;
 import com.myqyl.aitradex.domain.OrderSource;
@@ -23,14 +25,17 @@ public class StopLossService {
   private final PositionRepository positionRepository;
   private final OrderRepository orderRepository;
   private final MarketDataService marketDataService;
+  private final AuditLogService auditLogService;
 
   public StopLossService(
       PositionRepository positionRepository,
       OrderRepository orderRepository,
-      MarketDataService marketDataService) {
+      MarketDataService marketDataService,
+      AuditLogService auditLogService) {
     this.positionRepository = positionRepository;
     this.orderRepository = orderRepository;
     this.marketDataService = marketDataService;
+    this.auditLogService = auditLogService;
   }
 
   @Transactional
@@ -72,6 +77,14 @@ public class StopLossService {
               .createdAt(OffsetDateTime.now())
               .build();
       orderRepository.save(order);
+      auditLogService.create(
+          new CreateAuditLogRequest(
+              "system",
+              ActorType.SYSTEM,
+              "STOP_LOSS_TRIGGERED",
+              "position:" + position.getId(),
+              null,
+              "order:" + order.getId()));
       triggered++;
     }
 

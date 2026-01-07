@@ -42,6 +42,11 @@ This document captures the current-state audit of the repository and a target ar
 | API gateway/auth enhancements | Completed | Enforced role policies for read vs write API access. |
 | Ingestion validation & staging | Completed | Added upload validation endpoint with row-level error reporting. |
 | Analytics reporting expansion | Completed | Added per-symbol PnL endpoint and scheduled snapshot capture. |
+| Order validation rules | Completed | Enforced limit/stop pricing requirements by order type. |
+| Stop-loss audit logging | Completed | Recorded audit logs when stop-loss orders are triggered. |
+| Stop-loss manual trigger API | Completed | Added admin endpoint to run stop-loss checks on demand. |
+| Trading validation tests | Completed | Added unit tests covering order validation failures. |
+| Stop-loss automation tests | Completed | Added unit tests for stop-loss order creation and audit logging. |
 
 ## Phase 1 — Deep Discovery
 

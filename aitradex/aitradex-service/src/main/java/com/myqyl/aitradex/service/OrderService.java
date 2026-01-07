@@ -137,6 +137,26 @@ public class OrderService {
     if (request.quantity() == null || request.quantity().signum() <= 0) {
       throw new IllegalArgumentException("Order quantity must be positive");
     }
+    switch (request.type()) {
+      case LIMIT -> {
+        if (request.limitPrice() == null) {
+          throw new IllegalArgumentException("Limit price is required for LIMIT orders");
+        }
+      }
+      case STOP -> {
+        if (request.stopPrice() == null) {
+          throw new IllegalArgumentException("Stop price is required for STOP orders");
+        }
+      }
+      case STOP_LIMIT -> {
+        if (request.stopPrice() == null || request.limitPrice() == null) {
+          throw new IllegalArgumentException(
+              "Stop and limit prices are required for STOP_LIMIT orders");
+        }
+      }
+      default -> {
+      }
+    }
     BigDecimal notional = estimateNotional(request);
     if (request.side() == OrderSide.BUY) {
       if (account.getCashBalance().compareTo(notional) < 0) {
