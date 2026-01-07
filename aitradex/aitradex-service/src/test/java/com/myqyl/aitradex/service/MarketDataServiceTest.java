@@ -45,6 +45,36 @@ class MarketDataServiceTest {
     assertEquals(1, calls.get());
   }
 
+  @Test
+  void purgeExpiredRemovesExpiredEntries() {
+    AtomicInteger calls = new AtomicInteger();
+    MarketDataQuoteDto quote =
+        new MarketDataQuoteDto(
+            "AAPL",
+            OffsetDateTime.now(),
+            BigDecimal.TEN,
+            BigDecimal.TEN,
+            BigDecimal.TEN,
+            BigDecimal.TEN,
+            10L,
+            "test");
+    MarketDataAdapter adapter = new CountingAdapter(calls, quote);
+
+    MarketDataProperties properties = new MarketDataProperties();
+    properties.setDefaultSource("test");
+    properties.setCacheTtl(Duration.ofSeconds(-1));
+
+    QuoteSnapshotRepository repository = mock(QuoteSnapshotRepository.class);
+    MarketDataService service =
+        new MarketDataService(List.of(adapter), repository, properties);
+
+    service.latestQuote("AAPL", "test");
+    service.purgeExpired();
+    service.latestQuote("AAPL", "test");
+
+    assertEquals(2, calls.get());
+  }
+
   private static final class CountingAdapter implements MarketDataAdapter {
     private final AtomicInteger calls;
     private final MarketDataQuoteDto quote;

@@ -57,6 +57,11 @@ This document captures the current-state audit of the repository and a target ar
 | JSON upload empty check | Completed | Added validation for empty JSON payloads. |
 | Manual snapshot run API | Completed | Added endpoint to generate snapshots on demand. |
 | JSON upload validation test | Completed | Added unit test asserting empty JSON is rejected. |
+| Market data purge tests | Completed | Added unit test covering cache purge behavior. |
+| Upload validation audit tests | Completed | Added unit tests verifying audit logs are recorded. |
+| Risk endpoint tests | Completed | Added controller test for stop-loss manual trigger. |
+| Snapshot endpoint tests | Completed | Added controller test for manual snapshot run. |
+| Spring security test support | Completed | Added spring-security-test dependency for controller tests. |
 
 ## Phase 1 — Deep Discovery
 

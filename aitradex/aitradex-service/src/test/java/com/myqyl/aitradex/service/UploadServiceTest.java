@@ -3,6 +3,7 @@ package com.myqyl.aitradex.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,6 +64,7 @@ class UploadServiceTest {
 
     assertEquals(UploadStatus.FAILED, result.status());
     assertTrue(result.errorReport().contains("Column count mismatch"));
+    verify(auditLogService).create(any());
   }
 
   @Test
@@ -96,5 +98,6 @@ class UploadServiceTest {
 
     assertEquals(UploadStatus.FAILED, result.status());
     assertTrue(result.errorReport().contains("JSON array is empty"));
+    verify(auditLogService).create(any());
   }
 }
