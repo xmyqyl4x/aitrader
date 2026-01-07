@@ -102,7 +102,6 @@ docker run --name aitradex-postgres -e POSTGRES_DB=aitradex -e POSTGRES_USER=ait
 
 ```bash
 cd aitradex
-export APP_JWT_SECRET="change-me-in-dev"
 mvn -pl aitradex-service spring-boot:run
 ```
 
@@ -122,7 +121,6 @@ The Angular dev server runs at `http://localhost:4200/` and proxies API calls to
 
 ```bash
 cd aitradex
-export APP_JWT_SECRET="change-me-in-dev"
 mvn -pl aitradex-service spring-boot:run
 ```
 
@@ -147,9 +145,6 @@ npm start
 
 The backend uses environment variables for configuration. Common ones include:
 
-- `APP_JWT_SECRET`: HS256 signing key (required for production)
-- `APP_JWT_ISSUER`, `APP_JWT_AUDIENCE`: JWT validation settings
-- `APP_CORS_ALLOWED_ORIGINS`: CORS origins (default: `*`)
 - `SPRING_DATASOURCE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`: database connection
 
 See `aitradex/CONTAINERS.md` and `aitradex-service/src/main/resources/application.yml` for more defaults and profiles.
