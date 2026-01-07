@@ -1,0 +1,58 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0003-stock-quote-search
+      author: aitradex
+      context: dev,test,prod
+      logicalFilePath: db/changelog/changesets/0003-stock-quote-search.yaml
+      changes:
+        - createTable:
+            tableName: stock_quote_search
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: created_by_user_id, type: uuid}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: company_name, type: varchar(255)}
+              - column: {name: exchange, type: varchar(32)}
+              - column: {name: range, type: varchar(10), constraints: {nullable: false}}
+              - column: {name: requested_at, type: timestamptz, constraints: {nullable: false}}
+              - column: {name: status, type: varchar(20), constraints: {nullable: false}}
+              - column: {name: quote_timestamp, type: timestamptz}
+              - column: {name: price, type: "numeric(19,8)"}
+              - column: {name: currency, type: varchar(10)}
+              - column: {name: change_amount, type: "numeric(19,8)"}
+              - column: {name: change_percent, type: "numeric(19,8)"}
+              - column: {name: volume, type: bigint}
+              - column: {name: provider, type: varchar(50), constraints: {nullable: false}}
+              - column: {name: request_id, type: varchar(255)}
+              - column: {name: correlation_id, type: varchar(255)}
+              - column: {name: error_code, type: varchar(50)}
+              - column: {name: error_message, type: varchar(1000)}
+              - column: {name: duration_ms, type: integer}
+              - column: {name: review_status, type: varchar(20)}
+              - column: {name: review_note, type: text}
+              - column: {name: reviewed_at, type: timestamptz}
+
+        - createIndex:
+            tableName: stock_quote_search
+            indexName: idx_stock_quote_search_symbol
+            columns:
+              - column: {name: symbol}
+        
+        - createIndex:
+            tableName: stock_quote_search
+            indexName: idx_stock_quote_search_created_at
+            columns:
+              - column: {name: created_at, descending: true}
+        
+        - createIndex:
+            tableName: stock_quote_search
+            indexName: idx_stock_quote_search_status
+            columns:
+              - column: {name: status}
+        
+        - createIndex:
+            tableName: stock_quote_search
+            indexName: idx_stock_quote_search_user
+            columns:
+              - column: {name: created_by_user_id}

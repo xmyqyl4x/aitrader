@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -41,6 +42,7 @@ public class AlphaVantageAdapter implements MarketDataAdapter {
   private final ObjectMapper objectMapper;
   private final AlphaVantageProperties properties;
 
+  @Autowired
   public AlphaVantageAdapter(ObjectMapper objectMapper, AlphaVantageProperties properties) {
     this.httpClient = HttpClient.newHttpClient();
     this.objectMapper = objectMapper;

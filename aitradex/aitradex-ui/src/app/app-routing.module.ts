@@ -6,6 +6,8 @@ import { PositionsComponent } from './features/positions/positions.component';
 import { UploadsComponent } from './features/uploads/uploads.component';
 import { AnalyticsComponent } from './features/analytics/analytics.component';
 import { AuditComponent } from './features/audit/audit.component';
+import { StockReviewComponent } from './features/stock-review/stock-review.component';
+import { StockReviewStackComponent } from './features/stock-review/stock-review-stack.component';
 
 const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -15,6 +17,8 @@ const routes: Routes = [
   { path: 'uploads', component: UploadsComponent },
   { path: 'analytics', component: AnalyticsComponent },
   { path: 'audit', component: AuditComponent },
+  { path: 'stock-review', component: StockReviewComponent },
+  { path: 'stock-review/searches', component: StockReviewStackComponent },
   { path: '**', redirectTo: '' }
 ];
 

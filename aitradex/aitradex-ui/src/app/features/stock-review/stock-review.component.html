@@ -1,0 +1,177 @@
+<div class="stock-review-container">
+  <h1>Stock Quote Review</h1>
+
+  <!-- Search Form -->
+  <div class="search-section">
+    <form [formGroup]="searchForm" (ngSubmit)="onSearch()" class="search-form">
+      <div class="form-group">
+        <label for="symbol">Symbol *</label>
+        <input
+          type="text"
+          id="symbol"
+          formControlName="symbol"
+          placeholder="e.g., AAPL"
+          [class.error]="searchForm.get('symbol')?.invalid && searchForm.get('symbol')?.touched"
+          maxlength="10"
+        />
+        <small *ngIf="searchForm.get('symbol')?.invalid && searchForm.get('symbol')?.touched" class="error">
+          Symbol is required (letters only, max 10 characters)
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="range">Time Range *</label>
+        <select id="range" formControlName="range">
+          <option value="1D">1 Day</option>
+          <option value="5D">5 Days</option>
+          <option value="1M">1 Month</option>
+          <option value="3M">3 Months</option>
+          <option value="1Y">1 Year</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="exchange">Exchange (Optional)</label>
+        <input
+          type="text"
+          id="exchange"
+          formControlName="exchange"
+          placeholder="e.g., NASDAQ"
+        />
+      </div>
+
+      <button type="submit" [disabled]="searchForm.invalid || loading" class="btn-primary">
+        <span *ngIf="loading">Loading...</span>
+        <span *ngIf="!loading">Fetch Quote</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+  <div *ngIf="successMessage" class="alert alert-success">{{ successMessage }}</div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Fetching quote data...</p>
+  </div>
+
+  <!-- Quote Display -->
+  <div *ngIf="quote && !loading" class="quote-section">
+    <!-- Header -->
+    <div class="quote-header">
+      <h2>{{ quote.symbol }}</h2>
+      <span class="source-badge">{{ quote.source }}</span>
+    </div>
+
+    <!-- Quote Summary Cards -->
+    <div class="quote-cards">
+      <div class="card">
+        <div class="card-label">Last Price</div>
+        <div class="card-value price">{{ quote.close | number:'1.2-2' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Change</div>
+        <div class="card-value" [ngClass]="getChangeClass()">
+          <span *ngIf="quote.open && quote.close">
+            {{ (quote.close - quote.open) | number:'1.2-2' }}
+            ({{ getChangePercent() | number:'1.2-2' }}%)
+          </span>
+          <span *ngIf="!quote.open || !quote.close">N/A</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Day Range</div>
+        <div class="card-value">
+          <span *ngIf="quote.low && quote.high">
+            {{ quote.low | number:'1.2-2' }} - {{ quote.high | number:'1.2-2' }}
+          </span>
+          <span *ngIf="!quote.low || !quote.high">N/A</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Volume</div>
+        <div class="card-value">{{ quote.volume | number }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Open</div>
+        <div class="card-value">{{ quote.open | number:'1.2-2' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">High</div>
+        <div class="card-value">{{ quote.high | number:'1.2-2' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Low</div>
+        <div class="card-value">{{ quote.low | number:'1.2-2' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Updated</div>
+        <div class="card-value">{{ quote.asOf | date:'short' }}</div>
+      </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h3>Price Chart</h3>
+        <button (click)="toggleChartType()" class="btn-secondary">
+          Switch to {{ chartType === 'line' ? 'Candlestick' : 'Line' }} Chart
+        </button>
+      </div>
+      <app-stock-chart
+        *ngIf="history && history.length > 0"
+        [data]="history"
+        [symbol]="quote.symbol"
+        [chartType]="chartType"
+      ></app-stock-chart>
+      <div *ngIf="!history || history.length === 0" class="no-data">
+        No chart data available for this range.
+      </div>
+    </div>
+
+    <!-- Review Panel -->
+    <div class="review-section">
+      <h3>Review</h3>
+      <div class="review-form">
+        <div class="form-group">
+          <label for="reviewStatus">Review Status</label>
+          <select
+            id="reviewStatus"
+            [(ngModel)]="review.reviewStatus"
+            [ngModelOptions]="{standalone: true}"
+          >
+            <option value="NOT_REVIEWED">Not Reviewed</option>
+            <option value="REVIEWED">Reviewed</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="reviewNote">Notes</label>
+          <textarea
+            id="reviewNote"
+            [(ngModel)]="review.reviewNote"
+            [ngModelOptions]="{standalone: true}"
+            placeholder="Add your review notes here..."
+            rows="4"
+          ></textarea>
+        </div>
+
+        <button
+          type="button"
+          (click)="onSaveReview()"
+          [disabled]="!searchId"
+          class="btn-primary"
+        >
+          Save Review
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Data State -->
+  <div *ngIf="!quote && !loading && !error" class="no-data-state">
+    <p>Enter a stock symbol above to view quote information and charts.</p>
+  </div>
+</div>

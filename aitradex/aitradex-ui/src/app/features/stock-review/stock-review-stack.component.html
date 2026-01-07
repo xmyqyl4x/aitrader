@@ -1,0 +1,123 @@
+<div class="stack-container">
+  <div class="header">
+    <h1>Stock Quote Review Stack</h1>
+    <button routerLink="/stock-review" class="btn-primary">New Search</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-section">
+    <form [formGroup]="filterForm" (ngSubmit)="onFilter()" class="filter-form">
+      <div class="form-group">
+        <label for="symbolFilter">Symbol</label>
+        <input
+          type="text"
+          id="symbolFilter"
+          formControlName="symbol"
+          placeholder="Filter by symbol..."
+        />
+      </div>
+      <div class="form-group">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter" formControlName="status">
+          <option value="">All</option>
+          <option value="SUCCESS">Success</option>
+          <option value="FAILED">Failed</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Filter</button>
+      <button type="button" (click)="filterForm.reset(); onFilter()" class="btn-secondary">
+        Clear
+      </button>
+    </form>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Loading searches...</p>
+  </div>
+
+  <!-- Searches Table -->
+  <div *ngIf="!loading && searches.length > 0" class="table-container">
+    <table class="searches-table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Company Name</th>
+          <th>Range</th>
+          <th>Searched At</th>
+          <th>Status</th>
+          <th>Price</th>
+          <th>Change</th>
+          <th>Volume</th>
+          <th>Provider</th>
+          <th>Review</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let search of searches">
+          <td><strong>{{ search.symbol }}</strong></td>
+          <td>{{ search.companyName || '-' }}</td>
+          <td>{{ search.range }}</td>
+          <td>{{ search.createdAt | date:'short' }}</td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusClass(search.status)">
+              {{ search.status }}
+            </span>
+          </td>
+          <td>
+            <span *ngIf="search.price">{{ search.price | number:'1.2-2' }}</span>
+            <span *ngIf="!search.price">-</span>
+          </td>
+          <td>
+            <span *ngIf="search.changeAmount && search.changePercent">
+              <span [ngClass]="search.changeAmount >= 0 ? 'positive' : 'negative'">
+                {{ search.changeAmount | number:'1.2-2' }} ({{ search.changePercent | number:'1.2-2' }}%)
+              </span>
+            </span>
+            <span *ngIf="!search.changeAmount">-</span>
+          </td>
+          <td>{{ search.volume | number }}</td>
+          <td>{{ search.provider }}</td>
+          <td>
+            <span class="review-badge" [ngClass]="getReviewStatusClass(search.reviewStatus)">
+              {{ search.reviewStatus }}
+            </span>
+          </td>
+          <td class="actions">
+            <button (click)="onView(search)" class="btn-sm btn-secondary">View</button>
+            <button (click)="onRerun(search)" class="btn-sm btn-primary">Re-run</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button
+        (click)="onPageChange(page - 1)"
+        [disabled]="page === 0"
+        class="btn-secondary"
+      >
+        Previous
+      </button>
+      <span>Page {{ page + 1 }} of {{ totalPages }} ({{ totalElements }} total)</span>
+      <button
+        (click)="onPageChange(page + 1)"
+        [disabled]="page >= totalPages - 1"
+        class="btn-secondary"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && searches.length === 0" class="empty-state">
+    <p>No searches found. <a routerLink="/stock-review">Create a new search</a> to get started.</p>
+  </div>
+</div>
