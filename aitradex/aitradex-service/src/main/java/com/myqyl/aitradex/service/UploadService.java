@@ -5,25 +5,37 @@ import com.myqyl.aitradex.api.dto.UpdateUploadStatusRequest;
 import com.myqyl.aitradex.api.dto.UploadDto;
 import com.myqyl.aitradex.domain.Upload;
 import com.myqyl.aitradex.domain.UploadStatus;
+import com.myqyl.aitradex.domain.UploadType;
 import com.myqyl.aitradex.domain.User;
 import com.myqyl.aitradex.exception.NotFoundException;
 import com.myqyl.aitradex.repository.UploadRepository;
 import com.myqyl.aitradex.repository.UserRepository;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UploadService {
 
   private final UploadRepository uploadRepository;
   private final UserRepository userRepository;
+  private final Path uploadDirectory;
 
-  public UploadService(UploadRepository uploadRepository, UserRepository userRepository) {
+  public UploadService(
+      UploadRepository uploadRepository,
+      UserRepository userRepository,
+      @Value("${app.uploads.directory}") String uploadDirectory) {
     this.uploadRepository = uploadRepository;
     this.userRepository = userRepository;
+    this.uploadDirectory = Path.of(uploadDirectory);
   }
 
   @Transactional
@@ -60,6 +72,35 @@ public class UploadService {
     return toDto(uploadRepository.save(upload));
   }
 
+  @Transactional
+  public UploadDto storeFile(UUID userId, UploadType type, MultipartFile file) {
+    User user = userRepository.findById(userId).orElseThrow(() -> userNotFound(userId));
+    Upload upload =
+        Upload.builder()
+            .user(user)
+            .type(type)
+            .status(UploadStatus.PROCESSING)
+            .fileName(file.getOriginalFilename())
+            .build();
+    upload = uploadRepository.save(upload);
+
+    try {
+      Files.createDirectories(uploadDirectory);
+      String targetName = upload.getId() + "-" + safeFilename(file.getOriginalFilename());
+      Path targetPath = uploadDirectory.resolve(targetName);
+      Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+      upload.setStoredPath(targetPath.toString());
+      upload.setStatus(UploadStatus.COMPLETED);
+      upload.setCompletedAt(OffsetDateTime.now());
+    } catch (IOException ex) {
+      upload.setStatus(UploadStatus.FAILED);
+      upload.setErrorReport(ex.getMessage());
+      upload.setCompletedAt(OffsetDateTime.now());
+    }
+
+    return toDto(uploadRepository.save(upload));
+  }
+
   @Transactional(readOnly = true)
   public List<UploadDto> list() {
     return uploadRepository.findAll().stream().map(this::toDto).toList();
@@ -90,5 +131,12 @@ public class UploadService {
 
   private NotFoundException userNotFound(UUID id) {
     return new NotFoundException("User %s not found".formatted(id));
+  }
+
+  private String safeFilename(String filename) {
+    if (filename == null || filename.isBlank()) {
+      return "upload.bin";
+    }
+    return filename.replaceAll("[^a-zA-Z0-9._-]", "_");
   }
 }

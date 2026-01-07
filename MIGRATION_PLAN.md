@@ -23,6 +23,7 @@ This document captures the current-state audit of the repository and a target ar
 | Market data adapter (snapshot-backed) | Completed | Added adapter/service/controller to expose latest quotes via stored quote snapshots. |
 | Order lifecycle status updates | Completed | Added endpoint to update order status and timestamps (routed/filled) for lifecycle tracking. |
 | Position close endpoint | Completed | Added endpoint to close positions with optional closedAt timestamp. |
+| Ingestion file upload endpoint | Completed | Added multipart upload endpoint storing files on disk and tracking status. |
 
 ## Phase 1 — Deep Discovery
 

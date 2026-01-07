@@ -10,6 +10,8 @@ app:
       issuer: ${APP_JWT_ISSUER:aitradex}
       audience: ${APP_JWT_AUDIENCE:aitradex-ui}
       clock-skew-seconds: ${APP_JWT_CLOCK_SKEW_SECONDS:60}
+  uploads:
+    directory: ${APP_UPLOADS_DIRECTORY:./data/uploads}
   datasource:
     url: jdbc:postgresql://localhost:5432/aitradex
     username: aitradex
