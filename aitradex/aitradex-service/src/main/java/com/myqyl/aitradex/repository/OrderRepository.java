@@ -12,4 +12,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
   List<Order> findByAccountIdAndStatusOrderByCreatedAtDesc(UUID accountId, OrderStatus status);
 
   List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
+
+  boolean existsByAccountIdAndSymbolAndStatusIn(UUID accountId, String symbol, List<OrderStatus> statuses);
 }

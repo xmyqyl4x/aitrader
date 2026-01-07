@@ -1,10 +1,14 @@
 package com.myqyl.aitradex.service;
 
 import com.myqyl.aitradex.api.dto.MarketDataQuoteDto;
+import com.myqyl.aitradex.config.MarketDataProperties;
 import com.myqyl.aitradex.marketdata.MarketDataAdapter;
 import com.myqyl.aitradex.repository.QuoteSnapshotRepository;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -13,15 +17,33 @@ public class MarketDataService {
 
   private final List<MarketDataAdapter> adapters;
   private final QuoteSnapshotRepository quoteSnapshotRepository;
+  private final MarketDataProperties properties;
+  private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
   public MarketDataService(
-      List<MarketDataAdapter> adapters, QuoteSnapshotRepository quoteSnapshotRepository) {
+      List<MarketDataAdapter> adapters,
+      QuoteSnapshotRepository quoteSnapshotRepository,
+      MarketDataProperties properties) {
     this.adapters = adapters;
     this.quoteSnapshotRepository = quoteSnapshotRepository;
+    this.properties = properties;
   }
 
   public MarketDataQuoteDto latestQuote(String symbol, String source) {
-    return resolveAdapter(source).latestQuote(symbol);
+    String resolvedSource = resolveSource(source);
+    String cacheKey = resolvedSource + ":" + symbol.toUpperCase();
+    CacheEntry cached = cache.get(cacheKey);
+    if (cached != null && !cached.isExpired()) {
+      return cached.quote();
+    }
+
+    MarketDataQuoteDto quote = resolveAdapter(resolvedSource).latestQuote(symbol);
+    cache.put(cacheKey, new CacheEntry(quote, Instant.now().plus(properties.getCacheTtl())));
+    return quote;
+  }
+
+  public MarketDataQuoteDto latestQuote(String symbol) {
+    return latestQuote(symbol, properties.getDefaultSource());
   }
 
   public List<String> listSources() {
@@ -32,16 +54,30 @@ public class MarketDataService {
     return adapters.stream()
         .collect(Collectors.toMap(
             MarketDataAdapter::name,
-            name -> quoteSnapshotRepository.countBySource(name)));
+            name ->
+                "quote-snapshots".equalsIgnoreCase(name)
+                    ? quoteSnapshotRepository.countBySource(name)
+                    : 0L));
+  }
+
+  private String resolveSource(String source) {
+    if (source == null || source.isBlank()) {
+      return properties.getDefaultSource();
+    }
+    return source;
   }
 
   private MarketDataAdapter resolveAdapter(String source) {
-    if (source == null || source.isBlank()) {
-      return adapters.get(0);
-    }
     return adapters.stream()
+        .sorted(Comparator.comparing(MarketDataAdapter::name))
         .filter(adapter -> adapter.name().equalsIgnoreCase(source))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Unknown market data source: " + source));
+  }
+
+  private record CacheEntry(MarketDataQuoteDto quote, Instant expiresAt) {
+    boolean isExpired() {
+      return Instant.now().isAfter(expiresAt);
+    }
   }
 }

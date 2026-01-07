@@ -5,10 +5,15 @@ import com.myqyl.aitradex.api.dto.OrderDto;
 import com.myqyl.aitradex.api.dto.UpdateOrderStatusRequest;
 import com.myqyl.aitradex.domain.Account;
 import com.myqyl.aitradex.domain.Order;
+import com.myqyl.aitradex.domain.OrderSide;
 import com.myqyl.aitradex.domain.OrderStatus;
+import com.myqyl.aitradex.domain.OrderType;
+import com.myqyl.aitradex.domain.Position;
 import com.myqyl.aitradex.exception.NotFoundException;
 import com.myqyl.aitradex.repository.AccountRepository;
 import com.myqyl.aitradex.repository.OrderRepository;
+import com.myqyl.aitradex.repository.PositionRepository;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -20,16 +25,25 @@ public class OrderService {
 
   private final OrderRepository orderRepository;
   private final AccountRepository accountRepository;
+  private final PositionRepository positionRepository;
+  private final MarketDataService marketDataService;
 
-  public OrderService(OrderRepository orderRepository, AccountRepository accountRepository) {
+  public OrderService(
+      OrderRepository orderRepository,
+      AccountRepository accountRepository,
+      PositionRepository positionRepository,
+      MarketDataService marketDataService) {
     this.orderRepository = orderRepository;
     this.accountRepository = accountRepository;
+    this.positionRepository = positionRepository;
+    this.marketDataService = marketDataService;
   }
 
   @Transactional
   public OrderDto create(CreateOrderRequest request) {
     Account account =
         accountRepository.findById(request.accountId()).orElseThrow(() -> accountNotFound(request.accountId()));
+    validateOrder(request, account);
 
     Order order =
         Order.builder()
@@ -117,5 +131,55 @@ public class OrderService {
 
   private NotFoundException accountNotFound(UUID id) {
     return new NotFoundException("Account %s not found".formatted(id));
+  }
+
+  private void validateOrder(CreateOrderRequest request, Account account) {
+    if (request.quantity() == null || request.quantity().signum() <= 0) {
+      throw new IllegalArgumentException("Order quantity must be positive");
+    }
+    BigDecimal notional = estimateNotional(request);
+    if (request.side() == OrderSide.BUY) {
+      if (account.getCashBalance().compareTo(notional) < 0) {
+        throw new IllegalStateException("Insufficient cash balance for order");
+      }
+      return;
+    }
+    Position position =
+        positionRepository
+            .findByAccountIdAndSymbolAndClosedAtIsNull(account.getId(), request.symbol().toUpperCase())
+            .orElseThrow(() -> new IllegalStateException("No open position to sell"));
+    if (position.getQuantity().compareTo(request.quantity()) < 0) {
+      throw new IllegalStateException("Order quantity exceeds available position size");
+    }
+  }
+
+  private BigDecimal estimateNotional(CreateOrderRequest request) {
+    BigDecimal price = null;
+    if (request.type() == OrderType.LIMIT) {
+      price = request.limitPrice();
+    } else if (request.type() == OrderType.STOP) {
+      price = request.stopPrice();
+    } else if (request.type() == OrderType.STOP_LIMIT) {
+      price = request.limitPrice() != null ? request.limitPrice() : request.stopPrice();
+    }
+
+    if (price == null && request.type() == OrderType.MARKET) {
+      var quote = marketDataService.latestQuote(request.symbol());
+      price = firstAvailable(quote.close(), quote.open(), quote.high(), quote.low());
+    }
+
+    if (price == null) {
+      throw new IllegalArgumentException("Unable to estimate order price for validation");
+    }
+    return price.multiply(request.quantity());
+  }
+
+  private BigDecimal firstAvailable(BigDecimal... values) {
+    for (BigDecimal value : values) {
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
   }
 }

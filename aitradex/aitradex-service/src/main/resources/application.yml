@@ -13,6 +13,15 @@ app:
   uploads:
     directory: ${APP_UPLOADS_DIRECTORY:./data/uploads}
     max-size-mb: ${APP_UPLOADS_MAX_SIZE_MB:25}
+    max-validation-errors: ${APP_UPLOADS_MAX_VALIDATION_ERRORS:50}
+  market-data:
+    default-source: ${APP_MARKET_DATA_DEFAULT_SOURCE:quote-snapshots}
+    cache-ttl: ${APP_MARKET_DATA_CACHE_TTL:30s}
+  stop-loss:
+    poll-interval-ms: ${APP_STOP_LOSS_POLL_MS:60000}
+    source: ${APP_STOP_LOSS_SOURCE:quote-snapshots}
+  snapshots:
+    poll-interval-ms: ${APP_SNAPSHOT_POLL_MS:300000}
   datasource:
     url: jdbc:postgresql://localhost:5432/aitradex
     username: aitradex

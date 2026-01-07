@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -36,8 +37,16 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/v3/api-docs/**")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/**")
+                    .hasAnyRole("USER", "ADMIN")
+                    .requestMatchers(HttpMethod.POST, "/api/**")
+                    .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.PATCH, "/api/**")
+                    .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/**")
+                    .hasRole("ADMIN")
                     .requestMatchers("/api/**")
-                    .authenticated()
+                    .hasRole("ADMIN")
                     .anyRequest()
                     .permitAll())
         .addFilterBefore(new JwtAuthenticationFilter(tokenService), UsernamePasswordAuthenticationFilter.class)

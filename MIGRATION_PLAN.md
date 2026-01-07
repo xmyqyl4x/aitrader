@@ -37,6 +37,11 @@ This document captures the current-state audit of the repository and a target ar
 | Analytics equity time-series | Completed | Added equity curve endpoint backed by portfolio snapshots. |
 | Upload content-type validation | Completed | Added content-type validation for uploads. |
 | Execution settlement logic | Completed | Applied executions to cash balance, positions, and order status. |
+| Market data adapter expansion | Completed | Added Yahoo Finance + Stooq adapters with cache-aware latest-quote support. |
+| Trading & portfolio business logic | Completed | Added order cash/position validation, stop-loss automation, and computed snapshots. |
+| API gateway/auth enhancements | Completed | Enforced role policies for read vs write API access. |
+| Ingestion validation & staging | Completed | Added upload validation endpoint with row-level error reporting. |
+| Analytics reporting expansion | Completed | Added per-symbol PnL endpoint and scheduled snapshot capture. |
 
 ## Phase 1 — Deep Discovery
 

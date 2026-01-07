@@ -64,4 +64,9 @@ public class UploadController {
       @PathVariable UUID id, @Valid @RequestBody UpdateUploadStatusRequest request) {
     return uploadService.updateStatus(id, request);
   }
+
+  @PostMapping("/{id}/validate")
+  public UploadDto validate(@PathVariable UUID id) {
+    return uploadService.validateAndStage(id);
+  }
 }

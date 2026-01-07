@@ -12,4 +12,6 @@ public interface PositionRepository extends JpaRepository<Position, UUID> {
   List<Position> findByAccountIdAndClosedAtIsNullOrderByOpenedAtDesc(UUID accountId);
 
   Optional<Position> findByAccountIdAndSymbolAndClosedAtIsNull(UUID accountId, String symbol);
+
+  List<Position> findByClosedAtIsNullAndStopLossIsNotNull();
 }

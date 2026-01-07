@@ -2,6 +2,7 @@ package com.myqyl.aitradex.api.controller;
 
 import com.myqyl.aitradex.api.dto.AnalyticsSummaryDto;
 import com.myqyl.aitradex.api.dto.EquityPointDto;
+import com.myqyl.aitradex.api.dto.SymbolPnlDto;
 import com.myqyl.aitradex.service.AnalyticsService;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
@@ -33,5 +34,12 @@ public class AnalyticsController {
       @RequestParam(value = "startDate", required = false) LocalDate startDate,
       @RequestParam(value = "endDate", required = false) LocalDate endDate) {
     return analyticsService.equityCurve(accountId, startDate, endDate);
+  }
+
+  @GetMapping("/pnl")
+  public List<SymbolPnlDto> symbolPnl(
+      @RequestParam("accountId") @NotNull UUID accountId,
+      @RequestParam(value = "source", required = false) String source) {
+    return analyticsService.symbolPnl(accountId, source);
   }
 }
