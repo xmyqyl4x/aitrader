@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
@@ -11,6 +11,8 @@ import { PositionsComponent } from './features/positions/positions.component';
 import { UploadsComponent } from './features/uploads/uploads.component';
 import { AnalyticsComponent } from './features/analytics/analytics.component';
 import { AuditComponent } from './features/audit/audit.component';
+import { ConfigComponent } from './features/config/config.component';
+import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 
 @NgModule({
   declarations: [
@@ -20,7 +22,8 @@ import { AuditComponent } from './features/audit/audit.component';
     PositionsComponent,
     UploadsComponent,
     AnalyticsComponent,
-    AuditComponent
+    AuditComponent,
+    ConfigComponent
   ],
   imports: [
     BrowserModule,
@@ -29,7 +32,13 @@ import { AuditComponent } from './features/audit/audit.component';
     ReactiveFormsModule,
     AppRoutingModule
   ],
-  providers: [],
+  providers: [
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule {}

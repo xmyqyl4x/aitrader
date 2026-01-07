@@ -1,0 +1,15 @@
+<section class="page">
+  <header>
+    <h2>Configuration</h2>
+    <p>Store your API token to authorize requests.</p>
+  </header>
+
+  <div class="card">
+    <label>
+      JWT Token
+      <textarea [(ngModel)]="token" placeholder="Paste JWT token"></textarea>
+    </label>
+    <button (click)="save()">Save Token</button>
+    <p class="message" *ngIf="message">{{ message }}</p>
+  </div>
+</section>
