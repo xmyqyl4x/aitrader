@@ -1,0 +1,49 @@
+<section class="page">
+  <header>
+    <h2>Uploads</h2>
+    <p>Stage CSV/JSON/Excel data before ingesting into the ledger.</p>
+  </header>
+
+  <div class="card">
+    <label>
+      User ID
+      <input [(ngModel)]="userId" placeholder="UUID" />
+    </label>
+    <label>
+      Type
+      <select [(ngModel)]="type">
+        <option value="CSV">CSV</option>
+        <option value="JSON">JSON</option>
+        <option value="EXCEL">EXCEL</option>
+      </select>
+    </label>
+    <label>
+      File
+      <input type="file" (change)="onFileChange($event)" />
+    </label>
+    <div class="actions">
+      <button (click)="upload()">Upload</button>
+      <button class="secondary" (click)="loadUploads()">Refresh</button>
+    </div>
+    <p class="error" *ngIf="error">{{ error }}</p>
+  </div>
+
+  <div class="table" *ngIf="uploads.length">
+    <div class="row header">
+      <span>File</span>
+      <span>Status</span>
+      <span>Rows</span>
+      <span>Updated</span>
+      <span>Actions</span>
+    </div>
+    <div class="row" *ngFor="let upload of uploads">
+      <span>{{ upload.fileName }}</span>
+      <span>{{ upload.status }}</span>
+      <span>{{ upload.parsedRowCount || '-' }}</span>
+      <span>{{ upload.completedAt || upload.createdAt | date: 'short' }}</span>
+      <span>
+        <button class="secondary" (click)="validate(upload)">Validate</button>
+      </span>
+    </div>
+  </div>
+</section>
