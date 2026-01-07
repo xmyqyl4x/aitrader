@@ -60,6 +60,10 @@ public class MarketDataService {
                     : 0L));
   }
 
+  public void purgeExpired() {
+    cache.entrySet().removeIf(entry -> entry.getValue().isExpired());
+  }
+
   private String resolveSource(String source) {
     if (source == null || source.isBlank()) {
       return properties.getDefaultSource();

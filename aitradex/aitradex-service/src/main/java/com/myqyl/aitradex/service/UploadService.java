@@ -2,9 +2,11 @@ package com.myqyl.aitradex.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myqyl.aitradex.api.dto.CreateAuditLogRequest;
 import com.myqyl.aitradex.api.dto.CreateUploadRequest;
 import com.myqyl.aitradex.api.dto.UpdateUploadStatusRequest;
 import com.myqyl.aitradex.api.dto.UploadDto;
+import com.myqyl.aitradex.domain.ActorType;
 import com.myqyl.aitradex.domain.Upload;
 import com.myqyl.aitradex.domain.UploadStatus;
 import com.myqyl.aitradex.domain.UploadType;
@@ -38,6 +40,7 @@ public class UploadService {
   private final long maxUploadBytes;
   private final int maxValidationErrors;
   private final ObjectMapper objectMapper;
+  private final AuditLogService auditLogService;
 
   public UploadService(
       UploadRepository uploadRepository,
@@ -45,13 +48,15 @@ public class UploadService {
       @Value("${app.uploads.directory}") String uploadDirectory,
       @Value("${app.uploads.max-size-mb:25}") long maxUploadSizeMb,
       @Value("${app.uploads.max-validation-errors:50}") int maxValidationErrors,
-      ObjectMapper objectMapper) {
+      ObjectMapper objectMapper,
+      AuditLogService auditLogService) {
     this.uploadRepository = uploadRepository;
     this.userRepository = userRepository;
     this.uploadDirectory = Path.of(uploadDirectory);
     this.maxUploadBytes = maxUploadSizeMb * 1024 * 1024;
     this.maxValidationErrors = maxValidationErrors;
     this.objectMapper = objectMapper;
+    this.auditLogService = auditLogService;
   }
 
   @Transactional
@@ -174,8 +179,13 @@ public class UploadService {
         var node = objectMapper.readTree(Files.readString(path));
         if (node.isArray()) {
           parsedRows = node.size();
+          if (parsedRows == 0) {
+            errors.add(error(1, "JSON array is empty"));
+          }
         } else if (!node.isMissingNode() && !node.isNull()) {
           parsedRows = 1;
+        } else {
+          errors.add(error(1, "JSON payload is empty"));
         }
       } else {
         errors.add(error(0, "Excel validation is not yet supported"));
@@ -192,6 +202,15 @@ public class UploadService {
       upload.setStatus(UploadStatus.FAILED);
     }
     upload.setCompletedAt(OffsetDateTime.now());
+
+    auditLogService.create(
+        new CreateAuditLogRequest(
+            "system",
+            ActorType.SYSTEM,
+            "UPLOAD_VALIDATED",
+            "upload:" + upload.getId(),
+            null,
+            "status:" + upload.getStatus()));
 
     return toDto(uploadRepository.save(upload));
   }

@@ -28,6 +28,7 @@ class UploadServiceTest {
 
   @Mock private UploadRepository uploadRepository;
   @Mock private UserRepository userRepository;
+  @Mock private AuditLogService auditLogService;
 
   @TempDir Path tempDir;
 
@@ -55,11 +56,45 @@ class UploadServiceTest {
             tempDir.toString(),
             25,
             50,
-            new ObjectMapper());
+            new ObjectMapper(),
+            auditLogService);
 
     UploadDto result = service.validateAndStage(upload.getId());
 
     assertEquals(UploadStatus.FAILED, result.status());
     assertTrue(result.errorReport().contains("Column count mismatch"));
+  }
+
+  @Test
+  void validateAndStageRejectsEmptyJson() throws Exception {
+    Path json = tempDir.resolve("empty.json");
+    Files.writeString(json, "[]");
+    Upload upload =
+        Upload.builder()
+            .id(UUID.randomUUID())
+            .user(User.builder().id(UUID.randomUUID()).build())
+            .type(UploadType.JSON)
+            .status(UploadStatus.PROCESSING)
+            .fileName("empty.json")
+            .storedPath(json.toString())
+            .build();
+
+    when(uploadRepository.findById(upload.getId())).thenReturn(Optional.of(upload));
+    when(uploadRepository.save(any(Upload.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    UploadService service =
+        new UploadService(
+            uploadRepository,
+            userRepository,
+            tempDir.toString(),
+            25,
+            50,
+            new ObjectMapper(),
+            auditLogService);
+
+    UploadDto result = service.validateAndStage(upload.getId());
+
+    assertEquals(UploadStatus.FAILED, result.status());
+    assertTrue(result.errorReport().contains("JSON array is empty"));
   }
 }

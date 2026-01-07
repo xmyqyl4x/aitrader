@@ -52,6 +52,11 @@ This document captures the current-state audit of the repository and a target ar
 | Analytics per-symbol PnL tests | Completed | Added unit test ensuring per-symbol PnL results are sorted. |
 | Snapshot computation tests | Completed | Added unit test for snapshot equity/pnl calculation. |
 | Stop-limit order validation tests | Completed | Added unit test ensuring stop-limit requires stop + limit prices. |
+| Market data cache eviction | Completed | Added scheduled purge for expired cached quotes. |
+| Upload validation audit logging | Completed | Recorded audit logs when upload validation completes. |
+| JSON upload empty check | Completed | Added validation for empty JSON payloads. |
+| Manual snapshot run API | Completed | Added endpoint to generate snapshots on demand. |
+| JSON upload validation test | Completed | Added unit test asserting empty JSON is rejected. |
 
 ## Phase 1 — Deep Discovery
 

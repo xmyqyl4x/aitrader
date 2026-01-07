@@ -17,6 +17,7 @@ app:
   market-data:
     default-source: ${APP_MARKET_DATA_DEFAULT_SOURCE:quote-snapshots}
     cache-ttl: ${APP_MARKET_DATA_CACHE_TTL:30s}
+    cache-evict-interval-ms: ${APP_MARKET_DATA_CACHE_EVICT_MS:300000}
   stop-loss:
     poll-interval-ms: ${APP_STOP_LOSS_POLL_MS:60000}
     source: ${APP_STOP_LOSS_SOURCE:quote-snapshots}

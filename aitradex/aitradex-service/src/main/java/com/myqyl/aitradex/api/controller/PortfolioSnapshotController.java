@@ -45,4 +45,12 @@ public class PortfolioSnapshotController {
   public PortfolioSnapshotDto get(@PathVariable UUID id) {
     return snapshotService.get(id);
   }
+
+  @PostMapping("/run")
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  public PortfolioSnapshotDto runSnapshot(
+      @RequestParam("accountId") UUID accountId,
+      @RequestParam(value = "source", required = false) String source) {
+    return snapshotService.createSnapshotForAccount(accountId, source);
+  }
 }
