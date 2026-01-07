@@ -12,6 +12,7 @@ app:
       clock-skew-seconds: ${APP_JWT_CLOCK_SKEW_SECONDS:60}
   uploads:
     directory: ${APP_UPLOADS_DIRECTORY:./data/uploads}
+    max-size-mb: ${APP_UPLOADS_MAX_SIZE_MB:25}
   datasource:
     url: jdbc:postgresql://localhost:5432/aitradex
     username: aitradex

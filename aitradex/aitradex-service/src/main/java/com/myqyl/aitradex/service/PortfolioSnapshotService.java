@@ -9,6 +9,7 @@ import com.myqyl.aitradex.repository.AccountRepository;
 import com.myqyl.aitradex.repository.PortfolioSnapshotRepository;
 import java.math.RoundingMode;
 import java.util.List;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,9 +48,16 @@ public class PortfolioSnapshotService {
   }
 
   @Transactional(readOnly = true)
-  public List<PortfolioSnapshotDto> list(UUID accountId) {
+  public List<PortfolioSnapshotDto> list(UUID accountId, LocalDate startDate, LocalDate endDate) {
     if (accountId != null) {
-      return snapshotRepository.findByAccountIdOrderByAsOfDateDesc(accountId).stream()
+      if (startDate != null && endDate != null) {
+        return snapshotRepository
+            .findByAccountIdAndAsOfDateBetweenOrderByAsOfDateAsc(accountId, startDate, endDate)
+            .stream()
+            .map(this::toDto)
+            .toList();
+      }
+      return snapshotRepository.findByAccountIdOrderByAsOfDateAsc(accountId).stream()
           .map(this::toDto)
           .toList();
     }

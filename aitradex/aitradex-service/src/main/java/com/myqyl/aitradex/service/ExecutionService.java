@@ -43,8 +43,12 @@ public class ExecutionService {
   }
 
   @Transactional(readOnly = true)
-  public List<ExecutionDto> list() {
-    return executionRepository.findAll().stream().map(this::toDto).toList();
+  public List<ExecutionDto> list(UUID orderId) {
+    List<Execution> executions =
+        orderId != null
+            ? executionRepository.findByOrderIdOrderByExecutedAtDesc(orderId)
+            : executionRepository.findAll();
+    return executions.stream().map(this::toDto).toList();
   }
 
   @Transactional(readOnly = true)

@@ -25,6 +25,10 @@ This document captures the current-state audit of the repository and a target ar
 | Position close endpoint | Completed | Added endpoint to close positions with optional closedAt timestamp. |
 | Ingestion file upload endpoint | Completed | Added multipart upload endpoint storing files on disk and tracking status. |
 | Execution API | Completed | Added execution create/list/get endpoints to capture fills for orders. |
+| Execution filtering by order | Completed | Added orderId query filter for executions. |
+| Portfolio snapshot time-series filter | Completed | Added date range filtering for portfolio snapshots. |
+| Upload validation and size limits | Completed | Added upload size/type validation with configurable limit. |
+| Market data source selection | Completed | Added optional source selection for latest-quote API. |
 
 ## Phase 1 — Deep Discovery
 

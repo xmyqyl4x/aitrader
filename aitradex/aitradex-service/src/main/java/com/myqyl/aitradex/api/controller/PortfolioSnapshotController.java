@@ -4,6 +4,7 @@ import com.myqyl.aitradex.api.dto.CreatePortfolioSnapshotRequest;
 import com.myqyl.aitradex.api.dto.PortfolioSnapshotDto;
 import com.myqyl.aitradex.service.PortfolioSnapshotService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -33,8 +34,11 @@ public class PortfolioSnapshotController {
   }
 
   @GetMapping
-  public List<PortfolioSnapshotDto> list(@RequestParam(value = "accountId", required = false) UUID accountId) {
-    return snapshotService.list(accountId);
+  public List<PortfolioSnapshotDto> list(
+      @RequestParam(value = "accountId", required = false) UUID accountId,
+      @RequestParam(value = "startDate", required = false) LocalDate startDate,
+      @RequestParam(value = "endDate", required = false) LocalDate endDate) {
+    return snapshotService.list(accountId, startDate, endDate);
   }
 
   @GetMapping("/{id}")

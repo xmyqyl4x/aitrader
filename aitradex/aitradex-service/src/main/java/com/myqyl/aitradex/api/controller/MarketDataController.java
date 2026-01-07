@@ -20,8 +20,10 @@ public class MarketDataController {
   }
 
   @GetMapping("/quotes/latest")
-  public MarketDataQuoteDto latestQuote(@RequestParam("symbol") @NotBlank String symbol) {
-    return marketDataService.latestQuote(symbol);
+  public MarketDataQuoteDto latestQuote(
+      @RequestParam("symbol") @NotBlank String symbol,
+      @RequestParam(value = "source", required = false) String source) {
+    return marketDataService.latestQuote(symbol, source);
   }
 
   @GetMapping("/sources")

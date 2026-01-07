@@ -28,14 +28,17 @@ public class UploadService {
   private final UploadRepository uploadRepository;
   private final UserRepository userRepository;
   private final Path uploadDirectory;
+  private final long maxUploadBytes;
 
   public UploadService(
       UploadRepository uploadRepository,
       UserRepository userRepository,
-      @Value("${app.uploads.directory}") String uploadDirectory) {
+      @Value("${app.uploads.directory}") String uploadDirectory,
+      @Value("${app.uploads.max-size-mb:25}") long maxUploadSizeMb) {
     this.uploadRepository = uploadRepository;
     this.userRepository = userRepository;
     this.uploadDirectory = Path.of(uploadDirectory);
+    this.maxUploadBytes = maxUploadSizeMb * 1024 * 1024;
   }
 
   @Transactional
@@ -75,6 +78,7 @@ public class UploadService {
   @Transactional
   public UploadDto storeFile(UUID userId, UploadType type, MultipartFile file) {
     User user = userRepository.findById(userId).orElseThrow(() -> userNotFound(userId));
+    validateFile(type, file);
     Upload upload =
         Upload.builder()
             .user(user)
@@ -138,5 +142,28 @@ public class UploadService {
       return "upload.bin";
     }
     return filename.replaceAll("[^a-zA-Z0-9._-]", "_");
+  }
+
+  private void validateFile(UploadType type, MultipartFile file) {
+    if (file.isEmpty()) {
+      throw new IllegalArgumentException("Uploaded file is empty");
+    }
+    if (file.getSize() > maxUploadBytes) {
+      throw new IllegalArgumentException("Uploaded file exceeds size limit");
+    }
+    String filename = file.getOriginalFilename();
+    if (filename == null) {
+      return;
+    }
+    String lower = filename.toLowerCase();
+    boolean valid =
+        switch (type) {
+          case CSV -> lower.endsWith(".csv");
+          case JSON -> lower.endsWith(".json");
+          case EXCEL -> lower.endsWith(".xls") || lower.endsWith(".xlsx");
+        };
+    if (!valid) {
+      throw new IllegalArgumentException("Uploaded file extension does not match type");
+    }
   }
 }
