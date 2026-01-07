@@ -36,6 +36,7 @@ This document captures the current-state audit of the repository and a target ar
 | Market data health telemetry | Completed | Added health endpoint exposing quote counts by source. |
 | Analytics equity time-series | Completed | Added equity curve endpoint backed by portfolio snapshots. |
 | Upload content-type validation | Completed | Added content-type validation for uploads. |
+| Execution settlement logic | Completed | Applied executions to cash balance, positions, and order status. |
 
 ## Phase 1 — Deep Discovery
 
