@@ -14,9 +14,11 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Locale;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "app.market-data.providers.stooq.enabled", havingValue = "true", matchIfMissing = false)
 public class StooqAdapter implements MarketDataAdapter {
 
   private static final String ENDPOINT = "https://stooq.com/q/l/?s=%s&i=d";

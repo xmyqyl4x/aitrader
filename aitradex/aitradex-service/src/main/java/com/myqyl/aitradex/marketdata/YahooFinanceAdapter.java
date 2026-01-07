@@ -13,9 +13,11 @@ import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "app.market-data.providers.yahoo.enabled", havingValue = "true", matchIfMissing = false)
 public class YahooFinanceAdapter implements MarketDataAdapter {
 
   private static final String ENDPOINT =

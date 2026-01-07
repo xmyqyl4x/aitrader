@@ -17,10 +17,10 @@ app:
         enabled: true
         priority: 1
       yahoo:
-        enabled: true
+        enabled: false  # Disabled: unreliable/may fail
         priority: 2
       stooq:
-        enabled: true
+        enabled: false  # Disabled: unreliable/may fail
         priority: 3
       quote-snapshots:
         enabled: true
