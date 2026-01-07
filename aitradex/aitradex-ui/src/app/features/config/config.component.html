@@ -1,15 +1,32 @@
 <section class="page">
   <header>
     <h2>Configuration</h2>
-    <p>Store your API token to authorize requests.</p>
+    <p>Store your API token to authorize requests from this browser.</p>
   </header>
 
   <div class="card">
     <label>
       JWT Token
-      <textarea [(ngModel)]="token" placeholder="Paste JWT token"></textarea>
+      <textarea
+        [(ngModel)]="token"
+        (input)="onTokenChange()"
+        placeholder="Paste JWT token"
+      ></textarea>
     </label>
-    <button (click)="save()">Save Token</button>
+    <div class="meta">
+      <span class="status" [class.active]="hasToken">
+        {{ hasToken ? 'Token stored' : 'No token stored' }}
+      </span>
+      <span class="count" *ngIf="hasToken">Length: {{ tokenLength }}</span>
+    </div>
+    <p class="hint">
+      Tokens are saved in localStorage on this device and only used to populate the
+      Authorization header for API calls.
+    </p>
+    <div class="actions">
+      <button (click)="save()">Save Token</button>
+      <button class="secondary" (click)="clear()" [disabled]="!hasToken">Clear Token</button>
+    </div>
     <p class="message" *ngIf="message">{{ message }}</p>
   </div>
 </section>

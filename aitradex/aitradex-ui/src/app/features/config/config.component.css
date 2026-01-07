@@ -20,14 +20,56 @@ textarea {
   font-family: 'Segoe UI', sans-serif;
 }
 
-button {
+.meta {
+  display: flex;
+  gap: 12px;
   margin-top: 12px;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+}
+
+.status.active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.hint {
+  margin-top: 12px;
+  color: #475569;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+button {
   padding: 10px 16px;
   border-radius: 8px;
   border: none;
   background: #2563eb;
   color: #fff;
   cursor: pointer;
+}
+
+button.secondary {
+  background: #e2e8f0;
+  color: #1f2937;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .message {

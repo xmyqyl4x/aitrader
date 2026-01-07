@@ -14,13 +14,32 @@ export class ConfigComponent {
     this.token = this.authService.getToken() ?? '';
   }
 
+  get hasToken(): boolean {
+    return this.token.trim().length > 0;
+  }
+
+  get tokenLength(): number {
+    return this.token.trim().length;
+  }
+
+  onTokenChange(): void {
+    this.message = '';
+  }
+
   save(): void {
-    if (!this.token) {
-      this.message = 'Token cleared.';
-      this.authService.clearToken();
+    const trimmedToken = this.token.trim();
+    if (!trimmedToken) {
+      this.clear();
       return;
     }
-    this.authService.setToken(this.token);
-    this.message = 'Token saved.';
+    this.token = trimmedToken;
+    this.authService.setToken(trimmedToken);
+    this.message = 'Token saved locally.';
+  }
+
+  clear(): void {
+    this.token = '';
+    this.authService.clearToken();
+    this.message = 'Token cleared locally.';
   }
 }
