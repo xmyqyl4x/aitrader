@@ -1,0 +1,34 @@
+<section class="page">
+  <header>
+    <h2>Dashboard</h2>
+    <p>Track portfolio health, equity performance, and key metrics.</p>
+  </header>
+
+  <div class="card">
+    <label>
+      Account ID
+      <input [(ngModel)]="accountId" placeholder="Enter account UUID" />
+    </label>
+    <button (click)="loadSummary()">Load Summary</button>
+    <p class="error" *ngIf="error">{{ error }}</p>
+  </div>
+
+  <div class="grid" *ngIf="summary">
+    <div class="stat">
+      <h3>Starting Equity</h3>
+      <span>{{ summary.startingEquity | number: '1.2-2' }}</span>
+    </div>
+    <div class="stat">
+      <h3>Ending Equity</h3>
+      <span>{{ summary.endingEquity | number: '1.2-2' }}</span>
+    </div>
+    <div class="stat">
+      <h3>Return %</h3>
+      <span>{{ summary.returnPct | number: '1.2-2' }}%</span>
+    </div>
+    <div class="stat">
+      <h3>Max Drawdown</h3>
+      <span>{{ summary.maxDrawdown | number: '1.2-2' }}%</span>
+    </div>
+  </div>
+</section>

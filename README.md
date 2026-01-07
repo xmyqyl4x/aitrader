@@ -1,109 +1,116 @@
-# ChatGPT Micro-Cap Experiment
-Welcome to the repo behind my 6-month live trading experiment where ChatGPT manages a real-money micro-cap portfolio.
+# Aitrader / Aitradex
 
-## Overview on getting started: [Here](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/blob/main/Start%20Your%20Own/README.md)
-   
-## Repository Structure
+This repository contains the Spring Boot backend (`aitradex-service`) and the Angular UI (`aitradex-ui`).
 
-- **`trading_script.py`** - Main trading engine with portfolio management and stop-loss automation
-- **`Scripts and CSV Files/`** - My personal portfolio (updates every trading day)
-- **`Start Your Own/`** - Template files and guide for starting your own experiment  
-- **`Weekly Deep Research (MD|PDF)/`** - Research summaries and performance reports
-- **`Experiment Details/`** - Documentation, methodology, prompts, and Q&A
+## Prerequisites
 
-# The Concept
-Every day, I kept seeing the same ad about having some A.I. pick undervalued stocks. It was obvious it was trying to get me to subscribe to some garbage, so I just rolled my eyes.  
-Then I started wondering, "How well would that actually work?"
+- Java 21 (for the Spring Boot service)
+- Maven 3.9+
+- Node.js 18+ and npm (for the Angular UI)
+- Docker (optional, for containerized runs)
 
-So, starting with just $100, I wanted to answer a simple but powerful question:
+## Build
 
-**Can powerful large language models like ChatGPT actually generate alpha (or at least make smart trading decisions) using real-time data?**
+### Full workspace build
 
-## Each trading day:
+```bash
+mvn -f aitradex/pom.xml clean package
+```
 
-- I provide it trading data on the stocks in its portfolio.  
-- Strict stop-loss rules apply.  
-- Every week I allow it to use deep research to reevaluate its account.  
-- I track and publish performance data weekly on my blog: [Here](https://nathanbsmith729.substack.com)
+### Backend only
 
-## Research & Documentation
+```bash
+mvn -f aitradex/aitradex-service/pom.xml clean package
+```
 
-- [Research Index](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/blob/main/Experiment%20Details/Deep%20Research%20Index.md)  
-- [Disclaimer](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/blob/main/Experiment%20Details/Disclaimer.md)  
-- [Q&A](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/blob/main/Experiment%20Details/Q%26A.md)  
-- [Prompts](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/blob/main/Experiment%20Details/Prompts.md)  
-- [Starting Your Own](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/blob/main/Start%20Your%20Own/README.md)  
-- [Research Summaries (MD)](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/tree/main/Weekly%20Deep%20Research%20(MD))  
-- [Full Deep Research Reports (PDF)](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/tree/main/Weekly%20Deep%20Research%20(PDF))
-- [Chats](https://github.com/LuckyOne7777/ChatGPT-Micro-Cap-Experiment/blob/main/Experiment%20Details/Chats.md)
-# Current Performance
+### UI only
 
-<!-- To update performance chart: 
-     1. Replace the image file with updated results
-     2. Update the dates and description below
-     3. Update the "Last Updated" date -->
+```bash
+cd aitradex/aitradex-ui
+npm install
+npm run build
+```
 
-**Current Portfolio Results**
+## Test
 
-![Latest Performance Results](Results.png)
+### Run all backend tests
 
-**Current Status:** Portfolio is outperforming the S&P 500 benchmark
+```bash
+mvn -f aitradex/aitradex-service/pom.xml test
+```
 
-*Performance data is updated after each trading day. See the CSV files in `Scripts and CSV Files/` for detailed daily tracking.*
+### Run a single test class
 
-# Features of This Repo
-- Live trading scripts — used to evaluate prices and update holdings daily  
-- LLM-powered decision engine — ChatGPT picks the trades  
-- Performance tracking — CSVs with daily PnL, total equity, and trade history  
-- Visualization tools — Matplotlib graphs comparing ChatGPT vs. Index  
-- Logs & trade data — auto-saved logs for transparency  
+```bash
+mvn -f aitradex/aitradex-service/pom.xml -Dtest=RiskControllerTest test
+```
 
-## Want to Contribute?
+### UI tests
 
-Contributions are very welcome! This project is community-oriented, and your help is invaluable.  
+```bash
+cd aitradex/aitradex-ui
+npm test
+```
 
-- **Issues:** If you notice a bug or have an idea for improvement, please.  
-- **Pull Requests:** Feel free to submit a PR — I usually review within a few days.  
-- **Collaboration:** High-value contributors may be invited as maintainers/admins to help shape the project’s future.  
+## Run
 
-Whether it’s fixing a typo, adding features, or discussing new ideas, all contributions are appreciated!
+### Option 1: Docker Compose (backend + UI + database)
 
+```bash
+cd aitradex
+./mvnw -q -DskipTests package
+npm --prefix aitradex-ui install
+npm --prefix aitradex-ui run build
 
-# Why This Matters
-AI is being hyped across every industry, but can it really manage money without guidance?
+# Build and run containers
 
-This project is an attempt to find out — with transparency, data, and a real budget.
+docker compose up --build
+```
 
-# Tech Stack & Features
+Access:
 
-## Core Technologies
-- **Python** - Core scripting and automation
-- **pandas + yFinance** - Market data fetching and analysis
-- **Matplotlib** - Performance visualization and charting
-- **ChatGPT-4** - AI-powered trading decision engine
+- UI: http://localhost:4200
+- API: http://localhost:8080
+- Swagger UI: http://localhost:8080/api/swagger-ui.html
 
-## Key Features
-- **Robust Data Sources** - Yahoo Finance primary, Stooq fallback for reliability
-- **Automated Stop-Loss** - Automatic position management with configurable stop-losses
-- **Interactive Trading** - Market-on-Open (MOO) and limit order support
-- **Backtesting Support** - ASOF_DATE override for historical analysis
-- **Performance Analytics** - CAPM analysis, Sharpe/Sortino ratios, drawdown metrics
-- **Trade Logging** - Complete transparency with detailed execution logs
+### Option 2: Local backend + local database
 
-## System Requirements
-- Python  3.11+
-- Internet connection for market data
-- ~10MB storage for CSV data files
+1. Start PostgreSQL locally (or use the Docker service below):
 
-# Follow Along
-The experiment runs from June 2025 to December 2025.  
-Every trading day I will update the portfolio CSV file.  
-If you feel inspired to do something similar, feel free to use this as a blueprint.
+```bash
+docker run --name aitradex-postgres -e POSTGRES_DB=aitradex -e POSTGRES_USER=aitradex -e POSTGRES_PASSWORD=aitradex -p 5432:5432 -d postgres:16-alpine
+```
 
-Updates are posted weekly on my blog, more coming soon!
+2. Run the Spring Boot service:
 
-Blog: [A.I Controls Stock Account](https://nathanbsmith729.substack.com)
+```bash
+mvn -f aitradex/aitradex-service/pom.xml spring-boot:run -Dspring-boot.run.profiles=dev
+```
 
-Have feature requests or any advice?  
+Access:
 
-Please reach out here: **nathanbsmith.business@gmail.com**
+- API: http://localhost:8080
+- Swagger UI: http://localhost:8080/api/swagger-ui.html
+
+### Option 3: Local UI (Angular dev server)
+
+```bash
+cd aitradex/aitradex-ui
+npm install
+npm start
+```
+
+Access:
+
+- UI: http://localhost:4200
+
+### Option 4: Run backend and UI separately (no Docker)
+
+1. Start the backend (see Option 2).
+2. Start the UI dev server (see Option 3).
+3. Configure a token in the UI (Configuration page) if your API endpoints require JWT auth.
+
+## Configuration
+
+- Backend configuration lives in `aitradex/aitradex-service/src/main/resources/application.yml`.
+- Docker Compose configuration is in `aitradex/docker-compose.yml`.
