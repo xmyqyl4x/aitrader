@@ -54,10 +54,12 @@ public class MarketDataService {
     return adapters.stream()
         .collect(Collectors.toMap(
             MarketDataAdapter::name,
-            name ->
-                "quote-snapshots".equalsIgnoreCase(name)
-                    ? quoteSnapshotRepository.countBySource(name)
-                    : 0L));
+            adapter -> {
+              String name = adapter.name();
+              return "quote-snapshots".equalsIgnoreCase(name)
+                  ? quoteSnapshotRepository.countBySource(name)
+                  : 0L;
+            }));
   }
 
   public void purgeExpired() {
