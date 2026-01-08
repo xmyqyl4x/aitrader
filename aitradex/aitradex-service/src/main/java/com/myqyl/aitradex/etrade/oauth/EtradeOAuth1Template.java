@@ -49,13 +49,19 @@ public class EtradeOAuth1Template {
       oauthParams.put("oauth_token", token);
     }
 
-    // Merge all parameters
+    // Merge all parameters for signature (includes both OAuth and regular params)
     Map<String, String> allParams = new TreeMap<>(oauthParams);
     if (parameters != null) {
       allParams.putAll(parameters);
+      // Add OAuth-specific parameters to header (e.g., oauth_callback, oauth_verifier)
+      for (Map.Entry<String, String> param : parameters.entrySet()) {
+        if (param.getKey().startsWith("oauth_")) {
+          oauthParams.put(param.getKey(), param.getValue());
+        }
+      }
     }
 
-    // Generate signature
+    // Generate signature (using all params including oauth_callback, etc.)
     String signature = generateSignature(method, url, allParams, tokenSecret);
     oauthParams.put("oauth_signature", signature);
 

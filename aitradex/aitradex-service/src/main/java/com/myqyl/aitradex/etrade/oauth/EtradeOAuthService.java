@@ -53,7 +53,12 @@ public class EtradeOAuthService {
     try {
       String url = properties.getOAuthRequestTokenUrl();
       Map<String, String> params = new HashMap<>();
-      params.put("oauth_callback", properties.getCallbackUrl());
+      // For sandbox/testing, use "oob" (out-of-band) instead of callback URL
+      // This allows manual verifier input for testing
+      String callback = properties.getEnvironment() == EtradeProperties.Environment.SANDBOX 
+          ? "oob" 
+          : properties.getCallbackUrl();
+      params.put("oauth_callback", callback);
 
       // E*TRADE uses GET for request token (matching example app)
       String authHeader = oauthTemplate.generateAuthorizationHeader("GET", url, params, null, null);
