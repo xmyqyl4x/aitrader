@@ -150,6 +150,17 @@ public class EtradeAlertsClient {
     alert.put("category", alertNode.path("category").asText(""));
     alert.put("status", alertNode.path("status").asText(""));
     alert.put("priority", alertNode.path("priority").asText(""));
+    
+    // Additional optional fields
+    JsonNode readNode = alertNode.path("read");
+    if (!readNode.isMissingNode()) {
+      alert.put("read", readNode.asBoolean(false));
+    }
+    alert.put("readDate", alertNode.path("readDate").asText(""));
+    alert.put("url", alertNode.path("url").asText(""));
+    alert.put("alertType", alertNode.path("alertType").asText(""));
+    alert.put("accountId", alertNode.path("accountId").asText(""));
+    
     return alert;
   }
 
@@ -162,6 +173,18 @@ public class EtradeAlertsClient {
     details.put("status", alertNode.path("status").asText(""));
     details.put("priority", alertNode.path("priority").asText(""));
     details.put("message", alertNode.path("message").asText(""));
+    
+    // Additional optional fields
+    JsonNode readNode = alertNode.path("read");
+    if (!readNode.isMissingNode()) {
+      details.put("read", readNode.asBoolean(false));
+    }
+    details.put("readDate", alertNode.path("readDate").asText(""));
+    details.put("url", alertNode.path("url").asText(""));
+    details.put("alertType", alertNode.path("alertType").asText(""));
+    details.put("accountId", alertNode.path("accountId").asText(""));
+    details.put("htmlMessage", alertNode.path("htmlMessage").asText(""));
+    
     return details;
   }
 

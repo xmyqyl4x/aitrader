@@ -395,9 +395,23 @@ public class EtradeOrderClient {
 
   private Map<String, Object> parseOrder(JsonNode orderNode) {
     Map<String, Object> order = new HashMap<>();
-    order.put("orderId", orderNode.path("orderId").asText());
-    order.put("orderType", orderNode.path("orderType").asText());
-    order.put("orderStatus", orderNode.path("orderStatus").asText());
+    order.put("orderId", orderNode.path("orderId").asText(""));
+    order.put("orderType", orderNode.path("orderType").asText(""));
+    order.put("orderStatus", orderNode.path("orderStatus").asText(""));
+    
+    // Additional order-level fields
+    order.put("accountId", orderNode.path("accountId").asText(""));
+    order.put("clientOrderId", orderNode.path("clientOrderId").asText(""));
+    
+    // Handle placedTime (may be long or string)
+    JsonNode placedTimeNode = orderNode.path("placedTime");
+    if (!placedTimeNode.isMissingNode()) {
+      if (placedTimeNode.isLong()) {
+        order.put("placedTime", placedTimeNode.asLong());
+      } else {
+        order.put("placedTime", placedTimeNode.asText(""));
+      }
+    }
     
     // Handle OrderDetail array (may have multiple order details)
     JsonNode orderDetailNode = orderNode.path("OrderDetail");
@@ -417,16 +431,7 @@ public class EtradeOrderClient {
         // Single order detail
         order.putAll(parseOrderDetails(orderDetailNode));
       }
-    }
-    
-    // Handle placedTime (may be long or string)
-    JsonNode placedTimeNode = orderNode.path("placedTime");
-    if (!placedTimeNode.isMissingNode()) {
-      if (placedTimeNode.isLong()) {
-        order.put("placedTime", placedTimeNode.asLong());
-      } else {
-        order.put("placedTime", placedTimeNode.asText());
-      }
+      order.put("orderDetails", orderDetails.isEmpty() ? List.of(parseOrderDetails(orderDetailNode)) : orderDetails);
     }
     
     return order;
@@ -438,7 +443,7 @@ public class EtradeOrderClient {
     // Basic order detail fields
     JsonNode allOrNoneNode = detailNode.path("allOrNone");
     if (!allOrNoneNode.isMissingNode()) {
-      details.put("allOrNone", allOrNoneNode.asBoolean());
+      details.put("allOrNone", allOrNoneNode.asBoolean(false));
     }
     
     details.put("priceType", detailNode.path("priceType").asText(""));
@@ -451,7 +456,14 @@ public class EtradeOrderClient {
       if (limitPriceNode.isNumber()) {
         details.put("limitPrice", limitPriceNode.asDouble());
       } else {
-        details.put("limitPrice", limitPriceNode.asText());
+        String limitPriceText = limitPriceNode.asText("");
+        if (!limitPriceText.isEmpty()) {
+          try {
+            details.put("limitPrice", Double.parseDouble(limitPriceText));
+          } catch (NumberFormatException e) {
+            details.put("limitPrice", limitPriceText);
+          }
+        }
       }
     }
     
@@ -460,9 +472,22 @@ public class EtradeOrderClient {
       if (stopPriceNode.isNumber()) {
         details.put("stopPrice", stopPriceNode.asDouble());
       } else {
-        details.put("stopPrice", stopPriceNode.asText());
+        String stopPriceText = stopPriceNode.asText("");
+        if (!stopPriceText.isEmpty()) {
+          try {
+            details.put("stopPrice", Double.parseDouble(stopPriceText));
+          } catch (NumberFormatException e) {
+            details.put("stopPrice", stopPriceText);
+          }
+        }
       }
     }
+    
+    // Additional order detail fields
+    details.put("stopLimitPrice", detailNode.path("stopLimitPrice").asText(""));
+    details.put("estimatedCommission", getDoubleValue(detailNode, "estimatedCommission"));
+    details.put("estimatedTotalAmount", getDoubleValue(detailNode, "estimatedTotalAmount"));
+    details.put("orderValue", getDoubleValue(detailNode, "orderValue"));
     
     // Handle Instrument array (may have multiple instruments)
     JsonNode instrumentNode = detailNode.path("Instrument");
@@ -483,10 +508,30 @@ public class EtradeOrderClient {
         // Single instrument
         Map<String, Object> instrument = parseInstrument(instrumentNode);
         details.putAll(instrument);
+        details.put("instruments", List.of(instrument));
       }
     }
     
     return details;
+  }
+  
+  private Double getDoubleValue(JsonNode node, String fieldName) {
+    JsonNode fieldNode = node.path(fieldName);
+    if (fieldNode.isMissingNode() || fieldNode.isNull()) {
+      return null;
+    }
+    if (fieldNode.isNumber()) {
+      return fieldNode.asDouble();
+    }
+    try {
+      String text = fieldNode.asText();
+      if (text == null || text.isEmpty()) {
+        return null;
+      }
+      return Double.parseDouble(text);
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   private Map<String, Object> parseInstrument(JsonNode instrumentNode) {
@@ -498,6 +543,8 @@ public class EtradeOrderClient {
       instrument.put("symbol", productNode.path("symbol").asText(""));
       instrument.put("securityType", productNode.path("securityType").asText(""));
       instrument.put("symbolDescription", productNode.path("symbolDescription").asText(""));
+      instrument.put("cusip", productNode.path("cusip").asText(""));
+      instrument.put("exchange", productNode.path("exchange").asText(""));
     }
     
     instrument.put("orderAction", instrumentNode.path("orderAction").asText(""));
@@ -510,9 +557,21 @@ public class EtradeOrderClient {
       if (avgExecPriceNode.isNumber()) {
         instrument.put("averageExecutionPrice", avgExecPriceNode.asDouble());
       } else {
-        instrument.put("averageExecutionPrice", avgExecPriceNode.asText());
+        String avgExecPriceText = avgExecPriceNode.asText("");
+        if (!avgExecPriceText.isEmpty()) {
+          try {
+            instrument.put("averageExecutionPrice", Double.parseDouble(avgExecPriceText));
+          } catch (NumberFormatException e) {
+            instrument.put("averageExecutionPrice", avgExecPriceText);
+          }
+        }
       }
     }
+    
+    // Additional instrument fields
+    instrument.put("reservedQuantity", instrumentNode.path("reservedQuantity").asInt(0));
+    instrument.put("filledQuantity", instrumentNode.path("filledQuantity").asInt(0));
+    instrument.put("remainingQuantity", instrumentNode.path("remainingQuantity").asInt(0));
     
     return instrument;
   }

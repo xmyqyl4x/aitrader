@@ -340,6 +340,13 @@ public class EtradeQuoteClient {
   private Map<String, Object> parseOptionChain(JsonNode optionChainNode) {
     Map<String, Object> chain = new HashMap<>();
     
+    // Option chain metadata
+    chain.put("symbol", optionChainNode.path("symbol").asText(""));
+    chain.put("nearPrice", getDoubleValue(optionChainNode, "nearPrice"));
+    chain.put("adjustedFlag", optionChainNode.path("adjustedFlag").asBoolean(false));
+    chain.put("optionChainType", optionChainNode.path("optionChainType").asText(""));
+    
+    // Option pair data
     JsonNode optionPairNode = optionChainNode.path("OptionPair");
     if (!optionPairNode.isMissingNode()) {
       List<Map<String, Object>> pairs = new ArrayList<>();
@@ -358,6 +365,9 @@ public class EtradeQuoteClient {
 
   private Map<String, Object> parseOptionPair(JsonNode pairNode) {
     Map<String, Object> pair = new HashMap<>();
+    
+    // Strike price (common to both call and put)
+    pair.put("strikePrice", getDoubleValue(pairNode, "strikePrice"));
     
     JsonNode callNode = pairNode.path("Call");
     if (!callNode.isMissingNode()) {
