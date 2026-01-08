@@ -1,0 +1,92 @@
+// Pagination
+
+.pagination {
+  .page-number {
+    @extend .page-item;
+  }
+
+  li {
+    // Apply consistent styles to both a and span elements
+    a,
+    span.page-link {
+      position: relative;
+      display: block;
+      padding: $pagination-padding-y $pagination-padding-x;
+      margin-left: -$pagination-border-width;
+      line-height: 1.25;
+      color: $pagination-color;
+      background-color: $pagination-bg;
+      border: $pagination-border-width solid $pagination-border-color;
+    }
+
+    a {
+      &:hover {
+        z-index: 2;
+        color: $pagination-hover-color;
+        text-decoration: none;
+        background-color: $pagination-hover-bg;
+        border-color: $pagination-hover-border-color;
+      }
+
+      &:focus {
+        z-index: 2;
+        outline: $pagination-focus-outline;
+        box-shadow: $pagination-focus-box-shadow;
+      }
+
+      // Opinionated: add "hand" cursor to non-disabled .page-link elements
+      &:not(:disabled):not(.disabled) {
+        cursor: pointer;
+      }
+    }
+
+    &:first-child {
+      a,
+      span.page-link {
+        margin-left: 0;
+        @include border-start-radius($border-radius);
+      }
+    }
+    &:last-child {
+      a,
+      span.page-link {
+        @include border-end-radius($border-radius);
+      }
+    }
+
+    &.active a {
+      z-index: 1;
+      color: $pagination-active-color;
+      background-color: $pagination-active-bg;
+      border-color: $pagination-active-border-color;
+
+      &:hover {
+        color: $pagination-active-color;
+      }
+    }
+
+    &.disabled {
+      a,
+      span.page-link {
+        color: $pagination-disabled-color;
+        pointer-events: none;
+        // Opinionated: remove the "hand" cursor set previously for .page-link
+        cursor: auto;
+        background-color: $pagination-disabled-bg;
+        border-color: $pagination-disabled-border-color;
+      }
+    }
+  }
+}
+
+// Pagination Rounded
+
+.pagination-rounded {
+  li {
+    a,
+    span.page-link {
+      @include border-radius(50px !important);
+      margin: 0 ($layout-spacer-x / 5);
+    }
+  }
+}

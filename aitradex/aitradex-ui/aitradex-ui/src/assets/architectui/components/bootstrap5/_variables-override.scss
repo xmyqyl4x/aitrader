@@ -1,0 +1,178 @@
+// Bootstrap 5 Variable Overrides
+// This file must be imported BEFORE bootstrap to override default variables
+
+// GENERIC OPTIONS
+$enable-caret: true;
+$enable-rounded: true;
+$enable-shadows: false;
+$enable-gradients: false;
+$enable-transitions: true;
+$enable-grid-classes: true;
+$enable-negative-margins: true; // Required for existing layout utilities
+
+$body-bg: #fff;
+
+// Colors
+$white: #fff;
+$gray-100: #f8f9fa;
+$gray-200: #e9ecef;
+$gray-300: #dee2e6;
+$gray-400: #ced4da;
+$gray-500: #adb5bd;
+$gray-600: #6c757d;
+$gray-700: #495057;
+$gray-800: #343a40;
+$gray-900: #212529;
+$black: #000;
+
+// Custom Theme Colors
+$brand: #3f6ad8;
+$blue: #78C3FB;
+$indigo: #444054;
+$purple: #794c8a;
+$pink: #f65ca2;
+$red: #d92550;
+$orange: #fd7e14;
+$yellow: #f7b924;
+$green: #3ac47d;
+$teal: #16E0BD;
+$cyan: #16aaff;
+$blue-light: #eeeeee;
+
+$primary: $brand;
+$secondary: $gray-600;
+$success: $green;
+$info: $cyan;
+$warning: $yellow;
+$danger: $red;
+$light: $blue-light;
+$dark: $gray-800;
+$focus: $indigo;
+$alt: $purple;
+
+// Extended theme colors map (includes focus and alternate)
+$theme-colors: (
+  "primary": $primary,
+  "secondary": $secondary,
+  "success": $success,
+  "info": $info,
+  "warning": $warning,
+  "danger": $danger,
+  "light": $light,
+  "dark": $dark,
+  "focus": $focus,
+  "alternate": $alt
+);
+
+// Typography
+$headings-font-weight: 400;
+
+$font-size-base: 0.88rem;
+$font-size-lg: ($font-size-base * 1.25);
+$font-size-sm: ($font-size-base * 1.1);
+
+$body-color: $gray-700;
+
+// Buttons
+$btn-transition: color .15s, background-color .15s, border-color .15s, box-shadow .15s;
+$btn-focus-width: 0;
+$btn-focus-box-shadow: none;
+
+// Pagination
+$pagination-focus-box-shadow: none;
+
+// Cards
+$card-cap-bg: $white;
+$card-border-color: rgba(darken($primary, 25%), .125);
+
+// Dropdowns
+$dropdown-min-width: 15rem;
+$dropdown-link-hover-bg: #e0f3ff;
+$dropdown-item-padding-y: .4rem;
+$dropdown-padding-y: .65rem;
+
+// Custom Box Shadows
+$box-shadow-default: 0 0.46875rem 2.1875rem rgba(darken($primary, 50%), .03),
+                     0 0.9375rem 1.40625rem rgba(darken($primary, 50%), .03),
+                     0 0.25rem 0.53125rem rgba(darken($primary, 50%), .05),
+                     0 0.125rem 0.1875rem rgba(darken($primary, 50%), .03);
+
+$box-shadow-default-right: 0.46875rem 0 2.1875rem rgba(darken($primary, 50%), .03),
+                           0.9375rem 0 1.40625rem rgba(darken($primary, 50%), .03),
+                           0.25rem 0 0.53125rem rgba(darken($primary, 50%), .05),
+                           0.125rem 0 0.1875rem rgba(darken($primary, 50%), .03);
+
+$box-shadow-default-inverse: 0 -0.46875rem 2.1875rem rgba(darken($primary, 50%), .03),
+                             0 -0.9375rem 1.40625rem rgba(darken($primary, 50%), .03),
+                             0 -0.25rem 0.53125rem rgba(darken($primary, 50%), .05),
+                             0 -0.125rem 0.1875rem rgba(darken($primary, 50%), .03);
+
+$box-shadow-lg-default: 0 0.76875rem 2.4875rem rgba($gray-800, .3),
+                        0 1.3375rem 1.70625rem rgba($gray-800, .3),
+                        0 0.55rem 0.53125rem rgba(darken($gray-800, 50%), .05),
+                        0 0.225rem 0.4375rem rgba($gray-800, .3);
+
+// Forms
+$form-check-input-margin-y: 0.3rem;
+$input-group-addon-bg: lighten($dropdown-link-hover-bg, 3%);
+
+// Tables
+$table-striped-bg: rgba($black, .03);
+$table-hover-bg: $dropdown-link-hover-bg;
+$table-active-bg: $dropdown-link-hover-bg;
+$table-border-color: $gray-200;
+$table-th-font-weight: 600;
+$table-cell-padding-y: .55rem;
+$table-cell-padding-x: .55rem;
+$table-cell-padding-y-sm: .3rem;
+$table-cell-padding-x-sm: .3rem;
+
+// Popovers
+$popover-max-width: 320px;
+$popover-box-shadow: $box-shadow-default;
+$popover-border-color: $card-border-color;
+$popover-header-bg: $white;
+
+// Component active states
+$component-active-bg: $primary;
+
+// List Group
+$list-group-border-color: rgba($primary, .08);
+
+// Links
+$link-color: $primary;
+$link-hover-color: darken($primary, 15%);
+
+// Input focus
+$input-btn-focus-color: rgba($component-active-bg, .25);
+$input-focus-border-color: lighten($component-active-bg, 25%);
+
+// Mixins for custom box shadow
+@mixin box-shadow-architect($shadow) {
+  box-shadow: 0 0.66875rem 2.3875rem rgba($shadow, .03),
+              0 1.1375rem 1.60625rem rgba($shadow, .03),
+              0 0.45rem 0.73125rem rgba($shadow, .05),
+              0 0.325rem 0.3875rem rgba($shadow, .03);
+}
+
+// Bootstrap 4 compatibility mixins for border-radius
+// These were renamed in Bootstrap 5 but we need them for existing SCSS files
+@mixin border-top-radius($radius) {
+  border-top-left-radius: $radius;
+  border-top-right-radius: $radius;
+}
+
+@mixin border-right-radius($radius) {
+  border-top-right-radius: $radius;
+  border-bottom-right-radius: $radius;
+}
+
+@mixin border-bottom-radius($radius) {
+  border-bottom-left-radius: $radius;
+  border-bottom-right-radius: $radius;
+}
+
+@mixin border-left-radius($radius) {
+  border-top-left-radius: $radius;
+  border-bottom-left-radius: $radius;
+}

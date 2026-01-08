@@ -1,18 +1,1 @@
-<div class="layout">
-  <aside class="sidebar">
-    <h1>{{ title }}</h1>
-    <nav>
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/orders" routerLinkActive="active">Orders</a>
-      <a routerLink="/positions" routerLinkActive="active">Positions</a>
-      <a routerLink="/uploads" routerLinkActive="active">Uploads</a>
-      <a routerLink="/analytics" routerLinkActive="active">Analytics</a>
-      <a routerLink="/audit" routerLinkActive="active">Audit Log</a>
-      <a routerLink="/stock-review" routerLinkActive="active">Stock Quote Review</a>
-      <a routerLink="/stock-review/searches" routerLinkActive="active">Review Stack</a>
-    </nav>
-  </aside>
-  <main class="content">
-    <router-outlet></router-outlet>
-  </main>
-</div>
+<app-base-layout></app-base-layout>

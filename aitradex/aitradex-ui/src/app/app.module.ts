@@ -1,8 +1,15 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { NgApexchartsModule } from 'ng-apexcharts';
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgScrollbarModule } from 'ngx-scrollbar';
+import { LoadingBarRouterModule } from '@ngx-loading-bar/router';
+import { PlatformModule } from '@angular/cdk/platform';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
@@ -16,9 +23,19 @@ import { StockReviewComponent } from './features/stock-review/stock-review.compo
 import { StockReviewStackComponent } from './features/stock-review/stock-review-stack.component';
 import { StockChartComponent } from './features/stock-review/stock-chart.component';
 
+// Layout Components
+import { BaseLayoutComponent } from './layout/base-layout.component';
+import { HeaderComponent } from './layout/components/header/header.component';
+import { SidebarComponent } from './layout/components/sidebar/sidebar.component';
+import { FooterComponent } from './layout/components/footer/footer.component';
+
 @NgModule({
   declarations: [
     AppComponent,
+    BaseLayoutComponent,
+    HeaderComponent,
+    SidebarComponent,
+    FooterComponent,
     DashboardComponent,
     OrdersComponent,
     PositionsComponent,
@@ -31,10 +48,17 @@ import { StockChartComponent } from './features/stock-review/stock-chart.compone
   ],
   imports: [
     BrowserModule,
+    BrowserAnimationsModule,
     HttpClientModule,
     FormsModule,
     ReactiveFormsModule,
     NgApexchartsModule,
+    FontAwesomeModule,
+    NgbModule,
+    PlatformModule,
+    ScrollingModule,
+    NgScrollbarModule,
+    LoadingBarRouterModule,
     AppRoutingModule
   ],
   providers: [],

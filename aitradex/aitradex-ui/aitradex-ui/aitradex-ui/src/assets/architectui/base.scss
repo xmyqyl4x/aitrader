@@ -1,0 +1,104 @@
+// BOOTSTRAP 5 - Custom variable overrides must come first
+@import "components/bootstrap5/variables-override";
+
+// BOOTSTRAP 5 - Main framework import
+@import "bootstrap/scss/bootstrap";
+
+// ArchitectUI Themes Variables (for additional theme-specific overrides)
+@import "themes/layout-variables";
+
+// LAYOUT
+
+@import "layout/layout";
+
+// UTILS
+
+@import "utils/helpers";
+@import "utils/backgrounds";
+@import "utils/animate";
+@import "utils/comps-animations";
+
+// Angular Material Components
+
+@import "components/material/base";
+
+// ELEMENTS
+
+@import "elements/buttons";
+@import "elements/dropdown";
+@import "elements/navs";
+@import "elements/badges";
+@import "elements/cards";
+@import "elements/tabs";
+@import "elements/accordions";
+@import "elements/modals";
+@import "elements/progressbar";
+@import "elements/loaders";
+@import "elements/timeline";
+@import "elements/listgroup";
+@import "elements/forms";
+@import "elements/pagination";
+@import "elements/chat";
+@import "elements/popovers-tooltips";
+
+// DASHBOARD BOXES
+
+@import "widgets/chart-boxes/chart-boxes";
+@import "widgets/content-boxes/content-boxes";
+@import "widgets/profile-boxes/profile-boxes";
+
+// PAGES
+@import "pages/userpages";
+
+// Applications
+@import "applications/applications-base";
+
+// COMPONENTS
+
+// Perfect Scrollbar
+@import "components/perfect-scrollbar/perfect-scrollbar";
+
+// Loading buttons
+@import "components/loading-buttons/loading-buttons";
+
+// Drawer
+@import "components/drawer/drawer";
+
+// Gauges
+@import "components/gauges/gauges";
+
+// Hamburger button
+@import "components/hamburgers/hamburgers";
+
+// Notifications
+@import "components/notifications/sweetalerts";
+@import "components/notifications/toastr";
+
+// Calendar
+@import "components/calendar/calendar";
+
+// Swiper Carousel
+@import "components/swiper/swiper-custom";
+
+// Range Slider
+@import "components/rangeslider/rangeslider";
+
+// Tables
+@import "components/tables/tables";
+
+// Icons
+@import "components/icons/p7icons";
+@import "components/icons/linearicons";
+// @import "components/icons/ionicons";  // Removed - package no longer installed
+@import "components/icons/flagkit";
+
+// FORMS
+@import "components/forms/input-select/input-select";
+@import "components/forms/toggle-switch/toggle-switch";
+
+// Responsive
+@import "layout/responsive/responsive-base";
+
+// DEMO
+@import "demo-ui/demo";
+

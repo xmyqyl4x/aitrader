@@ -1,0 +1,28 @@
+// Import ArchitectUI base styles  
+// Note: Import paths in base.scss are relative to its location in assets/architectui/
+// Using relative path from styles.scss (which is in src/)
+@import "src/assets/architectui/base";
+
+// Native-looking scrollbar styling for ngx-scrollbar
+ng-scrollbar {
+  --scrollbar-size: 8px;
+  --scrollbar-thumb-color: rgba(0, 0, 0, 0.3);
+  --scrollbar-thumb-hover-color: rgba(0, 0, 0, 0.5);
+  --scrollbar-track-color: transparent;
+  --scrollbar-border-radius: 4px;
+  --scrollbar-padding: 1px;
+}
+
+// Dark sidebar scrollbar
+.sidebar-dark ng-scrollbar,
+.app-sidebar.bg-heavy-rain ng-scrollbar,
+.app-sidebar.bg-midnight-bloom ng-scrollbar,
+.app-sidebar.bg-night-sky ng-scrollbar,
+.app-sidebar.bg-slick-carbon ng-scrollbar,
+.app-sidebar.bg-royal ng-scrollbar,
+.app-sidebar.bg-asteroid ng-scrollbar,
+.app-sidebar.bg-night-fade ng-scrollbar,
+.app-sidebar.bg-warm-flame ng-scrollbar {
+  --scrollbar-thumb-color: rgba(255, 255, 255, 0.3);
+  --scrollbar-thumb-hover-color: rgba(255, 255, 255, 0.5);
+}
