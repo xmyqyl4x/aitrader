@@ -1,10 +1,10 @@
 // FlagKit (flag-icon-css v4.x)
-@import '../../../../node_modules/flag-icon-css/sass/variables';
+@import '~flag-icon-css/sass/variables';
 
 $flag-icons-path: '~flag-icon-css/flags';
 
-@import '../../../../node_modules/flag-icon-css/sass/flag-icons-base';
-@import '../../../../node_modules/flag-icon-css/sass/flag-icons-list';
+@import '~flag-icon-css/sass/flag-icons-base';
+@import '~flag-icon-css/sass/flag-icons-list';
 
 .flag-icon-lg {
   line-height: 2em;

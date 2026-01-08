@@ -6,7 +6,7 @@ import { StockQuote, StockQuoteHistory, QuoteRange, StockReview } from '../../co
 @Component({
   selector: 'app-stock-review',
   templateUrl: './stock-review.component.html',
-  styleUrls: ['./stock-review.component.css']
+  styleUrls: ['./stock-review.component.scss']
 })
 export class StockReviewComponent implements OnInit {
   searchForm: FormGroup;

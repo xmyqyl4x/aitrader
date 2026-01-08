@@ -1,7 +1,7 @@
 // Import ArchitectUI base styles  
 // Note: Import paths in base.scss are relative to its location in assets/architectui/
 // Using relative path from styles.scss (which is in src/)
-@import "src/assets/architectui/base";
+@import "assets/architectui/base";
 
 // Native-looking scrollbar styling for ngx-scrollbar
 ng-scrollbar {

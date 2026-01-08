@@ -1,0 +1,29 @@
+// Stock Review Component Styles
+// Most styling is handled by ArchitectUI theme classes
+// Custom overrides can be added here if needed
+
+.widget-content {
+  .widget-numbers {
+    font-size: 1.25rem;
+    
+    small {
+      font-size: 0.875rem;
+      opacity: 0.9;
+    }
+  }
+}
+
+// Chart container adjustments
+app-stock-chart {
+  display: block;
+  width: 100%;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .widget-content-wrapper {
+    .widget-numbers {
+      font-size: 1rem;
+    }
+  }
+}

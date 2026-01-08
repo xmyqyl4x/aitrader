@@ -7,7 +7,7 @@ import { StockQuoteSearch } from '../../core/models/stock-quote.model';
 @Component({
   selector: 'app-stock-review-stack',
   templateUrl: './stock-review-stack.component.html',
-  styleUrls: ['./stock-review-stack.component.css']
+  styleUrls: ['./stock-review-stack.component.scss']
 })
 export class StockReviewStackComponent implements OnInit {
   searches: StockQuoteSearch[] = [];
@@ -103,6 +103,9 @@ export class StockReviewStackComponent implements OnInit {
   getReviewStatusClass(status: string): string {
     return status === 'REVIEWED' ? 'review-reviewed' : 'review-not-reviewed';
   }
+
+  // Expose Math for template
+  Math = Math;
 
   private handleError(error: any) {
     console.error('Error:', error);
