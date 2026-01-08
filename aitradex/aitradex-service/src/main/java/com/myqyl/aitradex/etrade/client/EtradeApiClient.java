@@ -1,8 +1,10 @@
 package com.myqyl.aitradex.etrade.client;
 
+import com.myqyl.aitradex.etrade.exception.EtradeApiException;
 import com.myqyl.aitradex.etrade.oauth.EtradeOAuth1Template;
 import com.myqyl.aitradex.etrade.oauth.EtradeTokenService;
 import com.myqyl.aitradex.etrade.repository.EtradeAuditLogRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,6 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,6 +33,7 @@ public class EtradeApiClient {
   private final EtradeOAuth1Template oauthTemplate;
   private final EtradeTokenService tokenService;
   private final EtradeAuditLogRepository auditLogRepository;
+  private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
 
   public EtradeApiClient(
@@ -40,6 +44,7 @@ public class EtradeApiClient {
     this.oauthTemplate = oauthTemplate;
     this.tokenService = tokenService;
     this.auditLogRepository = auditLogRepository;
+    this.objectMapper = objectMapper;
     this.httpClient = HttpClient.newBuilder()
         .connectTimeout(REQUEST_TIMEOUT)
         .build();
@@ -59,11 +64,17 @@ public class EtradeApiClient {
     String action = method + " " + url;
     String auditRequestBody = requestBody;
     
+    // Generate correlation ID for request tracking
+    String correlationId = UUID.randomUUID().toString();
+    MDC.put("correlationId", correlationId);
+    MDC.put("accountId", accountId != null ? accountId.toString() : "unknown");
+    
     try {
       // Get access token for account
       Optional<EtradeTokenService.AccessTokenPair> tokenOpt = tokenService.getAccessToken(accountId);
       if (tokenOpt.isEmpty()) {
-        throw new RuntimeException("No access token found for account " + accountId);
+        throw new EtradeApiException(401, "NO_TOKEN", 
+            "No access token found for account " + accountId);
       }
       EtradeTokenService.AccessTokenPair tokens = tokenOpt.get();
 
@@ -113,19 +124,103 @@ public class EtradeApiClient {
 
       // Handle errors
       if (response.statusCode() >= 400) {
-        log.error("E*TRADE API error {}: {}", response.statusCode(), response.body());
-        throw new RuntimeException("E*TRADE API error: " + response.statusCode() + " - " + response.body());
+        String errorCode = extractErrorCode(response.body());
+        String errorMessage = extractErrorMessage(response.body());
+        log.error("E*TRADE API error {} [{}]: {}", response.statusCode(), errorCode, errorMessage);
+        throw new EtradeApiException(response.statusCode(), errorCode, errorMessage);
       }
 
       return response.body();
+    } catch (EtradeApiException e) {
+      // Re-throw EtradeApiException as-is
+      long durationMs = Duration.between(startTime, Instant.now()).toMillis();
+      logAudit(accountId, action, null, auditRequestBody, null, e.getHttpStatus(), 
+          e.getErrorCode() + ": " + e.getErrorMessage(), durationMs);
+      throw e;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new RuntimeException("Request interrupted", e);
+      long durationMs = Duration.between(startTime, Instant.now()).toMillis();
+      logAudit(accountId, action, null, auditRequestBody, null, null, "Request interrupted", durationMs);
+      throw new EtradeApiException(500, "INTERRUPTED", "Request interrupted", e);
     } catch (Exception e) {
       long durationMs = Duration.between(startTime, Instant.now()).toMillis();
       logAudit(accountId, action, null, auditRequestBody, null, null, e.getMessage(), durationMs);
-      log.error("E*TRADE API request failed", e);
-      throw new RuntimeException("E*TRADE API request failed", e);
+      log.error("E*TRADE API request failed [correlationId={}]", correlationId, e);
+      throw new EtradeApiException(500, "INTERNAL_ERROR", 
+          "E*TRADE API request failed: " + e.getMessage(), e);
+    } finally {
+      MDC.remove("correlationId");
+      MDC.remove("accountId");
+    }
+  }
+
+  /**
+   * Extracts error code from E*TRADE API error response.
+   */
+  private String extractErrorCode(String responseBody) {
+    if (responseBody == null || responseBody.isEmpty()) {
+      return "UNKNOWN";
+    }
+    try {
+      JsonNode root = objectMapper.readTree(responseBody);
+      JsonNode messagesNode = root.path("Messages");
+      if (!messagesNode.isMissingNode()) {
+        if (messagesNode.isArray() && messagesNode.size() > 0) {
+          return messagesNode.get(0).path("code").asText("UNKNOWN");
+        } else if (messagesNode.isObject()) {
+          return messagesNode.path("code").asText("UNKNOWN");
+        }
+      }
+      // Try error field
+      JsonNode errorNode = root.path("error");
+      if (!errorNode.isMissingNode()) {
+        return errorNode.asText("UNKNOWN");
+      }
+    } catch (Exception e) {
+      log.debug("Failed to parse error code from response", e);
+    }
+    return "UNKNOWN";
+  }
+
+  /**
+   * Extracts error message from E*TRADE API error response.
+   */
+  private String extractErrorMessage(String responseBody) {
+    if (responseBody == null || responseBody.isEmpty()) {
+      return "Unknown error";
+    }
+    try {
+      JsonNode root = objectMapper.readTree(responseBody);
+      JsonNode messagesNode = root.path("Messages");
+      if (!messagesNode.isMissingNode()) {
+        StringBuilder errorMsg = new StringBuilder();
+        if (messagesNode.isArray()) {
+          for (JsonNode msgNode : messagesNode) {
+            String desc = msgNode.path("description").asText("");
+            if (!desc.isEmpty()) {
+              if (errorMsg.length() > 0) {
+                errorMsg.append("; ");
+              }
+              errorMsg.append(desc);
+            }
+          }
+        } else if (messagesNode.isObject()) {
+          errorMsg.append(messagesNode.path("description").asText("Unknown error"));
+        }
+        if (errorMsg.length() > 0) {
+          return errorMsg.toString();
+        }
+      }
+      // Try error field
+      JsonNode errorNode = root.path("error");
+      if (!errorNode.isMissingNode()) {
+        return errorNode.asText("Unknown error");
+      }
+      // Fallback: return first 200 chars of response
+      return responseBody.length() > 200 ? responseBody.substring(0, 200) + "..." : responseBody;
+    } catch (Exception e) {
+      log.debug("Failed to parse error message from response", e);
+      return responseBody.length() > 200 ? responseBody.substring(0, 200) + "..." : responseBody;
     }
   }
 
@@ -136,12 +231,23 @@ public class EtradeApiClient {
           new com.myqyl.aitradex.etrade.domain.EtradeAuditLog();
       auditLog.setAccountId(accountId);
       auditLog.setAction(action);
-      auditLog.setRequestBody(requestBody != null ? requestBody.substring(0, Math.min(requestBody.length(), 1000)) : queryParams);
-      auditLog.setResponseBody(responseBody != null ? responseBody.substring(0, Math.min(responseBody.length(), 5000)) : null);
+      // Note: requestParams field not in entity, storing in requestBody if query params exist
+      auditLog.setRequestBody(requestBody != null ? 
+          (requestBody.length() > 1000 ? requestBody.substring(0, 1000) + "..." : requestBody) : null);
+      auditLog.setResponseBody(responseBody != null ? 
+          (responseBody.length() > 5000 ? responseBody.substring(0, 5000) + "..." : responseBody) : null);
       auditLog.setStatusCode(statusCode);
       auditLog.setErrorMessage(errorMessage);
       auditLog.setDurationMs((int) durationMs);
+      auditLog.setCreatedAt(java.time.OffsetDateTime.now());
       auditLogRepository.save(auditLog);
+      
+      // Log with correlation ID
+      String correlationId = MDC.get("correlationId");
+      if (correlationId != null) {
+        log.debug("Audit logged [correlationId={}, action={}, status={}, duration={}ms]", 
+            correlationId, action, statusCode, durationMs);
+      }
     } catch (Exception e) {
       log.warn("Failed to log audit entry", e);
     }
