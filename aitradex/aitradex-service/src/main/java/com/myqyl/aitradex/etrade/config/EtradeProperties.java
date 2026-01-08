@@ -156,4 +156,12 @@ public class EtradeProperties {
   public String getOrderCancelUrl(String accountIdKey) {
     return baseUrl + "/v1/accounts/" + accountIdKey + "/orders/cancel";
   }
+
+  public String getTransactionsUrl(String accountIdKey) {
+    return baseUrl + "/v1/accounts/" + accountIdKey + "/transactions";
+  }
+
+  public String getTransactionDetailsUrl(String accountIdKey, String transactionId) {
+    return baseUrl + "/v1/accounts/" + accountIdKey + "/transactions/" + transactionId;
+  }
 }
