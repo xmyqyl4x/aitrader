@@ -103,6 +103,8 @@ public class EtradeAccountClient {
     account.put("accountType", accountNode.path("accountType").asText());
     account.put("accountDesc", accountNode.path("accountDesc").asText());
     account.put("accountStatus", accountNode.path("accountStatus").asText());
+    account.put("accountMode", accountNode.path("accountMode").asText(""));
+    account.put("institutionType", accountNode.path("institutionType").asText(""));
     return account;
   }
 
