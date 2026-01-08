@@ -1,8 +1,10 @@
 // BOOTSTRAP 5 - Custom variable overrides must come first
-@import "components/bootstrap5/variables-override";
+// Note: Bootstrap CSS is included via angular.json, so we only import variable overrides
+@import "components/bootstrap5/_variables-override";
 
 // BOOTSTRAP 5 - Main framework import
-@import "bootstrap/scss/bootstrap";
+// Bootstrap CSS is already loaded via angular.json styles array, so this SCSS import is commented out
+// @import "~bootstrap/scss/bootstrap";
 
 // ArchitectUI Themes Variables (for additional theme-specific overrides)
 @import "themes/layout-variables";

@@ -2,9 +2,9 @@
 <div class="app-page-title">
   <div class="page-title-wrapper">
     <div class="page-title-heading">
-      <div>Stock Quote Review</div>
+      <div>Stock Quote Dashboard</div>
       <div class="page-title-subheading">
-        Search for stock quotes, view charts, and manage reviews.
+        Real-time stock quotes, price charts, and portfolio analysis.
       </div>
     </div>
   </div>
@@ -93,9 +93,9 @@
   </div>
 </div>
 
-<!-- Quote Display Section -->
+<!-- Quote Display Dashboard -->
 <div *ngIf="quote && !loading" class="row">
-  <!-- Quote Header Card -->
+  <!-- Quote Header and Key Metrics -->
   <div class="col-md-12">
     <div class="main-card mb-3 card">
       <div class="card-header">
@@ -106,18 +106,23 @@
           </div>
           <div>
             <span class="badge bg-secondary">{{ quote.source }}</span>
+            <span class="badge ms-2" [ngClass]="getChangeClass() === 'positive' ? 'bg-success' : 'bg-danger'">
+              <span *ngIf="quote.open && quote.close">
+                {{ getChangePercent() !== null ? (getChangePercent()! >= 0 ? '+' : '') + (getChangePercent()! | number:'1.2-2') + '%' : 'N/A' }}
+              </span>
+            </span>
           </div>
         </div>
       </div>
       <div class="card-body">
-        <!-- Quote Metrics Grid -->
+        <!-- Key Metrics Row -->
         <div class="row">
           <div class="col-md-3 col-lg-2">
             <div class="card mb-3 widget-content" [ngClass]="getChangeClass() === 'positive' ? 'bg-success' : getChangeClass() === 'negative' ? 'bg-danger' : 'bg-info'">
               <div class="widget-content-wrapper text-white">
                 <div class="widget-content-left">
                   <div class="widget-heading">Last Price</div>
-                  <div class="widget-subheading">Current Price</div>
+                  <div class="widget-subheading">Current</div>
                 </div>
                 <div class="widget-content-right">
                   <div class="widget-numbers text-white">
@@ -136,10 +141,9 @@
                   <div class="widget-subheading">Today</div>
                 </div>
                 <div class="widget-content-right">
-                  <div class="widget-numbers text-white" [ngClass]="getChangeClass()">
+                  <div class="widget-numbers text-white">
                     <span *ngIf="quote.open && quote.close">
                       ${{ (quote.close - quote.open) | number:'1.2-2' }}
-                      <small>({{ getChangePercent() | number:'1.2-2' }}%)</small>
                     </span>
                     <span *ngIf="!quote.open || !quote.close">N/A</span>
                   </div>
@@ -172,7 +176,7 @@
               <div class="widget-content-wrapper text-white">
                 <div class="widget-content-left">
                   <div class="widget-heading">Volume</div>
-                  <div class="widget-subheading">Shares Traded</div>
+                  <div class="widget-subheading">Shares</div>
                 </div>
                 <div class="widget-content-right">
                   <div class="widget-numbers text-white">
@@ -188,7 +192,7 @@
               <div class="widget-content-wrapper text-white">
                 <div class="widget-content-left">
                   <div class="widget-heading">Open</div>
-                  <div class="widget-subheading">Opening Price</div>
+                  <div class="widget-subheading">Opening</div>
                 </div>
                 <div class="widget-content-right">
                   <div class="widget-numbers text-white">
@@ -215,53 +219,39 @@
             </div>
           </div>
         </div>
-
-        <!-- Additional Details -->
-        <div class="row mt-3">
-          <div class="col-md-4">
-            <div class="card-hover-shadow-2x mb-3 card">
-              <div class="card-header">High</div>
-              <div class="card-body">
-                <h5 class="card-title text-success">${{ quote.high | number:'1.2-2' }}</h5>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card-hover-shadow-2x mb-3 card">
-              <div class="card-header">Low</div>
-              <div class="card-body">
-                <h5 class="card-title text-danger">${{ quote.low | number:'1.2-2' }}</h5>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card-hover-shadow-2x mb-3 card">
-              <div class="card-header">Currency</div>
-              <div class="card-body">
-                <h5 class="card-title">{{ quote.currency || 'USD' }}</h5>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- Chart Section -->
+  <!-- Price Chart Dashboard Card -->
   <div class="col-md-12">
     <div class="main-card mb-3 card">
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
           <div>
             <i class="header-icon pe-7s-graph1"></i>
-            Price Chart
+            Price Chart - {{ quote.symbol }}
           </div>
-          <button (click)="toggleChartType()" class="btn btn-sm btn-outline-primary">
-            Switch to {{ chartType === 'line' ? 'Candlestick' : 'Line' }} Chart
-          </button>
         </div>
       </div>
       <div class="card-body">
+        <!-- Chart Type Selector -->
+        <div class="chart-type-selector mb-3 pb-3 border-bottom">
+          <label class="me-3 mb-0 fw-bold">Chart Type:</label>
+          <div class="btn-group btn-group-toggle" role="group" aria-label="Chart type selector" data-toggle="buttons">
+            <button
+              *ngFor="let type of availableChartTypes"
+              type="button"
+              class="btn"
+              [ngClass]="chartType === type.value ? 'btn-primary active' : 'btn-outline-secondary'"
+              (click)="setChartType(type.value)"
+              [title]="type.label"
+            >
+              <span *ngIf="type.icon" [class]="type.icon + ' me-1'"></span>
+              <span>{{ type.label }}</span>
+            </button>
+          </div>
+        </div>
         <app-stock-chart
           *ngIf="history && history.length > 0"
           [data]="history"
@@ -271,6 +261,42 @@
         <div *ngIf="!history || history.length === 0" class="text-center py-5 text-muted">
           <i class="pe-7s-graph1" style="font-size: 48px;"></i>
           <p class="mt-3">No chart data available for this range.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Details Row -->
+  <div class="col-md-12">
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card-hover-shadow-2x mb-3 card">
+          <div class="card-header">
+            <i class="pe-7s-graph2"></i> High
+          </div>
+          <div class="card-body">
+            <h5 class="card-title text-success mb-0">${{ quote.high | number:'1.2-2' }}</h5>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card-hover-shadow-2x mb-3 card">
+          <div class="card-header">
+            <i class="pe-7s-graph3"></i> Low
+          </div>
+          <div class="card-body">
+            <h5 class="card-title text-danger mb-0">${{ quote.low | number:'1.2-2' }}</h5>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card-hover-shadow-2x mb-3 card">
+          <div class="card-header">
+            <i class="pe-7s-global"></i> Currency
+          </div>
+          <div class="card-body">
+            <h5 class="card-title mb-0">{{ quote.currency || 'USD' }}</h5>
+          </div>
         </div>
       </div>
     </div>
@@ -337,7 +363,7 @@
       <div class="card-body text-center py-5">
         <i class="pe-7s-graph1" style="font-size: 64px; color: #ccc;"></i>
         <h5 class="mt-3 text-muted">No Quote Data</h5>
-        <p class="text-muted">Enter a stock symbol above to view quote information and charts.</p>
+        <p class="text-muted">Enter a stock symbol above to view quote information and interactive charts.</p>
       </div>
     </div>
   </div>

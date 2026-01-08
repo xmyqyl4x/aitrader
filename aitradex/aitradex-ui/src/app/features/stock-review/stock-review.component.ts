@@ -23,7 +23,14 @@ export class StockReviewComponent implements OnInit {
   successMessage: string | null = null;
 
   ranges: QuoteRange[] = ['1D', '5D', '1M', '3M', '1Y'];
-  chartType: 'line' | 'candlestick' = 'line';
+  chartType: 'line' | 'area' | 'bar' | 'candlestick' | 'ohlc' = 'line';
+  availableChartTypes: Array<{value: 'line' | 'area' | 'bar' | 'candlestick' | 'ohlc', label: string, icon: string}> = [
+    { value: 'line', label: 'Line', icon: 'pe-7s-graph' },
+    { value: 'area', label: 'Area', icon: 'pe-7s-graph1' },
+    { value: 'bar', label: 'Bar', icon: 'pe-7s-graph2' },
+    { value: 'candlestick', label: 'Candlestick', icon: 'pe-7s-graph3' },
+    { value: 'ohlc', label: 'OHLC', icon: 'pe-7s-graph3' }
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -148,8 +155,8 @@ export class StockReviewComponent implements OnInit {
     return (change / this.quote.open) * 100;
   }
 
-  toggleChartType() {
-    this.chartType = this.chartType === 'line' ? 'candlestick' : 'line';
+  setChartType(type: 'line' | 'area' | 'bar' | 'candlestick' | 'ohlc') {
+    this.chartType = type;
   }
 
   private handleError(error: any) {
