@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: aitradex-service-test
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aitradex_test
+    username: aitradex
+    password: aitradex
+  
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: test
+
+app:
+  etrade:
+    enabled: ${ETRADE_ENABLED:true}
+    consumer-key: ${ETRADE_CONSUMER_KEY:a83b0321f09e97fc8f4315ad5fbcd489}
+    consumer-secret: ${ETRADE_CONSUMER_SECRET:c4d304698d156d4c3681c73de0c4e400060cac46ee1504259b324695daa77dd4}
+    callback-url: ${ETRADE_CALLBACK_URL:http://localhost:4200/etrade-review-trade/callback}
+    environment: ${ETRADE_ENVIRONMENT:SANDBOX}
+    base-url: ${ETRADE_BASE_URL:https://apisb.etrade.com}
+    authorize-url: ${ETRADE_AUTHORIZE_URL:https://us.etrade.com/e/t/etws/authorize}
+    encryption-key: ${ETRADE_ENCRYPTION_KEY:default-encryption-key-change-in-production-min-32-chars-for-testing}
+
+logging:
+  level:
+    root: INFO
+    com.myqyl.aitradex.etrade: DEBUG

@@ -28,11 +28,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * 
  * These tests make actual API calls to E*TRADE sandbox and require valid credentials.
  * 
- * To run these tests:
- * 1. Set environment variables: ETRADE_CONSUMER_KEY, ETRADE_CONSUMER_SECRET, ETRADE_ENCRYPTION_KEY
- * 2. For Step 2 (authorization), you'll need to manually authorize in browser and provide the verifier
+ * Prerequisites:
+ * 1. Docker must be running (required for Testcontainers PostgreSQL)
+ * 2. Set environment variables: ETRADE_CONSUMER_KEY, ETRADE_CONSUMER_SECRET, ETRADE_ENCRYPTION_KEY
+ * 3. For Step 2 (authorization), you'll need to manually authorize in browser and provide the verifier
  * 
  * Tests are skipped if credentials are not configured.
+ * Tests will fail if Docker is not available (Docker Desktop must be running).
  */
 @SpringBootTest
 @ActiveProfiles("test")

@@ -4,12 +4,16 @@ This document describes how to run the E*TRADE OAuth workflow integration tests.
 
 ## Prerequisites
 
-1. **E*TRADE Sandbox Credentials**
+1. **Docker Desktop**
+   - Docker must be running (required for Testcontainers PostgreSQL)
+   - Verify Docker is running: `docker ps` should succeed
+
+2. **E*TRADE Sandbox Credentials**
    - Consumer Key (API Key)
    - Consumer Secret (API Secret)
    - Encryption Key (for token encryption, minimum 32 characters)
 
-2. **Environment Variables**
+3. **Environment Variables**
    ```bash
    export ETRADE_CONSUMER_KEY="your_consumer_key"
    export ETRADE_CONSUMER_SECRET="your_consumer_secret"
@@ -113,6 +117,15 @@ Tests provide detailed logging:
 - Token storage verification
 
 ## Troubleshooting
+
+### Docker Not Available
+
+**Error:** `Could not find a valid Docker environment`
+
+**Solution:**
+- Start Docker Desktop
+- Verify Docker is running: `docker ps` should succeed
+- Wait for Docker to fully start before running tests
 
 ### Test Skipped
 
