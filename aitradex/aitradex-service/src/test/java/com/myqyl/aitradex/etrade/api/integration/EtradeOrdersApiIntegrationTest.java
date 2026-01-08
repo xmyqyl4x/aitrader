@@ -266,6 +266,85 @@ class EtradeOrdersApiIntegrationTest extends EtradeApiIntegrationTestBase {
   }
 
   // ============================================================================
+  // 5. CHANGE ORDER TESTS
+  // ============================================================================
+
+  @Test
+  @DisplayName("Change Preview Order - Success")
+  void changePreviewOrder_success() throws Exception {
+    // Create an order in database first
+    UUID orderId = createTestOrderInDatabase("ORDER_CHANGE_123", "OPEN");
+
+    // Build order request
+    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
+        "AAPL",
+        OrderRequestBuilder.OrderAction.BUY,
+        20, // Changed quantity
+        OrderRequestBuilder.PriceType.LIMIT,
+        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
+        155.00, // Changed limit price
+        null,
+        OrderRequestBuilder.MarketSession.REGULAR,
+        "CHANGE_PREVIEW_123");
+
+    // Mock E*TRADE client response
+    Map<String, Object> mockPreviewResponse = createMockPreviewResponse("CHANGE_PREVIEW_456");
+    when(orderClient.changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_123"), any(Map.class)))
+        .thenReturn(mockPreviewResponse);
+
+    // Call our application endpoint
+    mockMvc.perform(put("/api/etrade/orders/{orderId}/preview", orderId)
+            .param("accountId", testAccountId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(orderRequest)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.PreviewIds").exists());
+
+    verify(orderClient, times(1)).changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_123"), any(Map.class));
+  }
+
+  @Test
+  @DisplayName("Change Place Order - Success")
+  void changePlaceOrder_success() throws Exception {
+    // Create an order in database first
+    UUID orderId = createTestOrderInDatabase("ORDER_CHANGE_PLACE_123", "OPEN");
+
+    // Build order request
+    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
+        "AAPL",
+        OrderRequestBuilder.OrderAction.BUY,
+        15, // Changed quantity
+        OrderRequestBuilder.PriceType.LIMIT,
+        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
+        152.00, // Changed limit price
+        null,
+        OrderRequestBuilder.MarketSession.REGULAR,
+        "CHANGE_PLACE_123");
+
+    // Mock preview response
+    Map<String, Object> mockPreviewResponse = createMockPreviewResponse("CHANGE_PREVIEW_789");
+    when(orderClient.changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class)))
+        .thenReturn(mockPreviewResponse);
+
+    // Mock place response
+    Map<String, Object> mockPlaceResponse = createMockPlaceOrderResponse("ORDER_CHANGED_789");
+    when(orderClient.changePlaceOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class)))
+        .thenReturn(mockPlaceResponse);
+
+    // Call our application endpoint
+    mockMvc.perform(put("/api/etrade/orders/{orderId}", orderId)
+            .param("accountId", testAccountId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(orderRequest)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.symbol").value("AAPL"))
+        .andExpect(jsonPath("$.orderStatus").value("SUBMITTED"));
+
+    verify(orderClient, times(1)).changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class));
+    verify(orderClient, times(1)).changePlaceOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class));
+  }
+
+  // ============================================================================
   // HELPER METHODS
   // ============================================================================
 

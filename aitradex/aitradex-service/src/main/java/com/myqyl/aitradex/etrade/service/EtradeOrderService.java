@@ -151,6 +151,69 @@ public class EtradeOrderService {
   }
 
   /**
+   * Previews a changed order (modifies an existing order).
+   */
+  public Map<String, Object> changePreviewOrder(UUID accountId, UUID orderId, Map<String, Object> orderRequest) {
+    EtradeOrder order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+    if (!order.getAccountId().equals(accountId)) {
+      throw new RuntimeException("Order does not belong to account");
+    }
+
+    EtradeAccount account = accountRepository.findById(accountId)
+        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+
+    return orderClient.changePreviewOrder(accountId, account.getAccountIdKey(), order.getEtradeOrderId(), orderRequest);
+  }
+
+  /**
+   * Places a changed order (modifies and places an existing order).
+   */
+  @Transactional
+  public EtradeOrderDto changePlaceOrder(UUID accountId, UUID orderId, Map<String, Object> orderRequest) {
+    EtradeOrder order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+    if (!order.getAccountId().equals(accountId)) {
+      throw new RuntimeException("Order does not belong to account");
+    }
+
+    EtradeAccount account = accountRepository.findById(accountId)
+        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+
+    // Preview first
+    Map<String, Object> preview = orderClient.changePreviewOrder(accountId, account.getAccountIdKey(), 
+        order.getEtradeOrderId(), orderRequest);
+
+    // Place changed order
+    Map<String, Object> placeResponse = orderClient.changePlaceOrder(accountId, account.getAccountIdKey(), 
+        order.getEtradeOrderId(), orderRequest);
+
+    // Update order in database
+    @SuppressWarnings("unchecked")
+    List<String> orderIds = (List<String>) placeResponse.get("orderIds");
+    if (orderIds != null && !orderIds.isEmpty()) {
+      order.setEtradeOrderId(orderIds.get(0));
+    }
+
+    try {
+      order.setPreviewData(objectMapper.writeValueAsString(preview));
+      order.setOrderResponse(objectMapper.writeValueAsString(placeResponse));
+    } catch (Exception e) {
+      log.warn("Failed to serialize order data", e);
+    }
+
+    order.setOrderStatus("SUBMITTED");
+    order.setPlacedAt(OffsetDateTime.now());
+
+    EtradeOrder saved = orderRepository.save(order);
+    log.info("Placed changed E*TRADE order {} for account {}", saved.getEtradeOrderId(), accountId);
+
+    return toDto(saved);
+  }
+
+  /**
    * Cancels an order.
    */
   @Transactional

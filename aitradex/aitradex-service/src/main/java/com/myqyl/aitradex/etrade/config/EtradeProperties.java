@@ -184,4 +184,16 @@ public class EtradeProperties {
   public String getTransactionDetailsUrl(String accountIdKey, String transactionId) {
     return baseUrl + "/v1/accounts/" + accountIdKey + "/transactions/" + transactionId;
   }
+
+  public String getAlertsListUrl() {
+    return baseUrl + "/v1/user/alerts";
+  }
+
+  public String getAlertDetailsUrl(String alertId) {
+    return baseUrl + "/v1/user/alerts/" + alertId;
+  }
+
+  public String getAlertsDeleteUrl() {
+    return baseUrl + "/v1/user/alerts";
+  }
 }

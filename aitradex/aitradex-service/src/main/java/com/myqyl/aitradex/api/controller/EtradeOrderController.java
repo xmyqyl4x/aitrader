@@ -74,6 +74,30 @@ public class EtradeOrderController {
   }
 
   /**
+   * Previews a changed order (modifies an existing order).
+   */
+  @PutMapping("/{orderId}/preview")
+  public ResponseEntity<Map<String, Object>> changePreviewOrder(
+      @RequestParam UUID accountId,
+      @PathVariable UUID orderId,
+      @RequestBody Map<String, Object> orderRequest) {
+    Map<String, Object> preview = orderService.changePreviewOrder(accountId, orderId, orderRequest);
+    return ResponseEntity.ok(preview);
+  }
+
+  /**
+   * Places a changed order (modifies and places an existing order).
+   */
+  @PutMapping("/{orderId}")
+  public ResponseEntity<EtradeOrderDto> changePlaceOrder(
+      @RequestParam UUID accountId,
+      @PathVariable UUID orderId,
+      @RequestBody Map<String, Object> orderRequest) {
+    EtradeOrderDto order = orderService.changePlaceOrder(accountId, orderId, orderRequest);
+    return ResponseEntity.ok(order);
+  }
+
+  /**
    * Cancels an order.
    */
   @DeleteMapping("/{orderId}")
