@@ -35,4 +35,27 @@ public class EtradeQuoteService {
     }
     return quotes.get(0);
   }
+
+  /**
+   * Looks up products by symbol or company name.
+   */
+  public List<Map<String, Object>> lookupProduct(String input) {
+    return quoteClient.lookupProduct(input);
+  }
+
+  /**
+   * Gets option chains for a symbol.
+   */
+  public Map<String, Object> getOptionChains(String symbol, Integer expiryYear, Integer expiryMonth,
+      Integer expiryDay, Integer strikePriceNear, Integer noOfStrikes, String optionCategory, String chainType) {
+    return quoteClient.getOptionChains(symbol, expiryYear, expiryMonth, expiryDay, 
+        strikePriceNear, noOfStrikes, optionCategory, chainType);
+  }
+
+  /**
+   * Gets option expire dates for a symbol.
+   */
+  public List<Map<String, Object>> getOptionExpireDates(String symbol) {
+    return quoteClient.getOptionExpireDates(symbol);
+  }
 }

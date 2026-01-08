@@ -277,4 +277,97 @@ public class EtradeAccountClient {
     
     return position;
   }
+
+  /**
+   * Gets list of transactions for an account.
+   */
+  public List<Map<String, Object>> getTransactions(UUID accountId, String accountIdKey,
+      String marker, Integer count) {
+    try {
+      String url = properties.getTransactionsUrl(accountIdKey);
+      Map<String, String> params = new HashMap<>();
+      if (marker != null && !marker.isEmpty()) {
+        params.put("marker", marker);
+      }
+      if (count != null && count > 0) {
+        params.put("count", String.valueOf(count));
+      }
+      
+      String response = apiClient.makeRequest("GET", url, params, null, accountId);
+      
+      JsonNode root = objectMapper.readTree(response);
+      JsonNode transactionsNode = root.path("TransactionListResponse").path("Transactions").path("Transaction");
+      
+      List<Map<String, Object>> transactions = new ArrayList<>();
+      if (transactionsNode.isArray()) {
+        for (JsonNode transactionNode : transactionsNode) {
+          transactions.add(parseTransaction(transactionNode));
+        }
+      } else if (transactionsNode.isObject()) {
+        transactions.add(parseTransaction(transactionsNode));
+      }
+      
+      return transactions;
+    } catch (Exception e) {
+      log.error("Failed to get transactions for account {}", accountIdKey, e);
+      throw new RuntimeException("Failed to get transactions", e);
+    }
+  }
+
+  /**
+   * Gets transaction details by transaction ID.
+   */
+  public Map<String, Object> getTransactionDetails(UUID accountId, String accountIdKey, String transactionId) {
+    try {
+      String url = properties.getTransactionDetailsUrl(accountIdKey, transactionId);
+      String response = apiClient.makeRequest("GET", url, null, null, accountId);
+      
+      JsonNode root = objectMapper.readTree(response);
+      JsonNode transactionNode = root.path("TransactionDetailsResponse");
+      
+      return parseTransactionDetails(transactionNode);
+    } catch (Exception e) {
+      log.error("Failed to get transaction details for transaction {}", transactionId, e);
+      throw new RuntimeException("Failed to get transaction details", e);
+    }
+  }
+
+  private Map<String, Object> parseTransaction(JsonNode transactionNode) {
+    Map<String, Object> transaction = new HashMap<>();
+    transaction.put("transactionId", transactionNode.path("transactionId").asText(""));
+    transaction.put("accountId", transactionNode.path("accountId").asText(""));
+    transaction.put("transactionDate", transactionNode.path("transactionDate").asText(""));
+    transaction.put("amount", transactionNode.path("amount").asText(""));
+    transaction.put("description", transactionNode.path("description").asText(""));
+    transaction.put("transactionType", transactionNode.path("transactionType").asText(""));
+    transaction.put("instType", transactionNode.path("instType").asText(""));
+    transaction.put("detailsURI", transactionNode.path("detailsURI").asText(""));
+    return transaction;
+  }
+
+  private Map<String, Object> parseTransactionDetails(JsonNode transactionNode) {
+    Map<String, Object> details = new HashMap<>();
+    details.put("transactionId", transactionNode.path("transactionId").asText(""));
+    details.put("accountId", transactionNode.path("accountId").asText(""));
+    details.put("transactionDate", transactionNode.path("transactionDate").asText(""));
+    details.put("amount", transactionNode.path("amount").asText(""));
+    details.put("description", transactionNode.path("description").asText(""));
+    
+    JsonNode categoryNode = transactionNode.path("Category");
+    if (!categoryNode.isMissingNode()) {
+      Map<String, Object> category = new HashMap<>();
+      category.put("categoryId", categoryNode.path("categoryId").asText(""));
+      category.put("parentId", categoryNode.path("parentId").asText(""));
+      details.put("category", category);
+    }
+    
+    JsonNode brokerageNode = transactionNode.path("Brokerage");
+    if (!brokerageNode.isMissingNode()) {
+      Map<String, Object> brokerage = new HashMap<>();
+      brokerage.put("transactionType", brokerageNode.path("transactionType").asText(""));
+      details.put("brokerage", brokerage);
+    }
+    
+    return details;
+  }
 }

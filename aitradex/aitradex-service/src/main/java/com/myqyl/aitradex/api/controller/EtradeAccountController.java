@@ -85,6 +85,29 @@ public class EtradeAccountController {
   }
 
   /**
+   * Gets account transactions.
+   */
+  @GetMapping("/{accountId}/transactions")
+  public ResponseEntity<List<Map<String, Object>>> getTransactions(
+      @PathVariable UUID accountId,
+      @RequestParam(required = false) String marker,
+      @RequestParam(required = false) Integer count) {
+    List<Map<String, Object>> transactions = accountService.getAccountTransactions(accountId, marker, count);
+    return ResponseEntity.ok(transactions);
+  }
+
+  /**
+   * Gets transaction details.
+   */
+  @GetMapping("/{accountId}/transactions/{transactionId}")
+  public ResponseEntity<Map<String, Object>> getTransactionDetails(
+      @PathVariable UUID accountId,
+      @PathVariable String transactionId) {
+    Map<String, Object> details = accountService.getTransactionDetails(accountId, transactionId);
+    return ResponseEntity.ok(details);
+  }
+
+  /**
    * Unlinks an account.
    */
   @DeleteMapping("/{accountId}")

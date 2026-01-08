@@ -175,4 +175,171 @@ public class EtradeQuoteClient {
       return null;
     }
   }
+
+  /**
+   * Looks up products by symbol or company name.
+   */
+  public List<Map<String, Object>> lookupProduct(String input) {
+    try {
+      String url = properties.getLookupProductUrl();
+      Map<String, String> params = new HashMap<>();
+      params.put("consumerKey", properties.getConsumerKey());
+      params.put("input", input);
+      
+      String response = apiClient.makeRequestWithoutOAuth("GET", url, params, null);
+      
+      JsonNode root = objectMapper.readTree(response);
+      JsonNode dataNode = root.path("LookupResponse").path("Data");
+      
+      List<Map<String, Object>> products = new ArrayList<>();
+      if (dataNode.isArray()) {
+        for (JsonNode productNode : dataNode) {
+          products.add(parseProductLookup(productNode));
+        }
+      } else if (dataNode.isObject()) {
+        products.add(parseProductLookup(dataNode));
+      }
+      
+      return products;
+    } catch (Exception e) {
+      log.error("Failed to lookup product for input {}", input, e);
+      throw new RuntimeException("Failed to lookup product", e);
+    }
+  }
+
+  /**
+   * Gets option chains for a symbol.
+   */
+  public Map<String, Object> getOptionChains(String symbol, Integer expiryYear, Integer expiryMonth,
+      Integer expiryDay, Integer strikePriceNear, Integer noOfStrikes, String optionCategory, String chainType) {
+    try {
+      String url = properties.getOptionChainsUrl();
+      Map<String, String> params = new HashMap<>();
+      params.put("consumerKey", properties.getConsumerKey());
+      params.put("symbol", symbol);
+      if (expiryYear != null) {
+        params.put("expiryYear", String.valueOf(expiryYear));
+      }
+      if (expiryMonth != null) {
+        params.put("expiryMonth", String.valueOf(expiryMonth));
+      }
+      if (expiryDay != null) {
+        params.put("expiryDay", String.valueOf(expiryDay));
+      }
+      if (strikePriceNear != null) {
+        params.put("strikePriceNear", String.valueOf(strikePriceNear));
+      }
+      if (noOfStrikes != null) {
+        params.put("noOfStrikes", String.valueOf(noOfStrikes));
+      }
+      if (optionCategory != null && !optionCategory.isEmpty()) {
+        params.put("optionCategory", optionCategory);
+      }
+      if (chainType != null && !chainType.isEmpty()) {
+        params.put("chainType", chainType);
+      }
+      
+      String response = apiClient.makeRequestWithoutOAuth("GET", url, params, null);
+      
+      JsonNode root = objectMapper.readTree(response);
+      JsonNode optionChainNode = root.path("OptionChainResponse");
+      
+      return parseOptionChain(optionChainNode);
+    } catch (Exception e) {
+      log.error("Failed to get option chains for symbol {}", symbol, e);
+      throw new RuntimeException("Failed to get option chains", e);
+    }
+  }
+
+  /**
+   * Gets option expire dates for a symbol.
+   */
+  public List<Map<String, Object>> getOptionExpireDates(String symbol) {
+    try {
+      String url = properties.getOptionExpireDatesUrl();
+      Map<String, String> params = new HashMap<>();
+      params.put("consumerKey", properties.getConsumerKey());
+      params.put("symbol", symbol);
+      
+      String response = apiClient.makeRequestWithoutOAuth("GET", url, params, null);
+      
+      JsonNode root = objectMapper.readTree(response);
+      JsonNode expireDateNode = root.path("OptionExpireDateResponse").path("ExpireDate");
+      
+      List<Map<String, Object>> expireDates = new ArrayList<>();
+      if (expireDateNode.isArray()) {
+        for (JsonNode dateNode : expireDateNode) {
+          expireDates.add(parseExpireDate(dateNode));
+        }
+      } else if (expireDateNode.isObject()) {
+        expireDates.add(parseExpireDate(expireDateNode));
+      }
+      
+      return expireDates;
+    } catch (Exception e) {
+      log.error("Failed to get option expire dates for symbol {}", symbol, e);
+      throw new RuntimeException("Failed to get option expire dates", e);
+    }
+  }
+
+  private Map<String, Object> parseProductLookup(JsonNode productNode) {
+    Map<String, Object> product = new HashMap<>();
+    product.put("symbol", productNode.path("symbol").asText(""));
+    product.put("description", productNode.path("description").asText(""));
+    product.put("securityType", productNode.path("securityType").asText(""));
+    return product;
+  }
+
+  private Map<String, Object> parseOptionChain(JsonNode optionChainNode) {
+    Map<String, Object> chain = new HashMap<>();
+    
+    JsonNode optionPairNode = optionChainNode.path("OptionPair");
+    if (!optionPairNode.isMissingNode()) {
+      List<Map<String, Object>> pairs = new ArrayList<>();
+      if (optionPairNode.isArray()) {
+        for (JsonNode pairNode : optionPairNode) {
+          pairs.add(parseOptionPair(pairNode));
+        }
+      } else {
+        pairs.add(parseOptionPair(optionPairNode));
+      }
+      chain.put("optionPairs", pairs);
+    }
+    
+    return chain;
+  }
+
+  private Map<String, Object> parseOptionPair(JsonNode pairNode) {
+    Map<String, Object> pair = new HashMap<>();
+    
+    JsonNode callNode = pairNode.path("Call");
+    if (!callNode.isMissingNode()) {
+      pair.put("call", parseOption(callNode));
+    }
+    
+    JsonNode putNode = pairNode.path("Put");
+    if (!putNode.isMissingNode()) {
+      pair.put("put", parseOption(putNode));
+    }
+    
+    return pair;
+  }
+
+  private Map<String, Object> parseOption(JsonNode optionNode) {
+    Map<String, Object> option = new HashMap<>();
+    option.put("strikePrice", getDoubleValue(optionNode, "strikePrice"));
+    option.put("bid", getDoubleValue(optionNode, "bid"));
+    option.put("ask", getDoubleValue(optionNode, "ask"));
+    option.put("lastPrice", getDoubleValue(optionNode, "lastPrice"));
+    option.put("volume", getLongValue(optionNode, "volume"));
+    return option;
+  }
+
+  private Map<String, Object> parseExpireDate(JsonNode dateNode) {
+    Map<String, Object> date = new HashMap<>();
+    date.put("year", dateNode.path("year").asInt(0));
+    date.put("month", dateNode.path("month").asInt(0));
+    date.put("day", dateNode.path("day").asInt(0));
+    return date;
+  }
 }

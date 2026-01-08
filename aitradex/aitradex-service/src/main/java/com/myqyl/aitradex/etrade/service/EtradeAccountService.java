@@ -124,6 +124,22 @@ public class EtradeAccountService {
   }
 
   /**
+   * Gets account transactions from E*TRADE.
+   */
+  public List<Map<String, Object>> getAccountTransactions(UUID accountId, String marker, Integer count) {
+    EtradeAccountDto account = getAccount(accountId);
+    return accountClient.getTransactions(accountId, account.accountIdKey(), marker, count);
+  }
+
+  /**
+   * Gets transaction details from E*TRADE.
+   */
+  public Map<String, Object> getTransactionDetails(UUID accountId, String transactionId) {
+    EtradeAccountDto account = getAccount(accountId);
+    return accountClient.getTransactionDetails(accountId, account.accountIdKey(), transactionId);
+  }
+
+  /**
    * Unlinks an account.
    */
   @Transactional
