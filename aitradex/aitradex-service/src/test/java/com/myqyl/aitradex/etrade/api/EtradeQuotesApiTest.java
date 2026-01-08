@@ -553,7 +553,12 @@ class EtradeQuotesApiTest {
       assertFalse(responseJson.trim().isEmpty());
 
       JsonNode root = objectMapper.readTree(responseJson);
+      JsonNode optionChainResponse = root.path("OptionChainResponse");
+      
       // May have error messages or empty OptionChainResponse
+      if (optionChainResponse.isMissingNode()) {
+        log.info("Invalid symbol returned no OptionChainResponse (expected)");
+      }
       
       log.info("✅ Get Option Chains with invalid symbol test passed");
     } catch (RuntimeException e) {
