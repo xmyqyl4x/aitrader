@@ -3,7 +3,6 @@ package com.myqyl.aitradex.etrade.api;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqyl.aitradex.etrade.api.EtradeAccessTokenHelper;
@@ -600,7 +599,13 @@ class EtradeOrdersApiTest {
       assertNotNull(placeResponseJson);
       assertFalse(placeResponseJson.trim().isEmpty());
 
-      JsonNode root = objectMapper.readTree(placeResponseJson);
+      JsonNode root;
+      try {
+        root = objectMapper.readTree(placeResponseJson);
+      } catch (JsonProcessingException e) {
+        fail("Failed to parse JSON response: " + e.getMessage());
+        return;
+      }
       JsonNode placeOrderResponse = root.path("PlaceOrderResponse");
       
       // Response may contain error messages in sandbox, but structure should be valid
@@ -675,7 +680,13 @@ class EtradeOrdersApiTest {
       assertNotNull(cancelResponseJson);
       assertFalse(cancelResponseJson.trim().isEmpty());
 
-      JsonNode root = objectMapper.readTree(cancelResponseJson);
+      JsonNode root;
+      try {
+        root = objectMapper.readTree(cancelResponseJson);
+      } catch (JsonProcessingException e) {
+        fail("Failed to parse JSON response: " + e.getMessage());
+        return;
+      }
       JsonNode cancelResponse = root.path("CancelOrderResponse");
       
       // Response may contain error messages in sandbox, but structure should be valid
@@ -785,7 +796,13 @@ class EtradeOrdersApiTest {
       assertNotNull(changePreviewResponseJson);
       assertFalse(changePreviewResponseJson.trim().isEmpty());
 
-      JsonNode root = objectMapper.readTree(changePreviewResponseJson);
+      JsonNode root;
+      try {
+        root = objectMapper.readTree(changePreviewResponseJson);
+      } catch (JsonProcessingException e) {
+        fail("Failed to parse JSON response: " + e.getMessage());
+        return;
+      }
       JsonNode previewResponse = root.path("PreviewOrderResponse");
       
       assertFalse(previewResponse.isMissingNode() && root.path("Messages").isMissingNode(), 
@@ -917,7 +934,7 @@ class EtradeOrdersApiTest {
       }
       
       return result;
-    } catch (JsonProcessingException | JsonMappingException e) {
+    } catch (JsonProcessingException e) {
       log.error("Failed to parse preview response", e);
       return new HashMap<>();
     }
