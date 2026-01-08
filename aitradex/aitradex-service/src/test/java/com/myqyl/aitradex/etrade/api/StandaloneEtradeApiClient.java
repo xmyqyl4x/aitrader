@@ -24,6 +24,8 @@ public class StandaloneEtradeApiClient {
   private final String baseUrl;
   private final EtradeOAuth1Template oauthTemplate;
   private final HttpClient httpClient;
+  private final String accessToken;
+  private final String accessTokenSecret;
 
   /**
    * Creates a standalone API client.
@@ -46,9 +48,6 @@ public class StandaloneEtradeApiClient {
     this.accessToken = accessToken;
     this.accessTokenSecret = accessTokenSecret;
   }
-
-  private final String accessToken;
-  private final String accessTokenSecret;
 
   /**
    * Makes an authenticated GET request to E*TRADE API.

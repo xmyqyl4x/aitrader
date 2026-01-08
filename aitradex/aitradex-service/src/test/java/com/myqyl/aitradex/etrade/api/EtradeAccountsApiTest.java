@@ -2,6 +2,7 @@ package com.myqyl.aitradex.etrade.api;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.myqyl.aitradex.etrade.api.EtradeAccessTokenHelper;
 import com.myqyl.aitradex.etrade.api.XmlResponseValidator;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,8 +33,10 @@ import org.w3c.dom.Element;
 @DisplayName("E*TRADE Accounts API Tests (Standalone)")
 @EnabledIfEnvironmentVariable(named = "ETRADE_CONSUMER_KEY", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "ETRADE_CONSUMER_SECRET", matches = ".+")
-@EnabledIfEnvironmentVariable(named = "ETRADE_ACCESS_TOKEN", matches = ".+")
-@EnabledIfEnvironmentVariable(named = "ETRADE_ACCESS_TOKEN_SECRET", matches = ".+")
+// Note: Tests require either:
+// - ETRADE_ACCESS_TOKEN and ETRADE_ACCESS_TOKEN_SECRET (direct tokens)
+// - OR ETRADE_OAUTH_VERIFIER (to obtain tokens automatically)
+// Tests will be skipped if neither is provided
 class EtradeAccountsApiTest {
 
   private static final Logger log = LoggerFactory.getLogger(EtradeAccountsApiTest.class);
@@ -51,8 +54,30 @@ class EtradeAccountsApiTest {
 
     assertNotNull(consumerKey, "ETRADE_CONSUMER_KEY must be set");
     assertNotNull(consumerSecret, "ETRADE_CONSUMER_SECRET must be set");
-    assertNotNull(accessToken, "ETRADE_ACCESS_TOKEN must be set");
-    assertNotNull(accessTokenSecret, "ETRADE_ACCESS_TOKEN_SECRET must be set");
+    
+    // Try to get access token from environment, or attempt to obtain it if verifier is provided
+    if (accessToken == null || accessTokenSecret == null) {
+      String verifier = System.getenv("ETRADE_OAUTH_VERIFIER");
+      if (verifier != null && !verifier.isEmpty()) {
+        log.info("Access token not found in environment, attempting to obtain using verifier...");
+        try {
+          EtradeAccessTokenHelper.AccessTokenPair tokens = 
+              EtradeAccessTokenHelper.getAccessToken(consumerKey, consumerSecret, verifier);
+          accessToken = tokens.getAccessToken();
+          accessTokenSecret = tokens.getAccessTokenSecret();
+          log.info("✅ Successfully obtained access token");
+        } catch (Exception e) {
+          log.error("Failed to obtain access token: {}", e.getMessage());
+          org.junit.jupiter.api.Assumptions.assumeTrue(false, 
+              "ETRADE_ACCESS_TOKEN and ETRADE_ACCESS_TOKEN_SECRET must be set, " +
+              "or ETRADE_OAUTH_VERIFIER must be provided to obtain tokens. Error: " + e.getMessage());
+        }
+      } else {
+        org.junit.jupiter.api.Assumptions.assumeTrue(false, 
+            "ETRADE_ACCESS_TOKEN and ETRADE_ACCESS_TOKEN_SECRET must be set, " +
+            "or ETRADE_OAUTH_VERIFIER must be provided to obtain tokens");
+      }
+    }
 
     apiClient = new StandaloneEtradeApiClient(
         baseUrl, consumerKey, consumerSecret, accessToken, accessTokenSecret);
