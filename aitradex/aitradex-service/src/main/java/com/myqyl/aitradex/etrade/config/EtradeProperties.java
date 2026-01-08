@@ -137,6 +137,10 @@ public class EtradeProperties {
     return baseUrl + "/v1/market/quote";
   }
 
+  public String getQuoteUrl(String symbols) {
+    return baseUrl + "/v1/market/quote/" + symbols;
+  }
+
   public String getOrdersUrl(String accountIdKey) {
     return baseUrl + "/v1/accounts/" + accountIdKey + "/orders";
   }

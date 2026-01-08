@@ -58,6 +58,97 @@ public class EtradeApiClient {
     return makeRequestWithRetry(method, url, queryParams, requestBody, accountId, 0);
   }
 
+  /**
+   * Makes a non-OAuth request (e.g., for delayed quotes with consumerKey).
+   * Used when OAuth is not initialized or not required.
+   */
+  public String makeRequestWithoutOAuth(String method, String url, Map<String, String> queryParams,
+                                       String requestBody) {
+    return makeRequestWithoutOAuthWithRetry(method, url, queryParams, requestBody, 0);
+  }
+
+  private String makeRequestWithoutOAuthWithRetry(String method, String url, Map<String, String> queryParams,
+                                                  String requestBody, int retryCount) {
+    Instant startTime = Instant.now();
+    String action = method + " " + url;
+    String auditRequestBody = requestBody;
+    
+    String correlationId = UUID.randomUUID().toString();
+    MDC.put("correlationId", correlationId);
+    MDC.put("accountId", "unauthenticated");
+    
+    try {
+      // Build full URL with query params
+      String fullUrl = url;
+      if (queryParams != null && !queryParams.isEmpty()) {
+        StringBuilder urlBuilder = new StringBuilder(url);
+        urlBuilder.append("?");
+        queryParams.forEach((k, v) -> urlBuilder.append(k).append("=").append(v != null ? v : "").append("&"));
+        fullUrl = urlBuilder.substring(0, urlBuilder.length() - 1);
+      }
+
+      // Build HTTP request WITHOUT OAuth header
+      HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+          .uri(URI.create(fullUrl))
+          .header("Accept", "application/json")
+          .timeout(REQUEST_TIMEOUT);
+
+      if (requestBody != null && !requestBody.isEmpty()) {
+        requestBuilder.header("Content-Type", "application/json")
+            .method(method, HttpRequest.BodyPublishers.ofString(requestBody));
+      } else {
+        requestBuilder.method(method, HttpRequest.BodyPublishers.noBody());
+      }
+
+      HttpRequest request = requestBuilder.build();
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      
+      long durationMs = Duration.between(startTime, Instant.now()).toMillis();
+
+      // Handle rate limiting
+      if (response.statusCode() == 429 && retryCount < MAX_RETRIES) {
+        int waitSeconds = (int) Math.pow(2, retryCount) * 5;
+        log.warn("Rate limited (non-OAuth), retrying in {} seconds (attempt {}/{})", 
+            waitSeconds, retryCount + 1, MAX_RETRIES);
+        Thread.sleep(waitSeconds * 1000L);
+        return makeRequestWithoutOAuthWithRetry(method, url, queryParams, requestBody, retryCount + 1);
+      }
+
+      // Log to audit (no accountId for non-OAuth requests)
+      logAudit(null, action, queryParams != null ? queryParams.toString() : null, 
+               auditRequestBody, response.body(), response.statusCode(), null, durationMs);
+
+      // Handle errors
+      if (response.statusCode() >= 400) {
+        String errorCode = extractErrorCode(response.body());
+        String errorMessage = extractErrorMessage(response.body());
+        log.error("E*TRADE API error {} [{}]: {}", response.statusCode(), errorCode, errorMessage);
+        throw new EtradeApiException(response.statusCode(), errorCode, errorMessage);
+      }
+
+      return response.body();
+    } catch (EtradeApiException e) {
+      long durationMs = Duration.between(startTime, Instant.now()).toMillis();
+      logAudit(null, action, null, auditRequestBody, null, e.getHttpStatus(), 
+          e.getErrorCode() + ": " + e.getErrorMessage(), durationMs);
+      throw e;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      long durationMs = Duration.between(startTime, Instant.now()).toMillis();
+      logAudit(null, action, null, auditRequestBody, null, null, "Request interrupted", durationMs);
+      throw new EtradeApiException(500, "INTERRUPTED", "Request interrupted", e);
+    } catch (Exception e) {
+      long durationMs = Duration.between(startTime, Instant.now()).toMillis();
+      logAudit(null, action, null, auditRequestBody, null, null, e.getMessage(), durationMs);
+      log.error("E*TRADE API request failed (non-OAuth) [correlationId={}]", correlationId, e);
+      throw new EtradeApiException(500, "INTERNAL_ERROR", 
+          "E*TRADE API request failed: " + e.getMessage(), e);
+    } finally {
+      MDC.remove("correlationId");
+      MDC.remove("accountId");
+    }
+  }
+
   private String makeRequestWithRetry(String method, String url, Map<String, String> queryParams,
                                      String requestBody, UUID accountId, int retryCount) {
     Instant startTime = Instant.now();

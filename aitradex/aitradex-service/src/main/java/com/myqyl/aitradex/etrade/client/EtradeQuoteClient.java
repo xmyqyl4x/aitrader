@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqyl.aitradex.etrade.config.EtradeProperties;
 import java.util.*;
+import java.util.Arrays;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,15 +31,29 @@ public class EtradeQuoteClient {
 
   /**
    * Gets quote for one or more symbols.
+   * If accountId is null, uses delayed quotes with consumerKey (non-OAuth).
+   * If accountId is provided, uses authenticated real-time quotes (OAuth).
    */
   public List<Map<String, Object>> getQuotes(UUID accountId, String... symbols) {
     try {
-      String url = properties.getQuoteUrl();
+      // Build URL with symbols in path (matching example app: /v1/market/quote/{symbols})
+      String symbolsPath = String.join(",", symbols);
+      String url = properties.getQuoteUrl(symbolsPath);
       Map<String, String> params = new HashMap<>();
-      params.put("symbol", String.join(",", symbols));
-      params.put("detailFlag", "ALL");
       
-      String response = apiClient.makeRequest("GET", url, params, null, accountId);
+      String response;
+      // Support delayed quotes for unauthenticated requests (matches example app behavior)
+      if (accountId == null) {
+        // Use delayed quotes with consumerKey query param (no OAuth)
+        params.put("consumerKey", properties.getConsumerKey());
+        response = apiClient.makeRequestWithoutOAuth("GET", url, params, null);
+        log.debug("Using delayed quotes (non-OAuth) for symbols: {}", Arrays.toString(symbols));
+      } else {
+        // Use authenticated real-time quotes (OAuth)
+        params.put("detailFlag", "ALL"); // Request all details for authenticated quotes
+        response = apiClient.makeRequest("GET", url, params, null, accountId);
+        log.debug("Using real-time quotes (OAuth) for symbols: {}", Arrays.toString(symbols));
+      }
       
       JsonNode root = objectMapper.readTree(response);
       JsonNode quotesNode = root.path("QuoteResponse").path("QuoteData");
@@ -65,29 +80,99 @@ public class EtradeQuoteClient {
     // Product information
     JsonNode productNode = quoteNode.path("Product");
     if (!productNode.isMissingNode()) {
-      quote.put("symbol", productNode.path("symbol").asText());
-      quote.put("exchange", productNode.path("exchange").asText());
-      quote.put("companyName", productNode.path("companyName").asText());
+      quote.put("symbol", productNode.path("symbol").asText(""));
+      quote.put("exchange", productNode.path("exchange").asText(""));
+      quote.put("companyName", productNode.path("companyName").asText(""));
+      quote.put("securityType", productNode.path("securityType").asText(""));
     }
     
-    // All quotes
+    // DateTime
+    JsonNode dateTimeNode = quoteNode.path("dateTime");
+    if (!dateTimeNode.isMissingNode()) {
+      if (dateTimeNode.isNumber()) {
+        quote.put("dateTime", dateTimeNode.asLong());
+      } else {
+        quote.put("dateTime", dateTimeNode.asText(""));
+      }
+    }
+    
+    // All quotes (for stocks/ETFs)
     JsonNode allNode = quoteNode.path("All");
     if (!allNode.isMissingNode()) {
-      quote.put("lastTrade", allNode.path("lastTrade").asDouble());
-      quote.put("previousClose", allNode.path("previousClose").asDouble());
-      quote.put("open", allNode.path("open").asDouble());
-      quote.put("high", allNode.path("high").asDouble());
-      quote.put("low", allNode.path("low").asDouble());
-      quote.put("volume", allNode.path("volume").asLong());
-      quote.put("change", allNode.path("change").asDouble());
-      quote.put("changePercent", allNode.path("changePercent").asDouble());
-      quote.put("bid", allNode.path("bid").asDouble());
-      quote.put("ask", allNode.path("ask").asDouble());
-      quote.put("bidSize", allNode.path("bidSize").asInt());
-      quote.put("askSize", allNode.path("askSize").asInt());
-      quote.put("timeOfLastTrade", allNode.path("timeOfLastTrade").asLong());
+      quote.put("lastTrade", getDoubleValue(allNode, "lastTrade"));
+      quote.put("previousClose", getDoubleValue(allNode, "previousClose"));
+      quote.put("open", getDoubleValue(allNode, "open"));
+      quote.put("high", getDoubleValue(allNode, "high"));
+      quote.put("low", getDoubleValue(allNode, "low"));
+      quote.put("totalVolume", getLongValue(allNode, "totalVolume"));
+      quote.put("volume", getLongValue(allNode, "volume")); // Alias for totalVolume
+      quote.put("changeClose", getDoubleValue(allNode, "changeClose"));
+      quote.put("changeClosePercentage", getDoubleValue(allNode, "changeClosePercentage"));
+      quote.put("change", getDoubleValue(allNode, "change"));
+      quote.put("changePercent", getDoubleValue(allNode, "changePercent"));
+      quote.put("bid", getDoubleValue(allNode, "bid"));
+      quote.put("ask", getDoubleValue(allNode, "ask"));
+      quote.put("bidSize", getIntValue(allNode, "bidSize"));
+      quote.put("askSize", getIntValue(allNode, "askSize"));
+      quote.put("timeOfLastTrade", getLongValue(allNode, "timeOfLastTrade"));
+      quote.put("companyName", allNode.path("companyName").asText(""));
+    }
+    
+    // MutualFund quotes (for mutual funds)
+    JsonNode mutualFundNode = quoteNode.path("MutualFund");
+    if (!mutualFundNode.isMissingNode()) {
+      quote.put("netAssetValue", getDoubleValue(mutualFundNode, "netAssetValue"));
+      quote.put("publicOfferPrice", getDoubleValue(mutualFundNode, "publicOfferPrice"));
+      quote.put("changeClose", getDoubleValue(mutualFundNode, "changeClose"));
+      quote.put("changeClosePercentage", getDoubleValue(mutualFundNode, "changeClosePercentage"));
+      quote.put("previousClose", getDoubleValue(mutualFundNode, "previousClose"));
     }
     
     return quote;
+  }
+
+  private Double getDoubleValue(JsonNode node, String fieldName) {
+    JsonNode fieldNode = node.path(fieldName);
+    if (fieldNode.isMissingNode() || fieldNode.isNull()) {
+      return null;
+    }
+    if (fieldNode.isNumber()) {
+      return fieldNode.asDouble();
+    }
+    try {
+      return Double.parseDouble(fieldNode.asText());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  private Long getLongValue(JsonNode node, String fieldName) {
+    JsonNode fieldNode = node.path(fieldName);
+    if (fieldNode.isMissingNode() || fieldNode.isNull()) {
+      return null;
+    }
+    if (fieldNode.isNumber()) {
+      return fieldNode.asLong();
+    }
+    try {
+      return Long.parseLong(fieldNode.asText());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  private Integer getIntValue(JsonNode node, String fieldName) {
+    JsonNode fieldNode = node.path(fieldName);
+    if (fieldNode.isMissingNode() || fieldNode.isNull()) {
+      return null;
+    }
+    if (fieldNode.isNumber()) {
+      return fieldNode.asInt();
+    }
+    try {
+      return Integer.parseInt(fieldNode.asText());
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 }

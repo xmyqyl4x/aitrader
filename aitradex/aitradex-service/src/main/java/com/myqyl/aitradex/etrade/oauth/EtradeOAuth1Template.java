@@ -126,11 +126,23 @@ public class EtradeOAuth1Template {
 
   /**
    * Normalizes parameters for signature base string.
+   * Handles both single values and array values (for OAuth 1.0 spec compliance).
    */
   private String normalizeParameters(Map<String, String> parameters) {
+    if (parameters == null || parameters.isEmpty()) {
+      return "";
+    }
+    
+    // Sort by key, then handle values (may need to handle arrays if E*TRADE uses them)
     return parameters.entrySet().stream()
         .sorted(Map.Entry.comparingByKey())
-        .map(e -> percentEncode(e.getKey()) + "=" + percentEncode(e.getValue()))
+        .flatMap(e -> {
+          String key = percentEncode(e.getKey());
+          String value = e.getValue();
+          // For now, single value. If E*TRADE uses array params, this can be extended.
+          // Array params would be handled by encoding each value separately.
+          return java.util.stream.Stream.of(key + "=" + percentEncode(value));
+        })
         .collect(Collectors.joining("&"));
   }
 
