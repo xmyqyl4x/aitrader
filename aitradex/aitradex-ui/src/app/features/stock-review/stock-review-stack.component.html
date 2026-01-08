@@ -1,26 +1,22 @@
 <!-- Page Title -->
-<div class="app-page-title">
-  <div class="page-title-wrapper">
-    <div class="page-title-heading">
-      <div>Stock Quote Review Stack</div>
-      <div class="page-title-subheading">
-        View and manage all stock quote searches and reviews.
-      </div>
+<div class="page-title">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h1>Stock Quote Review Stack</h1>
+      <p>View and manage all stock quote searches and reviews.</p>
     </div>
-    <div class="page-title-actions">
-      <button routerLink="/stock-review" class="btn btn-primary">
-        <i class="pe-7s-plus"></i> New Search
-      </button>
-    </div>
+    <button routerLink="/stock-review" class="btn btn-primary">
+      <i class="fa fa-plus me-2"></i> New Search
+    </button>
   </div>
 </div>
 
 <!-- Filters Card -->
 <div class="row">
   <div class="col-md-12">
-    <div class="main-card mb-3 card">
+    <div class="card">
       <div class="card-header">
-        <i class="header-icon pe-7s-filter"></i>
+        <i class="fa fa-filter me-2"></i>
         Filters
       </div>
       <div class="card-body">
@@ -53,10 +49,10 @@
                 <label>&nbsp;</label>
                 <div class="d-flex gap-2">
                   <button type="submit" class="btn btn-primary">
-                    <i class="pe-7s-search"></i> Filter
+                    <i class="fa fa-search me-2"></i> Filter
                   </button>
                   <button type="button" (click)="filterForm.reset(); onFilter()" class="btn btn-secondary">
-                    <i class="pe-7s-close-circle"></i> Clear
+                    <i class="fa fa-times me-2"></i> Clear
                   </button>
                 </div>
               </div>
@@ -72,7 +68,7 @@
 <div *ngIf="error" class="row">
   <div class="col-md-12">
     <div class="alert alert-danger" role="alert">
-      <i class="pe-7s-close-circle"></i> {{ error }}
+      <i class="fa fa-exclamation-circle me-2"></i> {{ error }}
     </div>
   </div>
 </div>
@@ -80,7 +76,7 @@
 <!-- Loading State -->
 <div *ngIf="loading" class="row">
   <div class="col-md-12">
-    <div class="main-card mb-3 card">
+    <div class="card">
       <div class="card-body text-center py-5">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Loading...</span>
@@ -94,9 +90,9 @@
 <!-- Searches Table -->
 <div *ngIf="!loading && searches.length > 0" class="row">
   <div class="col-md-12">
-    <div class="main-card mb-3 card">
+    <div class="card">
       <div class="card-header">
-        <i class="header-icon pe-7s-graph"></i>
+        <i class="fa fa-history me-2"></i>
         Search History
         <span class="badge bg-primary ms-2">{{ totalElements }}</span>
       </div>
@@ -155,10 +151,10 @@
               <td>
                 <div class="btn-group" role="group">
                   <button (click)="onView(search)" class="btn btn-sm btn-outline-secondary" title="View">
-                    <i class="pe-7s-look"></i>
+                    <i class="fa fa-eye"></i>
                   </button>
                   <button (click)="onRerun(search)" class="btn btn-sm btn-outline-primary" title="Re-run">
-                    <i class="pe-7s-refresh"></i>
+                    <i class="fa fa-redo"></i>
                   </button>
                 </div>
               </td>
@@ -201,9 +197,9 @@
 <!-- Empty State -->
 <div *ngIf="!loading && searches.length === 0" class="row">
   <div class="col-md-12">
-    <div class="main-card mb-3 card">
+    <div class="card">
       <div class="card-body text-center py-5">
-        <i class="pe-7s-graph" style="font-size: 64px; color: #ccc;"></i>
+        <i class="fa fa-chart-line" style="font-size: 64px; color: #ccc;"></i>
         <h5 class="mt-3 text-muted">No Searches Found</h5>
         <p class="text-muted">
           No searches found. <a routerLink="/stock-review" class="text-primary">Create a new search</a> to get started.

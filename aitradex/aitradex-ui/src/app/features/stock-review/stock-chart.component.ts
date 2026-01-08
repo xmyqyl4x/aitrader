@@ -49,7 +49,7 @@ export type ChartType = 'line' | 'area' | 'bar' | 'candlestick' | 'ohlc';
         *ngIf="data && data.length > 0"
       ></apx-chart>
       <div *ngIf="!data || data.length === 0" class="no-data">
-        <i class="pe-7s-graph1" style="font-size: 48px; color: #ccc;"></i>
+        <i class="fa fa-chart-line" style="font-size: 48px; color: #ccc;"></i>
         <p>No chart data available</p>
       </div>
     </div>

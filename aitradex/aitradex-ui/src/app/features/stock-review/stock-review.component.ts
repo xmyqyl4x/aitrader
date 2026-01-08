@@ -25,11 +25,11 @@ export class StockReviewComponent implements OnInit {
   ranges: QuoteRange[] = ['1D', '5D', '1M', '3M', '1Y'];
   chartType: 'line' | 'area' | 'bar' | 'candlestick' | 'ohlc' = 'line';
   availableChartTypes: Array<{value: 'line' | 'area' | 'bar' | 'candlestick' | 'ohlc', label: string, icon: string}> = [
-    { value: 'line', label: 'Line', icon: 'pe-7s-graph' },
-    { value: 'area', label: 'Area', icon: 'pe-7s-graph1' },
-    { value: 'bar', label: 'Bar', icon: 'pe-7s-graph2' },
-    { value: 'candlestick', label: 'Candlestick', icon: 'pe-7s-graph3' },
-    { value: 'ohlc', label: 'OHLC', icon: 'pe-7s-graph3' }
+    { value: 'line', label: 'Line', icon: 'fa fa-chart-line' },
+    { value: 'area', label: 'Area', icon: 'fa fa-chart-area' },
+    { value: 'bar', label: 'Bar', icon: 'fa fa-chart-bar' },
+    { value: 'candlestick', label: 'Candlestick', icon: 'fa fa-chart-line' },
+    { value: 'ohlc', label: 'OHLC', icon: 'fa fa-chart-line' }
   ];
 
   constructor(

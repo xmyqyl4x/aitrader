@@ -1,17 +1,4 @@
 // Stock Review Component Styles
-// Most styling is handled by ArchitectUI theme classes
-// Custom overrides can be added here if needed
-
-.widget-content {
-  .widget-numbers {
-    font-size: 1.25rem;
-    
-    small {
-      font-size: 0.875rem;
-      opacity: 0.9;
-    }
-  }
-}
 
 // Chart container adjustments
 app-stock-chart {
@@ -19,7 +6,7 @@ app-stock-chart {
   width: 100%;
 }
 
-// Chart type selector buttons - Prominent placement above chart
+// Chart type selector buttons
 .chart-type-selector {
   display: flex;
   align-items: center;
@@ -49,12 +36,12 @@ app-stock-chart {
     color: #495057;
     transition: all 0.2s ease;
     
-    i, span[class*="pe-7s"] {
+    i {
       font-size: 1rem;
       margin-right: 0.375rem;
     }
     
-    &:hover:not(.active) {
+    &:hover:not(.active):not(.btn-primary) {
       background-color: #e9ecef;
       border-color: #adb5bd;
       color: #212529;
@@ -63,7 +50,6 @@ app-stock-chart {
     }
   }
   
-  // Ensure buttons are visible
   .btn-outline-secondary {
     border-color: #6c757d;
     color: #6c757d;
@@ -93,12 +79,6 @@ app-stock-chart {
 
 // Responsive adjustments
 @media (max-width: 768px) {
-  .widget-content-wrapper {
-    .widget-numbers {
-      font-size: 1rem;
-    }
-  }
-  
   .btn-group {
     width: 100%;
     margin-top: 1rem;
