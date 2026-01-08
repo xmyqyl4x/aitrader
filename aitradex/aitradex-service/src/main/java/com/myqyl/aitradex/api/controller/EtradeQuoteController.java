@@ -32,9 +32,18 @@ public class EtradeQuoteController {
   @GetMapping("/{symbol}")
   public ResponseEntity<Map<String, Object>> getQuote(
       @PathVariable String symbol,
-      @RequestParam UUID accountId) {
-    Map<String, Object> quote = quoteService.getQuote(accountId, symbol);
-    return ResponseEntity.ok(quote);
+      @RequestParam UUID accountId,
+      @RequestParam(required = false) String detailFlag,
+      @RequestParam(required = false) Boolean requireEarningsDate,
+      @RequestParam(required = false) Integer overrideSymbolCount,
+      @RequestParam(required = false) Boolean skipMiniOptionsCheck) {
+    String[] symbolArray = {symbol};
+    List<Map<String, Object>> quotes = quoteService.getQuotes(accountId, symbolArray, detailFlag,
+                                                               requireEarningsDate, overrideSymbolCount, skipMiniOptionsCheck);
+    if (quotes.isEmpty()) {
+      throw new RuntimeException("Quote not found for symbol: " + symbol);
+    }
+    return ResponseEntity.ok(quotes.get(0));
   }
 
   /**
@@ -43,9 +52,14 @@ public class EtradeQuoteController {
   @GetMapping
   public ResponseEntity<List<Map<String, Object>>> getQuotes(
       @RequestParam String symbols,
-      @RequestParam UUID accountId) {
+      @RequestParam UUID accountId,
+      @RequestParam(required = false) String detailFlag,
+      @RequestParam(required = false) Boolean requireEarningsDate,
+      @RequestParam(required = false) Integer overrideSymbolCount,
+      @RequestParam(required = false) Boolean skipMiniOptionsCheck) {
     String[] symbolArray = symbols.split(",");
-    List<Map<String, Object>> quotes = quoteService.getQuotes(accountId, symbolArray);
+    List<Map<String, Object>> quotes = quoteService.getQuotes(accountId, symbolArray, detailFlag,
+                                                               requireEarningsDate, overrideSymbolCount, skipMiniOptionsCheck);
     return ResponseEntity.ok(quotes);
   }
 
@@ -82,8 +96,9 @@ public class EtradeQuoteController {
    */
   @GetMapping("/option-expire-dates")
   public ResponseEntity<List<Map<String, Object>>> getOptionExpireDates(
-      @RequestParam String symbol) {
-    List<Map<String, Object>> dates = quoteService.getOptionExpireDates(symbol);
+      @RequestParam String symbol,
+      @RequestParam(required = false) String expiryType) {
+    List<Map<String, Object>> dates = quoteService.getOptionExpireDates(symbol, expiryType);
     return ResponseEntity.ok(dates);
   }
 }

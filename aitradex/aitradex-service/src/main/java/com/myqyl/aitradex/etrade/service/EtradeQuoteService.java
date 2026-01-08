@@ -20,6 +20,23 @@ public class EtradeQuoteService {
 
   /**
    * Gets quotes for one or more symbols.
+   * 
+   * @param accountId Internal account UUID (null for delayed quotes)
+   * @param symbols One or more stock symbols
+   * @param detailFlag Detail flag (e.g., "ALL", "FUNDAMENTAL", "INTRADAY") (optional)
+   * @param requireEarningsDate Whether to include earnings date (optional)
+   * @param overrideSymbolCount Override symbol count limit (optional)
+   * @param skipMiniOptionsCheck Skip mini options check (optional)
+   */
+  public List<Map<String, Object>> getQuotes(UUID accountId, String[] symbols, String detailFlag,
+                                              Boolean requireEarningsDate, Integer overrideSymbolCount,
+                                              Boolean skipMiniOptionsCheck) {
+    return quoteClient.getQuotes(accountId, symbols, detailFlag, requireEarningsDate, 
+                                 overrideSymbolCount, skipMiniOptionsCheck);
+  }
+
+  /**
+   * Gets quotes for one or more symbols (simplified version with defaults).
    */
   public List<Map<String, Object>> getQuotes(UUID accountId, String... symbols) {
     return quoteClient.getQuotes(accountId, symbols);
@@ -54,6 +71,16 @@ public class EtradeQuoteService {
 
   /**
    * Gets option expire dates for a symbol.
+   * 
+   * @param symbol Stock symbol
+   * @param expiryType Expiry type filter (e.g., "WEEKLY", "MONTHLY") (optional)
+   */
+  public List<Map<String, Object>> getOptionExpireDates(String symbol, String expiryType) {
+    return quoteClient.getOptionExpireDates(symbol, expiryType);
+  }
+
+  /**
+   * Gets option expire dates for a symbol (simplified version).
    */
   public List<Map<String, Object>> getOptionExpireDates(String symbol) {
     return quoteClient.getOptionExpireDates(symbol);

@@ -57,13 +57,23 @@ public class EtradeAccountClient {
 
   /**
    * Gets account balance.
+   * 
+   * @param accountId Internal account UUID
+   * @param accountIdKey E*TRADE account ID key
+   * @param instType Institution type (default: "BROKERAGE")
+   * @param accountType Account type filter (optional)
+   * @param realTimeNAV Whether to get real-time NAV (default: true)
    */
-  public Map<String, Object> getBalance(UUID accountId, String accountIdKey) {
+  public Map<String, Object> getBalance(UUID accountId, String accountIdKey, 
+                                         String instType, String accountType, Boolean realTimeNAV) {
     try {
       String url = properties.getBalanceUrl(accountIdKey);
       Map<String, String> params = new HashMap<>();
-      params.put("instType", "BROKERAGE");
-      params.put("realTimeNAV", "true");
+      params.put("instType", instType != null ? instType : "BROKERAGE");
+      if (accountType != null && !accountType.isEmpty()) {
+        params.put("accountType", accountType);
+      }
+      params.put("realTimeNAV", realTimeNAV != null ? String.valueOf(realTimeNAV) : "true");
       
       String response = apiClient.makeRequest("GET", url, params, null, accountId);
       
@@ -78,12 +88,60 @@ public class EtradeAccountClient {
   }
 
   /**
-   * Gets account portfolio.
+   * Gets account balance (simplified version with defaults).
    */
-  public Map<String, Object> getPortfolio(UUID accountId, String accountIdKey) {
+  public Map<String, Object> getBalance(UUID accountId, String accountIdKey) {
+    return getBalance(accountId, accountIdKey, null, null, null);
+  }
+
+  /**
+   * Gets account portfolio.
+   * 
+   * @param accountId Internal account UUID
+   * @param accountIdKey E*TRADE account ID key
+   * @param count Number of positions to return (optional)
+   * @param sortBy Sort field (e.g., "SYMBOL", "QUANTITY", "MARKET_VALUE") (optional)
+   * @param sortOrder Sort direction ("ASC", "DESC") (optional)
+   * @param pageNumber Page number for pagination (optional)
+   * @param marketSession Market session filter (optional)
+   * @param totalsRequired Whether to include totals (optional)
+   * @param lotsRequired Whether to include lot details (optional)
+   * @param view View type (e.g., "QUICK", "COMPLETE") (optional)
+   */
+  public Map<String, Object> getPortfolio(UUID accountId, String accountIdKey, Integer count,
+                                           String sortBy, String sortOrder, Integer pageNumber,
+                                           String marketSession, Boolean totalsRequired,
+                                           Boolean lotsRequired, String view) {
     try {
       String url = properties.getPortfolioUrl(accountIdKey);
-      String response = apiClient.makeRequest("GET", url, null, null, accountId);
+      Map<String, String> params = new HashMap<>();
+      
+      if (count != null && count > 0) {
+        params.put("count", String.valueOf(count));
+      }
+      if (sortBy != null && !sortBy.isEmpty()) {
+        params.put("sortBy", sortBy);
+      }
+      if (sortOrder != null && !sortOrder.isEmpty()) {
+        params.put("sortOrder", sortOrder);
+      }
+      if (pageNumber != null && pageNumber > 0) {
+        params.put("pageNumber", String.valueOf(pageNumber));
+      }
+      if (marketSession != null && !marketSession.isEmpty()) {
+        params.put("marketSession", marketSession);
+      }
+      if (totalsRequired != null) {
+        params.put("totalsRequired", String.valueOf(totalsRequired));
+      }
+      if (lotsRequired != null) {
+        params.put("lotsRequired", String.valueOf(lotsRequired));
+      }
+      if (view != null && !view.isEmpty()) {
+        params.put("view", view);
+      }
+      
+      String response = apiClient.makeRequest("GET", url, params, null, accountId);
       
       JsonNode root = objectMapper.readTree(response);
       JsonNode portfolioNode = root.path("PortfolioResponse");
@@ -93,6 +151,13 @@ public class EtradeAccountClient {
       log.error("Failed to get portfolio for account {}", accountIdKey, e);
       throw new RuntimeException("Failed to get portfolio", e);
     }
+  }
+
+  /**
+   * Gets account portfolio (simplified version with defaults).
+   */
+  public Map<String, Object> getPortfolio(UUID accountId, String accountIdKey) {
+    return getPortfolio(accountId, accountIdKey, null, null, null, null, null, null, null, null);
   }
 
   private Map<String, Object> parseAccount(JsonNode accountNode) {
@@ -112,21 +177,76 @@ public class EtradeAccountClient {
     Map<String, Object> balance = new HashMap<>();
     balance.put("accountId", balanceNode.path("accountId").asText());
     balance.put("accountType", balanceNode.path("accountType").asText());
+    balance.put("accountDescription", balanceNode.path("accountDescription").asText(""));
+    balance.put("accountMode", balanceNode.path("accountMode").asText(""));
     
+    // Cash section
+    JsonNode cashNode = balanceNode.path("Cash");
+    if (!cashNode.isMissingNode()) {
+      Map<String, Object> cash = new HashMap<>();
+      cash.put("cashBalance", getDoubleValue(cashNode, "cashBalance"));
+      cash.put("cashAvailable", getDoubleValue(cashNode, "cashAvailable"));
+      cash.put("unclearedDeposits", getDoubleValue(cashNode, "unclearedDeposits"));
+      cash.put("cashSweep", getDoubleValue(cashNode, "cashSweep"));
+      balance.put("cash", cash);
+    }
+    
+    // Margin section
+    JsonNode marginNode = balanceNode.path("Margin");
+    if (!marginNode.isMissingNode()) {
+      Map<String, Object> margin = new HashMap<>();
+      margin.put("marginBalance", getDoubleValue(marginNode, "marginBalance"));
+      margin.put("marginAvailable", getDoubleValue(marginNode, "marginAvailable"));
+      margin.put("marginBuyingPower", getDoubleValue(marginNode, "marginBuyingPower"));
+      margin.put("dayTradingBuyingPower", getDoubleValue(marginNode, "dayTradingBuyingPower"));
+      balance.put("margin", margin);
+    }
+    
+    // Computed section (enhanced)
     JsonNode computedNode = balanceNode.path("Computed");
     if (!computedNode.isMissingNode()) {
       Map<String, Object> computed = new HashMap<>();
-      computed.put("total", computedNode.path("total").asText());
-      computed.put("netCash", computedNode.path("netCash").asText());
-      computed.put("cashAvailableForInvestment", computedNode.path("cashAvailableForInvestment").asText());
+      computed.put("total", getDoubleValue(computedNode, "total"));
+      computed.put("netCash", getDoubleValue(computedNode, "netCash"));
+      computed.put("cashAvailableForInvestment", getDoubleValue(computedNode, "cashAvailableForInvestment"));
+      computed.put("totalValue", getDoubleValue(computedNode, "totalValue"));
+      computed.put("netValue", getDoubleValue(computedNode, "netValue"));
+      computed.put("settledCash", getDoubleValue(computedNode, "settledCash"));
+      computed.put("openCalls", getDoubleValue(computedNode, "openCalls"));
+      computed.put("openPuts", getDoubleValue(computedNode, "openPuts"));
       balance.put("computed", computed);
     }
     
     return balance;
   }
 
+  private Double getDoubleValue(JsonNode node, String fieldName) {
+    JsonNode fieldNode = node.path(fieldName);
+    if (fieldNode.isMissingNode() || fieldNode.isNull()) {
+      return null;
+    }
+    if (fieldNode.isNumber()) {
+      return fieldNode.asDouble();
+    }
+    try {
+      String text = fieldNode.asText();
+      if (text == null || text.isEmpty()) {
+        return null;
+      }
+      return Double.parseDouble(text);
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
   private Map<String, Object> parsePortfolio(JsonNode portfolioNode) {
     Map<String, Object> portfolio = new HashMap<>();
+    
+    // Parse totalPages
+    JsonNode totalPagesNode = portfolioNode.path("totalPages");
+    if (!totalPagesNode.isMissingNode()) {
+      portfolio.put("totalPages", totalPagesNode.asInt(0));
+    }
     
     // Handle AccountPortfolio array structure (example app shows this pattern)
     JsonNode accountPortfolioNode = portfolioNode.path("AccountPortfolio");
@@ -282,9 +402,20 @@ public class EtradeAccountClient {
 
   /**
    * Gets list of transactions for an account.
+   * 
+   * @param accountId Internal account UUID
+   * @param accountIdKey E*TRADE account ID key
+   * @param marker Pagination marker (optional)
+   * @param count Number of transactions to return (optional)
+   * @param startDate Start date filter (MMddyyyy format) (optional)
+   * @param endDate End date filter (MMddyyyy format) (optional)
+   * @param sortOrder Sort direction ("ASC", "DESC") (optional)
+   * @param accept Response format ("xml" or "json") (optional)
+   * @param storeId Store ID filter (optional)
    */
-  public List<Map<String, Object>> getTransactions(UUID accountId, String accountIdKey,
-      String marker, Integer count) {
+  public Map<String, Object> getTransactions(UUID accountId, String accountIdKey,
+      String marker, Integer count, String startDate, String endDate, String sortOrder,
+      String accept, String storeId) {
     try {
       String url = properties.getTransactionsUrl(accountIdKey);
       Map<String, String> params = new HashMap<>();
@@ -294,12 +425,43 @@ public class EtradeAccountClient {
       if (count != null && count > 0) {
         params.put("count", String.valueOf(count));
       }
+      if (startDate != null && !startDate.isEmpty()) {
+        params.put("startDate", startDate);
+      }
+      if (endDate != null && !endDate.isEmpty()) {
+        params.put("endDate", endDate);
+      }
+      if (sortOrder != null && !sortOrder.isEmpty()) {
+        params.put("sortOrder", sortOrder);
+      }
+      if (accept != null && !accept.isEmpty()) {
+        params.put("accept", accept);
+      }
+      if (storeId != null && !storeId.isEmpty()) {
+        params.put("storeId", storeId);
+      }
       
       String response = apiClient.makeRequest("GET", url, params, null, accountId);
       
       JsonNode root = objectMapper.readTree(response);
-      JsonNode transactionsNode = root.path("TransactionListResponse").path("Transactions").path("Transaction");
+      JsonNode responseNode = root.path("TransactionListResponse");
       
+      // Parse metadata
+      Map<String, Object> result = new HashMap<>();
+      result.put("transactionCount", getIntValue(responseNode, "transactionCount"));
+      result.put("totalCount", getIntValue(responseNode, "totalCount"));
+      result.put("moreTransactions", responseNode.path("moreTransactions").asBoolean(false));
+      JsonNode nextNode = responseNode.path("next");
+      if (!nextNode.isMissingNode()) {
+        result.put("next", nextNode.asText(""));
+      }
+      JsonNode markerNode = responseNode.path("marker");
+      if (!markerNode.isMissingNode()) {
+        result.put("marker", markerNode.asText(""));
+      }
+      
+      // Parse transactions
+      JsonNode transactionsNode = responseNode.path("Transactions").path("Transaction");
       List<Map<String, Object>> transactions = new ArrayList<>();
       if (transactionsNode.isArray()) {
         for (JsonNode transactionNode : transactionsNode) {
@@ -308,8 +470,9 @@ public class EtradeAccountClient {
       } else if (transactionsNode.isObject()) {
         transactions.add(parseTransaction(transactionsNode));
       }
+      result.put("transactions", transactions);
       
-      return transactions;
+      return result;
     } catch (Exception e) {
       log.error("Failed to get transactions for account {}", accountIdKey, e);
       throw new RuntimeException("Failed to get transactions", e);
@@ -317,12 +480,58 @@ public class EtradeAccountClient {
   }
 
   /**
-   * Gets transaction details by transaction ID.
+   * Gets list of transactions for an account (simplified version).
    */
-  public Map<String, Object> getTransactionDetails(UUID accountId, String accountIdKey, String transactionId) {
+  public List<Map<String, Object>> getTransactions(UUID accountId, String accountIdKey,
+      String marker, Integer count) {
+    Map<String, Object> result = getTransactions(accountId, accountIdKey, marker, count,
+                                                  null, null, null, null, null);
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> transactions = (List<Map<String, Object>>) result.get("transactions");
+    return transactions != null ? transactions : new ArrayList<>();
+  }
+
+  private Integer getIntValue(JsonNode node, String fieldName) {
+    JsonNode fieldNode = node.path(fieldName);
+    if (fieldNode.isMissingNode() || fieldNode.isNull()) {
+      return null;
+    }
+    if (fieldNode.isNumber()) {
+      return fieldNode.asInt();
+    }
+    try {
+      String text = fieldNode.asText();
+      if (text == null || text.isEmpty()) {
+        return null;
+      }
+      return Integer.parseInt(text);
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Gets transaction details by transaction ID.
+   * 
+   * @param accountId Internal account UUID
+   * @param accountIdKey E*TRADE account ID key
+   * @param transactionId Transaction ID
+   * @param accept Response format ("xml" or "json") (optional)
+   * @param storeId Store ID filter (optional)
+   */
+  public Map<String, Object> getTransactionDetails(UUID accountId, String accountIdKey, String transactionId,
+                                                     String accept, String storeId) {
     try {
       String url = properties.getTransactionDetailsUrl(accountIdKey, transactionId);
-      String response = apiClient.makeRequest("GET", url, null, null, accountId);
+      Map<String, String> params = new HashMap<>();
+      if (accept != null && !accept.isEmpty()) {
+        params.put("accept", accept);
+      }
+      if (storeId != null && !storeId.isEmpty()) {
+        params.put("storeId", storeId);
+      }
+      
+      String response = apiClient.makeRequest("GET", url, params.isEmpty() ? null : params, null, accountId);
       
       JsonNode root = objectMapper.readTree(response);
       JsonNode transactionNode = root.path("TransactionDetailsResponse");
@@ -332,6 +541,13 @@ public class EtradeAccountClient {
       log.error("Failed to get transaction details for transaction {}", transactionId, e);
       throw new RuntimeException("Failed to get transaction details", e);
     }
+  }
+
+  /**
+   * Gets transaction details by transaction ID (simplified version).
+   */
+  public Map<String, Object> getTransactionDetails(UUID accountId, String accountIdKey, String transactionId) {
+    return getTransactionDetails(accountId, accountIdKey, transactionId, null, null);
   }
 
   private Map<String, Object> parseTransaction(JsonNode transactionNode) {

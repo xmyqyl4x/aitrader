@@ -33,13 +33,33 @@ public class EtradeQuoteClient {
    * Gets quote for one or more symbols.
    * If accountId is null, uses delayed quotes with consumerKey (non-OAuth).
    * If accountId is provided, uses authenticated real-time quotes (OAuth).
+   * 
+   * @param accountId Internal account UUID (null for delayed quotes)
+   * @param symbols One or more stock symbols
+   * @param detailFlag Detail flag (e.g., "ALL", "FUNDAMENTAL", "INTRADAY") (optional, default: "ALL" for authenticated)
+   * @param requireEarningsDate Whether to include earnings date (optional)
+   * @param overrideSymbolCount Override symbol count limit (optional)
+   * @param skipMiniOptionsCheck Skip mini options check (optional)
    */
-  public List<Map<String, Object>> getQuotes(UUID accountId, String... symbols) {
+  public List<Map<String, Object>> getQuotes(UUID accountId, String[] symbols, String detailFlag,
+                                             Boolean requireEarningsDate, Integer overrideSymbolCount,
+                                             Boolean skipMiniOptionsCheck) {
     try {
       // Build URL with symbols in path (matching example app: /v1/market/quote/{symbols})
       String symbolsPath = String.join(",", symbols);
       String url = properties.getQuoteUrl(symbolsPath);
       Map<String, String> params = new HashMap<>();
+      
+      // Add optional parameters (apply to both authenticated and unauthenticated)
+      if (requireEarningsDate != null) {
+        params.put("requireEarningsDate", String.valueOf(requireEarningsDate));
+      }
+      if (overrideSymbolCount != null && overrideSymbolCount > 0) {
+        params.put("overrideSymbolCount", String.valueOf(overrideSymbolCount));
+      }
+      if (skipMiniOptionsCheck != null) {
+        params.put("skipMiniOptionsCheck", String.valueOf(skipMiniOptionsCheck));
+      }
       
       String response;
       // Support delayed quotes for unauthenticated requests (matches example app behavior)
@@ -50,7 +70,11 @@ public class EtradeQuoteClient {
         log.debug("Using delayed quotes (non-OAuth) for symbols: {}", Arrays.toString(symbols));
       } else {
         // Use authenticated real-time quotes (OAuth)
-        params.put("detailFlag", "ALL"); // Request all details for authenticated quotes
+        if (detailFlag != null && !detailFlag.isEmpty()) {
+          params.put("detailFlag", detailFlag);
+        } else {
+          params.put("detailFlag", "ALL"); // Default to ALL for authenticated quotes
+        }
         response = apiClient.makeRequest("GET", url, params, null, accountId);
         log.debug("Using real-time quotes (OAuth) for symbols: {}", Arrays.toString(symbols));
       }
@@ -72,6 +96,15 @@ public class EtradeQuoteClient {
       log.error("Failed to get quotes for symbols {}", Arrays.toString(symbols), e);
       throw new RuntimeException("Failed to get quotes", e);
     }
+  }
+
+  /**
+   * Gets quote for one or more symbols (simplified version with defaults).
+   * If accountId is null, uses delayed quotes with consumerKey (non-OAuth).
+   * If accountId is provided, uses authenticated real-time quotes (OAuth).
+   */
+  public List<Map<String, Object>> getQuotes(UUID accountId, String... symbols) {
+    return getQuotes(accountId, symbols, null, null, null, null);
   }
 
   private Map<String, Object> parseQuote(JsonNode quoteNode) {
@@ -253,13 +286,20 @@ public class EtradeQuoteClient {
 
   /**
    * Gets option expire dates for a symbol.
+   * 
+   * @param symbol Stock symbol
+   * @param expiryType Expiry type filter (e.g., "WEEKLY", "MONTHLY") (optional)
    */
-  public List<Map<String, Object>> getOptionExpireDates(String symbol) {
+  public List<Map<String, Object>> getOptionExpireDates(String symbol, String expiryType) {
     try {
       String url = properties.getOptionExpireDatesUrl();
       Map<String, String> params = new HashMap<>();
       params.put("consumerKey", properties.getConsumerKey());
       params.put("symbol", symbol);
+      
+      if (expiryType != null && !expiryType.isEmpty()) {
+        params.put("expiryType", expiryType);
+      }
       
       String response = apiClient.makeRequestWithoutOAuth("GET", url, params, null);
       
@@ -280,6 +320,13 @@ public class EtradeQuoteClient {
       log.error("Failed to get option expire dates for symbol {}", symbol, e);
       throw new RuntimeException("Failed to get option expire dates", e);
     }
+  }
+
+  /**
+   * Gets option expire dates for a symbol (simplified version).
+   */
+  public List<Map<String, Object>> getOptionExpireDates(String symbol) {
+    return getOptionExpireDates(symbol, null);
   }
 
   private Map<String, Object> parseProductLookup(JsonNode productNode) {

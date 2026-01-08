@@ -53,9 +53,14 @@ public class EtradeAccountController {
    * Gets account balance.
    */
   @GetMapping("/{accountId}/balance")
-  public ResponseEntity<Map<String, Object>> getBalance(@PathVariable UUID accountId) {
+  public ResponseEntity<Map<String, Object>> getBalance(
+      @PathVariable UUID accountId,
+      @RequestParam(required = false) String instType,
+      @RequestParam(required = false) String accountType,
+      @RequestParam(required = false) Boolean realTimeNAV) {
     EtradeAccountDto account = accountService.getAccount(accountId);
-    Map<String, Object> balance = accountService.getAccountBalance(accountId, account.accountIdKey());
+    Map<String, Object> balance = accountService.getAccountBalance(accountId, account.accountIdKey(), 
+                                                                    instType, accountType, realTimeNAV);
     return ResponseEntity.ok(balance);
   }
 
@@ -63,9 +68,20 @@ public class EtradeAccountController {
    * Gets account portfolio.
    */
   @GetMapping("/{accountId}/portfolio")
-  public ResponseEntity<Map<String, Object>> getPortfolio(@PathVariable UUID accountId) {
+  public ResponseEntity<Map<String, Object>> getPortfolio(
+      @PathVariable UUID accountId,
+      @RequestParam(required = false) Integer count,
+      @RequestParam(required = false) String sortBy,
+      @RequestParam(required = false) String sortOrder,
+      @RequestParam(required = false) Integer pageNumber,
+      @RequestParam(required = false) String marketSession,
+      @RequestParam(required = false) Boolean totalsRequired,
+      @RequestParam(required = false) Boolean lotsRequired,
+      @RequestParam(required = false) String view) {
     EtradeAccountDto account = accountService.getAccount(accountId);
-    Map<String, Object> portfolio = accountService.getAccountPortfolio(accountId, account.accountIdKey());
+    Map<String, Object> portfolio = accountService.getAccountPortfolio(accountId, account.accountIdKey(),
+                                                                        count, sortBy, sortOrder, pageNumber,
+                                                                        marketSession, totalsRequired, lotsRequired, view);
     return ResponseEntity.ok(portfolio);
   }
 
@@ -88,12 +104,18 @@ public class EtradeAccountController {
    * Gets account transactions.
    */
   @GetMapping("/{accountId}/transactions")
-  public ResponseEntity<List<Map<String, Object>>> getTransactions(
+  public ResponseEntity<Map<String, Object>> getTransactions(
       @PathVariable UUID accountId,
       @RequestParam(required = false) String marker,
-      @RequestParam(required = false) Integer count) {
-    List<Map<String, Object>> transactions = accountService.getAccountTransactions(accountId, marker, count);
-    return ResponseEntity.ok(transactions);
+      @RequestParam(required = false) Integer count,
+      @RequestParam(required = false) String startDate,
+      @RequestParam(required = false) String endDate,
+      @RequestParam(required = false) String sortOrder,
+      @RequestParam(required = false) String accept,
+      @RequestParam(required = false) String storeId) {
+    Map<String, Object> result = accountService.getAccountTransactions(accountId, marker, count,
+                                                                        startDate, endDate, sortOrder, accept, storeId);
+    return ResponseEntity.ok(result);
   }
 
   /**
@@ -102,8 +124,10 @@ public class EtradeAccountController {
   @GetMapping("/{accountId}/transactions/{transactionId}")
   public ResponseEntity<Map<String, Object>> getTransactionDetails(
       @PathVariable UUID accountId,
-      @PathVariable String transactionId) {
-    Map<String, Object> details = accountService.getTransactionDetails(accountId, transactionId);
+      @PathVariable String transactionId,
+      @RequestParam(required = false) String accept,
+      @RequestParam(required = false) String storeId) {
+    Map<String, Object> details = accountService.getTransactionDetails(accountId, transactionId, accept, storeId);
     return ResponseEntity.ok(details);
   }
 
