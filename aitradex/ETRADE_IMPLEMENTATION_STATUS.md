@@ -1,182 +1,192 @@
-# E*TRADE Integration Implementation Status
+# E*TRADE API Contract Gap Implementation Status
 
-## ✅ Completed
+## Last Updated
+Current session progress on implementing API contract gaps identified in `ETRADE_API_CONTRACT_GAP_ANALYSIS.md`.
 
-1. **Capability Mapping Document** (`ETRADE_CAPABILITY_MAPPING.md`)
-   - Complete feature analysis of Java and Node MVPs
-   - Consolidated feature set definition
-   - Architecture design
+---
 
-2. **Database Schema** (`0004-etrade-integration.yaml`)
-   - `etrade_account` - Linked accounts
-   - `etrade_oauth_token` - Encrypted OAuth tokens
-   - `etrade_order` - Order tracking
-   - `etrade_audit_log` - Audit trail
-   - All indexes and foreign keys defined
+## ✅ Completed (High Priority - Accounts API)
 
-3. **Configuration** 
-   - `EtradeProperties.java` - Configuration properties
-   - `application.yml` - Environment-based config with secrets
-   - Registered in `@EnableConfigurationProperties`
+### 1. Accounts - List Accounts ✅
+- **Status**: Complete
+- **Changes**: Added `accountMode` and `institutionType` fields to `parseAccount()` method
+- **File**: `EtradeAccountClient.java`
 
-## 🚧 In Progress
+### 2. Accounts - Get Balance ✅
+- **Status**: Complete
+- **Changes**:
+  - Added `accountType` parameter (optional)
+  - Added `instType` parameter (with default "BROKERAGE")
+  - Added `realTimeNAV` parameter (with default true)
+  - Parse `Cash` section (cashBalance, cashAvailable, unclearedDeposits, cashSweep)
+  - Parse `Margin` section (marginBalance, marginAvailable, marginBuyingPower, dayTradingBuyingPower)
+  - Enhanced `Computed` section parsing (totalValue, netValue, settledCash, openCalls, openPuts)
+  - Added helper method `getDoubleValue()` for robust numeric parsing
+- **File**: `EtradeAccountClient.java`
+- **Backward Compatibility**: Maintained with simplified `getBalance(accountId, accountIdKey)` overload
 
-### Next Steps (Critical Path)
+### 3. Accounts - View Portfolio ✅
+- **Status**: Complete
+- **Changes**:
+  - Added 8 query parameters: `count`, `sortBy`, `sortOrder`, `pageNumber`, `marketSession`, `totalsRequired`, `lotsRequired`, `view`
+  - Parse `totalPages` from response
+  - Enhanced `parsePosition()` to extract:
+    - `positionId` (number or string)
+    - `positionType`
+    - `marketValue`
+    - `gainLoss` and `gainLossPercent`
+    - Product fields: `symbolDescription`, `cusip`, `isQuotable`
+  - Enhanced numeric parsing with `getDoubleValue()` helper
+- **File**: `EtradeAccountClient.java`
+- **Backward Compatibility**: Maintained with simplified `getPortfolio(accountId, accountIdKey)` overload
 
-1. **Domain Entities** (Priority: High)
-   - `EtradeAccount.java`
-   - `EtradeOAuthToken.java`
-   - `EtradeOrder.java`
-   - `EtradeAuditLog.java`
+### 4. Accounts - List Transactions ✅
+- **Status**: Complete
+- **Changes**:
+  - Added 5 query parameters: `startDate`, `endDate`, `sortOrder`, `accept`, `storeId`
+  - Parse response metadata: `transactionCount`, `totalCount`, `moreTransactions`, `next`, `marker`
+  - Changed return type to `Map<String, Object>` containing both metadata and transactions list
+  - Added helper method `getIntValue()` for robust integer parsing
+- **File**: `EtradeAccountClient.java`
+- **Backward Compatibility**: Maintained with simplified `getTransactions(accountId, accountIdKey, marker, count)` overload that returns `List<Map<String, Object>>`
 
-2. **OAuth Implementation** (Priority: High)
-   - `EtradeTokenEncryption.java` - AES-256 encryption/decryption
-   - `EtradeOAuth1Template.java` - OAuth 1.0 signing and requests
-   - `EtradeOAuthService.java` - OAuth flow orchestration
-   - `EtradeTokenService.java` - Token persistence and management
+### 5. Accounts - Get Transaction Details ✅
+- **Status**: Complete
+- **Changes**:
+  - Added `accept` parameter (response format: "xml" or "json")
+  - Added `storeId` parameter (store ID filter)
+- **File**: `EtradeAccountClient.java`
+- **Backward Compatibility**: Maintained with simplified `getTransactionDetails(accountId, accountIdKey, transactionId)` overload
 
-3. **API Clients** (Priority: High)
-   - `EtradeApiClient.java` - Base HTTP client with OAuth
-   - `EtradeAccountClient.java` - Account operations
-   - `EtradeQuoteClient.java` - Quote operations
-   - `EtradeOrderClient.java` - Order operations
+---
 
-4. **Repositories** (Priority: Medium)
-   - `EtradeAccountRepository.java`
-   - `EtradeOAuthTokenRepository.java`
-   - `EtradeOrderRepository.java`
-   - `EtradeAuditLogRepository.java`
+## ⏳ Remaining Work
 
-5. **Services** (Priority: Medium)
-   - `EtradeAccountService.java`
-   - `EtradeOrderService.java`
-   - `EtradeQuoteService.java`
-   - `EtradeAuditService.java`
+### Medium Priority (Market API)
 
-6. **Controllers** (Priority: Medium)
-   - `EtradeOAuthController.java` - OAuth initiation/callback
-   - `EtradeAccountController.java` - Account operations
-   - `EtradeOrderController.java` - Order operations
+#### 6. Market - Get Quotes
+- **Status**: Pending
+- **Required Changes**:
+  - Add `requireEarningsDate` parameter (optional boolean)
+  - Add `overrideSymbolCount` parameter (optional integer)
+  - Add `skipMiniOptionsCheck` parameter (optional boolean)
+  - Make `detailFlag` configurable (currently hardcoded to "ALL")
+- **File**: `EtradeQuoteClient.java`
+- **Estimated Effort**: 1-2 hours
 
-7. **Frontend** (Priority: Medium)
-   - Route: `/etrade-review-trade`
-   - Component: `EtradeReviewTradeComponent`
-   - Service: `EtradeService`
-   - Sub-components for account, order, quote views
+#### 7. Market - Get Option Expire Dates
+- **Status**: Pending
+- **Required Changes**:
+  - Add `expiryType` parameter (optional, e.g., "WEEKLY", "MONTHLY")
+- **File**: `EtradeQuoteClient.java`
+- **Estimated Effort**: 30 minutes
 
-8. **Tests** (Priority: High)
-   - Unit tests for OAuth
-   - Unit tests for API clients (mocked)
-   - Integration tests with WireMock
-   - Frontend unit tests
-   - E2E tests
+### Low Priority (Verification)
 
-## Implementation Notes
+#### 8. Alerts - Field Verification
+- **Status**: Pending
+- **Required Changes**:
+  - Review E*TRADE documentation for all alert response fields
+  - Verify all fields are parsed in `parseAlert()` and `parseAlertDetails()`
+- **File**: `EtradeAlertsClient.java`
+- **Estimated Effort**: 1 hour
 
-### OAuth 1.0 Flow
-1. **Request Token:** Backend initiates OAuth, generates request token
-2. **Authorization:** User redirected to E*TRADE authorization URL
-3. **Callback:** E*TRADE redirects back with verifier
-4. **Access Token:** Backend exchanges request token + verifier for access token
-5. **Storage:** Access token encrypted and stored in database
+#### 9. Orders - Field Verification
+- **Status**: Pending
+- **Required Changes**:
+  - Review E*TRADE documentation for all order response fields
+  - Verify `OrderDetail` array is fully parsed
+  - Verify `Instrument` array is fully parsed
+  - Verify all order status fields are captured
+- **File**: `EtradeOrderClient.java`
+- **Estimated Effort**: 2 hours
 
-### Security Considerations
-- Secrets via environment variables only
-- Token encryption at rest (AES-256)
-- Encryption key from environment variable
-- No secrets in logs or error messages
-- HTTPS required for callback URL in production
+#### 10. Option Chains - Field Verification
+- **Status**: Pending
+- **Required Changes**:
+  - Review E*TRADE documentation for all option chain response fields
+  - Verify `OptionPair`, `CallOption`, `PutOption` structures are fully parsed
+- **File**: `EtradeQuoteClient.java`
+- **Estimated Effort**: 1 hour
 
-### API Rate Limiting
-- E*TRADE sandbox: 100 requests/minute
-- E*TRADE production: 360 requests/hour
-- Implement client-side rate limiting
-- Retry with exponential backoff on 429
+### Service & Controller Layer Updates
 
-### Error Handling
-- Network errors: Retry 3 times with backoff
-- Authentication errors (401): Trigger re-auth
-- Rate limit (429): Backoff and retry
-- Validation errors: Return user-friendly messages
-- All errors logged to audit log
+#### 11. Update Service Layers
+- **Status**: Pending
+- **Required Changes**:
+  - Update `EtradeAccountService` methods to pass through new parameters
+  - Update `EtradeQuoteService` methods to pass through new parameters
+- **Files**: 
+  - `EtradeAccountService.java`
+  - `EtradeQuoteService.java`
+- **Estimated Effort**: 2-3 hours
 
-## Testing Strategy
+#### 12. Update Controller Endpoints
+- **Status**: Pending
+- **Required Changes**:
+  - Update `EtradeAccountController` to accept new query parameters
+  - Update `EtradeQuoteController` to accept new query parameters
+- **Files**:
+  - `EtradeAccountController.java`
+  - `EtradeQuoteController.java`
+- **Estimated Effort**: 2-3 hours
 
-### Backend Tests
-```java
-// Unit tests
-EtradeOAuthServiceTest
-EtradeTokenEncryptionTest
-EtradeApiClientTest (mocked)
-EtradeAccountClientTest (mocked)
-EtradeOrderClientTest (mocked)
+#### 13. Update Integration Tests
+- **Status**: Pending
+- **Required Changes**:
+  - Update tests to verify new parameters work correctly
+  - Add tests for new response fields
+  - Verify backward compatibility
+- **Files**:
+  - `EtradeAccountsApiIntegrationTest.java`
+  - `EtradeQuotesApiIntegrationTest.java`
+- **Estimated Effort**: 3-4 hours
 
-// Integration tests (with WireMock)
-EtradeOAuthIntegrationTest
-EtradeAccountIntegrationTest
-EtradeOrderIntegrationTest
-```
+---
 
-### Frontend Tests
-```typescript
-// Unit tests
-EtradeServiceTest
-EtradeReviewTradeComponentTest
-EtradeAccountListComponentTest
+## Summary
 
-// E2E tests
-etrade-oauth-flow.spec.ts
-etrade-order-flow.spec.ts
-```
+### ✅ Completed: 5/13 Tasks (38%)
+- All high-priority Accounts API gaps are complete
+- All changes maintain backward compatibility
+- Build is successful
 
-## Configuration Examples
+### ⏳ Remaining: 8/13 Tasks (62%)
+- Medium Priority: 2 tasks (Market API parameters)
+- Low Priority: 3 tasks (Field verification)
+- Service/Controller/Test Updates: 3 tasks
 
-### Local Development (.env)
-```bash
-ETRADE_CONSUMER_KEY=a83b0321f09e97fc8f4315ad5fbcd489
-ETRADE_CONSUMER_SECRET=c4d304698d156d4c3681c73de0c4e400060cac46ee1504259b324695daa77dd4
-ETRADE_ENVIRONMENT=SANDBOX
-ETRADE_CALLBACK_URL=http://localhost:4200/etrade-review-trade/callback
-ETRADE_ENCRYPTION_KEY=<generate-32-char-key>
-```
+### Estimated Remaining Time
+- Medium Priority: 2-3 hours
+- Low Priority: 4 hours
+- Service/Controller/Test Updates: 7-10 hours
+- **Total**: ~13-17 hours
 
-### Docker Compose
-```yaml
-environment:
-  - ETRADE_CONSUMER_KEY=${ETRADE_CONSUMER_KEY}
-  - ETRADE_CONSUMER_SECRET=${ETRADE_CONSUMER_SECRET}
-  - ETRADE_ENVIRONMENT=SANDBOX
-  - ETRADE_CALLBACK_URL=http://localhost:4200/etrade-review-trade/callback
-  - ETRADE_ENCRYPTION_KEY=${ETRADE_ENCRYPTION_KEY}
-```
+---
 
-## Validation Checklist
+## Next Session Plan
 
-- [ ] OAuth flow: Request token → Authorization → Access token
-- [ ] Account linking: User can link E*TRADE account
-- [ ] Account list: User can view linked accounts
-- [ ] Account balance: Balance displays correctly
-- [ ] Quote retrieval: Quotes load from E*TRADE
-- [ ] Order preview: Preview validates before placement
-- [ ] Order placement: Orders placed successfully
-- [ ] Order cancellation: Orders cancelled successfully
-- [ ] Error handling: Invalid symbols, expired tokens handled
-- [ ] Rate limiting: 429 errors handled gracefully
-- [ ] Token encryption: Tokens encrypted at rest
-- [ ] Audit logging: All API calls logged
+1. **Continue with Market API gaps** (Medium Priority):
+   - Implement Get Quotes parameters
+   - Implement Get Option Expire Dates parameter
 
-## Estimated Remaining Work
+2. **Update Service Layers**:
+   - Pass through all new parameters in service methods
 
-- Domain entities: ~2 hours
-- OAuth implementation: ~4 hours
-- API clients: ~4 hours
-- Repositories: ~1 hour
-- Services: ~3 hours
-- Controllers: ~3 hours
-- Frontend components: ~4 hours
-- Tests: ~6 hours
-- Documentation: ~2 hours
+3. **Update Controllers**:
+   - Add query parameters to REST endpoints
 
-**Total: ~29 hours**
+4. **Update Tests**:
+   - Verify new parameters and response fields
 
-This is a comprehensive integration that requires careful implementation of OAuth 1.0, secure token storage, and full API client coverage. The implementation should follow the existing patterns in aitradex and maintain high code quality with comprehensive testing.
+5. **Field Verification** (Low Priority):
+   - Review and verify all response fields are parsed correctly
+
+---
+
+## Notes
+
+- All changes maintain backward compatibility with simplified method overloads
+- Helper methods (`getDoubleValue()`, `getIntValue()`) added for robust numeric parsing
+- All changes compile successfully
+- Ready for testing once service/controller layers are updated
