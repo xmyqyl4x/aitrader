@@ -141,6 +141,18 @@ public class EtradeProperties {
     return baseUrl + "/v1/market/quote/" + symbols;
   }
 
+  public String getLookupProductUrl() {
+    return baseUrl + "/v1/market/lookup";
+  }
+
+  public String getOptionChainsUrl() {
+    return baseUrl + "/v1/market/optionchains";
+  }
+
+  public String getOptionExpireDatesUrl() {
+    return baseUrl + "/v1/market/optionexpiredate";
+  }
+
   public String getOrdersUrl(String accountIdKey) {
     return baseUrl + "/v1/accounts/" + accountIdKey + "/orders";
   }
