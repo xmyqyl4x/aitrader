@@ -55,13 +55,14 @@ public class EtradeOAuthService {
       Map<String, String> params = new HashMap<>();
       params.put("oauth_callback", properties.getCallbackUrl());
 
-      String authHeader = oauthTemplate.generateAuthorizationHeader("POST", url, params, null, null);
+      // E*TRADE uses GET for request token (matching example app)
+      String authHeader = oauthTemplate.generateAuthorizationHeader("GET", url, params, null, null);
 
       HttpRequest request = HttpRequest.newBuilder()
           .uri(URI.create(url))
           .header("Authorization", authHeader)
           .header("Content-Type", "application/x-www-form-urlencoded")
-          .POST(HttpRequest.BodyPublishers.ofString(""))
+          .GET()
           .timeout(REQUEST_TIMEOUT)
           .build();
 
@@ -138,14 +139,15 @@ public class EtradeOAuthService {
       Map<String, String> params = new HashMap<>();
       params.put("oauth_verifier", verifier);
 
-      String authHeader = oauthTemplate.generateAuthorizationHeader("POST", url, params, 
+      // E*TRADE uses GET for access token (matching example app)
+      String authHeader = oauthTemplate.generateAuthorizationHeader("GET", url, params, 
                                                                    requestToken, requestTokenSecret);
 
       HttpRequest request = HttpRequest.newBuilder()
           .uri(URI.create(url))
           .header("Authorization", authHeader)
           .header("Content-Type", "application/x-www-form-urlencoded")
-          .POST(HttpRequest.BodyPublishers.ofString(""))
+          .GET()
           .timeout(REQUEST_TIMEOUT)
           .build();
 

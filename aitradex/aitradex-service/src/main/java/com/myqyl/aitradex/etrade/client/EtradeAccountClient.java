@@ -125,9 +125,60 @@ public class EtradeAccountClient {
 
   private Map<String, Object> parsePortfolio(JsonNode portfolioNode) {
     Map<String, Object> portfolio = new HashMap<>();
-    portfolio.put("accountId", portfolioNode.path("accountId").asText());
     
-    JsonNode positionsNode = portfolioNode.path("Position");
+    // Handle AccountPortfolio array structure (example app shows this pattern)
+    JsonNode accountPortfolioNode = portfolioNode.path("AccountPortfolio");
+    if (!accountPortfolioNode.isMissingNode()) {
+      List<Map<String, Object>> accountPortfolios = new ArrayList<>();
+      
+      if (accountPortfolioNode.isArray()) {
+        // Multiple account portfolios
+        for (JsonNode acctPortfolio : accountPortfolioNode) {
+          accountPortfolios.add(parseAccountPortfolio(acctPortfolio));
+        }
+      } else {
+        // Single account portfolio
+        accountPortfolios.add(parseAccountPortfolio(accountPortfolioNode));
+      }
+      
+      // Merge all positions from all account portfolios
+      List<Map<String, Object>> allPositions = new ArrayList<>();
+      for (Map<String, Object> acctPortfolio : accountPortfolios) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> positions = (List<Map<String, Object>>) acctPortfolio.get("positions");
+        if (positions != null) {
+          allPositions.addAll(positions);
+        }
+        // Use first account ID as primary
+        if (portfolio.get("accountId") == null) {
+          portfolio.put("accountId", acctPortfolio.get("accountId"));
+        }
+      }
+      portfolio.put("positions", allPositions);
+    } else {
+      // Fallback: handle direct Position array (older structure)
+      portfolio.put("accountId", portfolioNode.path("accountId").asText(""));
+      
+      JsonNode positionsNode = portfolioNode.path("Position");
+      List<Map<String, Object>> positions = new ArrayList<>();
+      if (positionsNode.isArray()) {
+        for (JsonNode positionNode : positionsNode) {
+          positions.add(parsePosition(positionNode));
+        }
+      } else if (positionsNode.isObject()) {
+        positions.add(parsePosition(positionsNode));
+      }
+      portfolio.put("positions", positions);
+    }
+    
+    return portfolio;
+  }
+
+  private Map<String, Object> parseAccountPortfolio(JsonNode acctPortfolioNode) {
+    Map<String, Object> accountPortfolio = new HashMap<>();
+    accountPortfolio.put("accountId", acctPortfolioNode.path("accountId").asText(""));
+    
+    JsonNode positionsNode = acctPortfolioNode.path("Position");
     List<Map<String, Object>> positions = new ArrayList<>();
     if (positionsNode.isArray()) {
       for (JsonNode positionNode : positionsNode) {
@@ -136,19 +187,94 @@ public class EtradeAccountClient {
     } else if (positionsNode.isObject()) {
       positions.add(parsePosition(positionsNode));
     }
-    portfolio.put("positions", positions);
+    accountPortfolio.put("positions", positions);
     
-    return portfolio;
+    return accountPortfolio;
   }
 
   private Map<String, Object> parsePosition(JsonNode positionNode) {
     Map<String, Object> position = new HashMap<>();
-    position.put("symbol", positionNode.path("symbol").asText());
-    position.put("quantity", positionNode.path("quantity").asDouble());
-    position.put("costBasis", positionNode.path("costBasis").asText());
-    position.put("pricePaid", positionNode.path("pricePaid").asDouble());
-    position.put("totalGain", positionNode.path("totalGain").asText());
-    position.put("totalGainPct", positionNode.path("totalGainPct").asDouble());
+    
+    // Product information
+    JsonNode productNode = positionNode.path("Product");
+    if (!productNode.isMissingNode()) {
+      position.put("symbol", productNode.path("symbol").asText(""));
+      position.put("securityType", productNode.path("securityType").asText(""));
+      position.put("exchange", productNode.path("exchange").asText(""));
+    } else {
+      // Fallback: direct symbol field
+      position.put("symbol", positionNode.path("symbol").asText(""));
+    }
+    
+    // Quantity (handle both number and string)
+    JsonNode quantityNode = positionNode.path("quantity");
+    if (!quantityNode.isMissingNode()) {
+      if (quantityNode.isNumber()) {
+        position.put("quantity", quantityNode.asDouble());
+      } else {
+        position.put("quantity", Double.parseDouble(quantityNode.asText("0")));
+      }
+    }
+    
+    // Price information from Quick quote
+    JsonNode quickNode = positionNode.path("Quick");
+    if (!quickNode.isMissingNode()) {
+      JsonNode lastTradeNode = quickNode.path("lastTrade");
+      if (!lastTradeNode.isMissingNode()) {
+        if (lastTradeNode.isNumber()) {
+          position.put("lastTrade", lastTradeNode.asDouble());
+        } else {
+          position.put("lastTrade", Double.parseDouble(lastTradeNode.asText("0")));
+        }
+      }
+    }
+    
+    // Price paid
+    JsonNode pricePaidNode = positionNode.path("pricePaid");
+    if (!pricePaidNode.isMissingNode()) {
+      if (pricePaidNode.isNumber()) {
+        position.put("pricePaid", pricePaidNode.asDouble());
+      } else {
+        position.put("pricePaid", Double.parseDouble(pricePaidNode.asText("0")));
+      }
+    }
+    
+    // Cost basis
+    JsonNode costBasisNode = positionNode.path("costBasis");
+    if (!costBasisNode.isMissingNode()) {
+      position.put("costBasis", costBasisNode.asText(""));
+    }
+    
+    // Total gain
+    JsonNode totalGainNode = positionNode.path("totalGain");
+    if (!totalGainNode.isMissingNode()) {
+      if (totalGainNode.isNumber()) {
+        position.put("totalGain", totalGainNode.asDouble());
+      } else {
+        position.put("totalGain", totalGainNode.asText(""));
+      }
+    }
+    
+    // Total gain percentage
+    JsonNode totalGainPctNode = positionNode.path("totalGainPct");
+    if (!totalGainPctNode.isMissingNode()) {
+      if (totalGainPctNode.isNumber()) {
+        position.put("totalGainPct", totalGainPctNode.asDouble());
+      } else {
+        position.put("totalGainPct", Double.parseDouble(totalGainPctNode.asText("0")));
+      }
+    }
+    
+    // Market value
+    JsonNode marketValueNode = positionNode.path("marketValue");
+    if (!marketValueNode.isMissingNode()) {
+      if (marketValueNode.isNumber()) {
+        position.put("marketValue", marketValueNode.asDouble());
+      } else {
+        position.put("marketValue", Double.parseDouble(marketValueNode.asText("0")));
+      }
+    }
+    
     return position;
   }
 }
