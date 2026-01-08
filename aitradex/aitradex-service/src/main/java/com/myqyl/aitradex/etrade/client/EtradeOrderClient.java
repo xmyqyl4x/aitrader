@@ -171,15 +171,55 @@ public class EtradeOrderClient {
   }
 
   /**
-   * Gets list of orders for an account.
+   * Gets list of orders for an account with optional query parameters.
+   * 
+   * @param accountId Internal account UUID
+   * @param accountIdKey E*TRADE account ID key
+   * @param marker Pagination marker (optional)
+   * @param count Number of orders to return (max 100, default 25)
+   * @param status Order status filter (OPEN, EXECUTED, CANCELLED, etc.)
+   * @param fromDate Start date in MMDDYYYY format (optional)
+   * @param toDate End date in MMDDYYYY format (optional)
+   * @param symbol Symbol filter (up to 25 symbols, comma-separated)
+   * @param securityType Security type filter (EQ, OPTN, MF, MMF)
+   * @param transactionType Transaction type filter (ATNM, BUY, SELL, etc.)
+   * @param marketSession Market session filter (REGULAR, EXTENDED)
+   * @return List of orders
    */
-  public List<Map<String, Object>> getOrders(UUID accountId, String accountIdKey) {
+  public List<Map<String, Object>> getOrders(UUID accountId, String accountIdKey,
+      String marker, Integer count, String status, String fromDate, String toDate,
+      String symbol, String securityType, String transactionType, String marketSession) {
     try {
       String url = properties.getOrdersUrl(accountIdKey);
       Map<String, String> params = new HashMap<>();
-      params.put("fromDate", ""); // Can specify date range
-      params.put("toDate", "");
-      params.put("status", "ALL");
+      
+      if (marker != null && !marker.isEmpty()) {
+        params.put("marker", marker);
+      }
+      if (count != null && count > 0) {
+        params.put("count", String.valueOf(Math.min(count, 100))); // Max 100
+      }
+      if (status != null && !status.isEmpty()) {
+        params.put("status", status);
+      }
+      if (fromDate != null && !fromDate.isEmpty()) {
+        params.put("fromDate", fromDate);
+      }
+      if (toDate != null && !toDate.isEmpty()) {
+        params.put("toDate", toDate);
+      }
+      if (symbol != null && !symbol.isEmpty()) {
+        params.put("symbol", symbol);
+      }
+      if (securityType != null && !securityType.isEmpty()) {
+        params.put("securityType", securityType);
+      }
+      if (transactionType != null && !transactionType.isEmpty()) {
+        params.put("transactionType", transactionType);
+      }
+      if (marketSession != null && !marketSession.isEmpty()) {
+        params.put("marketSession", marketSession);
+      }
       
       String response = apiClient.makeRequest("GET", url, params, null, accountId);
       
@@ -200,6 +240,13 @@ public class EtradeOrderClient {
       log.error("Failed to get orders for account {}", accountIdKey, e);
       throw new RuntimeException("Failed to get orders", e);
     }
+  }
+
+  /**
+   * Gets list of orders for an account (simplified version without filters).
+   */
+  public List<Map<String, Object>> getOrders(UUID accountId, String accountIdKey) {
+    return getOrders(accountId, accountIdKey, null, null, null, null, null, null, null, null, null);
   }
 
   /**
@@ -516,6 +563,80 @@ public class EtradeOrderClient {
     } catch (IllegalArgumentException e) {
       log.warn("Unknown order term: {}, defaulting to GOOD_FOR_DAY", orderTerm);
       return OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY;
+    }
+  }
+
+  /**
+   * Previews a changed order (modifies an existing order).
+   * 
+   * @param accountId Internal account UUID
+   * @param accountIdKey E*TRADE account ID key
+   * @param orderId The order ID to modify
+   * @param previewRequest The preview order request (same structure as preview order)
+   * @return Preview order response
+   */
+  public Map<String, Object> changePreviewOrder(UUID accountId, String accountIdKey, String orderId,
+      Map<String, Object> previewRequest) {
+    try {
+      String url = properties.getOrderChangePreviewUrl(accountIdKey, orderId);
+      String requestBody = objectMapper.writeValueAsString(previewRequest);
+      
+      log.debug("Change preview order request: {}", requestBody);
+      String response = apiClient.makeRequest("PUT", url, null, requestBody, accountId);
+      
+      JsonNode root = objectMapper.readTree(response);
+      JsonNode previewNode = root.path("PreviewOrderResponse");
+      
+      if (previewNode.isMissingNode()) {
+        JsonNode messagesNode = root.path("Messages");
+        if (!messagesNode.isMissingNode()) {
+          String errorMsg = extractErrorMessage(messagesNode);
+          throw new RuntimeException("Change preview order failed: " + errorMsg);
+        }
+        throw new RuntimeException("Invalid change preview order response");
+      }
+      
+      return parseOrderPreview(previewNode);
+    } catch (Exception e) {
+      log.error("Failed to change preview order", e);
+      throw new RuntimeException("Failed to change preview order", e);
+    }
+  }
+
+  /**
+   * Places a changed order (modifies and places an existing order).
+   * 
+   * @param accountId Internal account UUID
+   * @param accountIdKey E*TRADE account ID key
+   * @param orderId The order ID to modify
+   * @param placeOrderRequest The place order request (same structure as place order)
+   * @return Place order response
+   */
+  public Map<String, Object> changePlaceOrder(UUID accountId, String accountIdKey, String orderId,
+      Map<String, Object> placeOrderRequest) {
+    try {
+      String url = properties.getOrderChangePlaceUrl(accountIdKey, orderId);
+      String requestBody = objectMapper.writeValueAsString(placeOrderRequest);
+      
+      log.debug("Change place order request: {}", requestBody);
+      String response = apiClient.makeRequest("PUT", url, null, requestBody, accountId);
+      
+      JsonNode root = objectMapper.readTree(response);
+      JsonNode orderNode = root.path("PlaceOrderResponse");
+      
+      if (orderNode.isMissingNode()) {
+        JsonNode messagesNode = root.path("Messages");
+        if (!messagesNode.isMissingNode()) {
+          String errorMsg = extractErrorMessage(messagesNode);
+          throw new RuntimeException("Change place order failed: " + errorMsg);
+        }
+        throw new RuntimeException("Invalid change place order response");
+      }
+      
+      return parsePlaceOrderResponse(orderNode);
+    } catch (Exception e) {
+      log.error("Failed to change place order", e);
+      throw new RuntimeException("Failed to change place order", e);
     }
   }
 
