@@ -32,7 +32,7 @@ class EtradeQuotesApiIntegrationTest extends EtradeApiIntegrationTestBase {
   void getQuote_singleSymbol() throws Exception {
     // Mock E*TRADE client response
     Map<String, Object> mockQuote = createMockQuote("AAPL", 151.80, "Apple Inc.");
-    when(quoteClient.getQuotes(eq(testAccountId), eq("AAPL")))
+    when(quoteClient.getQuotes(eq(testAccountId), any(String[].class), isNull(), isNull(), isNull(), isNull()))
         .thenReturn(List.of(mockQuote));
 
     // Call our application endpoint
@@ -44,7 +44,26 @@ class EtradeQuotesApiIntegrationTest extends EtradeApiIntegrationTestBase {
         .andExpect(jsonPath("$.companyName").value("Apple Inc."));
 
     // Verify our service called the E*TRADE client
-    verify(quoteClient, times(1)).getQuotes(eq(testAccountId), eq("AAPL"));
+    verify(quoteClient, times(1)).getQuotes(eq(testAccountId), any(String[].class), isNull(), isNull(), isNull(), isNull());
+  }
+
+  @Test
+  @DisplayName("Get Quote - With Parameters")
+  void getQuote_withParameters() throws Exception {
+    Map<String, Object> mockQuote = createMockQuote("AAPL", 151.80, "Apple Inc.");
+    when(quoteClient.getQuotes(eq(testAccountId), any(String[].class), eq("ALL"), eq(true), eq(100), eq(false)))
+        .thenReturn(List.of(mockQuote));
+
+    mockMvc.perform(get("/api/etrade/quotes/{symbol}", "AAPL")
+            .param("accountId", testAccountId.toString())
+            .param("detailFlag", "ALL")
+            .param("requireEarningsDate", "true")
+            .param("overrideSymbolCount", "100")
+            .param("skipMiniOptionsCheck", "false"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.symbol").value("AAPL"));
+
+    verify(quoteClient, times(1)).getQuotes(eq(testAccountId), any(String[].class), eq("ALL"), eq(true), eq(100), eq(false));
   }
 
   @Test
@@ -55,7 +74,7 @@ class EtradeQuotesApiIntegrationTest extends EtradeApiIntegrationTestBase {
         createMockQuote("AAPL", 151.80, "Apple Inc."),
         createMockQuote("MSFT", 352.50, "Microsoft Corp.")
     );
-    when(quoteClient.getQuotes(eq(testAccountId), eq("AAPL"), eq("MSFT")))
+    when(quoteClient.getQuotes(eq(testAccountId), any(String[].class), isNull(), isNull(), isNull(), isNull()))
         .thenReturn(mockQuotes);
 
     // Call our application endpoint
@@ -68,14 +87,14 @@ class EtradeQuotesApiIntegrationTest extends EtradeApiIntegrationTestBase {
         .andExpect(jsonPath("$[1].symbol").value("MSFT"));
 
     // Verify our service called the E*TRADE client
-    verify(quoteClient, times(1)).getQuotes(eq(testAccountId), eq("AAPL"), eq("MSFT"));
+    verify(quoteClient, times(1)).getQuotes(eq(testAccountId), any(String[].class), isNull(), isNull(), isNull(), isNull());
   }
 
   @Test
   @DisplayName("Get Quote - Invalid Symbol")
   void getQuote_invalidSymbol() throws Exception {
     // Mock E*TRADE client to return empty list
-    when(quoteClient.getQuotes(eq(testAccountId), eq("INVALID")))
+    when(quoteClient.getQuotes(eq(testAccountId), any(String[].class), isNull(), isNull(), isNull(), isNull()))
         .thenReturn(Collections.emptyList());
 
     // Call our application endpoint
@@ -83,7 +102,7 @@ class EtradeQuotesApiIntegrationTest extends EtradeApiIntegrationTestBase {
             .param("accountId", testAccountId.toString()))
         .andExpect(status().isInternalServerError()); // Our service throws RuntimeException
 
-    verify(quoteClient, times(1)).getQuotes(eq(testAccountId), eq("INVALID"));
+    verify(quoteClient, times(1)).getQuotes(eq(testAccountId), any(String[].class), isNull(), isNull(), isNull(), isNull());
   }
 
   @Test
@@ -207,7 +226,7 @@ class EtradeQuotesApiIntegrationTest extends EtradeApiIntegrationTestBase {
         createMockExpireDate(2024, 1, 19),
         createMockExpireDate(2024, 2, 16)
     );
-    when(quoteClient.getOptionExpireDates(eq("AAPL")))
+    when(quoteClient.getOptionExpireDates(eq("AAPL"), isNull()))
         .thenReturn(mockDates);
 
     // Call our application endpoint
@@ -219,7 +238,25 @@ class EtradeQuotesApiIntegrationTest extends EtradeApiIntegrationTestBase {
         .andExpect(jsonPath("$[0].month").value(1))
         .andExpect(jsonPath("$[0].day").value(19));
 
-    verify(quoteClient, times(1)).getOptionExpireDates(eq("AAPL"));
+    verify(quoteClient, times(1)).getOptionExpireDates(eq("AAPL"), isNull());
+  }
+
+  @Test
+  @DisplayName("Get Option Expire Dates - With Expiry Type")
+  void getOptionExpireDates_withExpiryType() throws Exception {
+    List<Map<String, Object>> mockDates = List.of(
+        createMockExpireDate(2024, 1, 19)
+    );
+    when(quoteClient.getOptionExpireDates(eq("AAPL"), eq("WEEKLY")))
+        .thenReturn(mockDates);
+
+    mockMvc.perform(get("/api/etrade/quotes/option-expire-dates")
+            .param("symbol", "AAPL")
+            .param("expiryType", "WEEKLY"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isArray());
+
+    verify(quoteClient, times(1)).getOptionExpireDates(eq("AAPL"), eq("WEEKLY"));
   }
 
   // ============================================================================

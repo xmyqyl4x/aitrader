@@ -30,59 +30,64 @@ class EtradeTransactionsApiIntegrationTest extends EtradeApiIntegrationTestBase 
   @Test
   @DisplayName("List Transactions - Success")
   void listTransactions_success() throws Exception {
-    // Mock E*TRADE client response
-    List<Map<String, Object>> mockTransactions = List.of(
-        createMockTransaction("TXN123", "2024-01-15", 1000.00, "BUY", "AAPL")
-    );
-    when(accountClient.getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull()))
-        .thenReturn(mockTransactions);
+    // Mock E*TRADE client response with metadata
+    Map<String, Object> mockResponse = createMockTransactionResponse();
+    when(accountClient.getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+        .thenReturn(mockResponse);
 
     // Call our application endpoint
     mockMvc.perform(get("/api/etrade/accounts/{accountId}/transactions", testAccountId))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isArray())
-        .andExpect(jsonPath("$[0].transactionId").value("TXN123"))
-        .andExpect(jsonPath("$[0].amount").value("1000.00"))
-        .andExpect(jsonPath("$[0].transactionType").value("BUY"));
+        .andExpect(jsonPath("$.transactionCount").value(1))
+        .andExpect(jsonPath("$.totalCount").value(1))
+        .andExpect(jsonPath("$.moreTransactions").value(false))
+        .andExpect(jsonPath("$.transactions").isArray())
+        .andExpect(jsonPath("$.transactions[0].transactionId").value("TXN123"))
+        .andExpect(jsonPath("$.transactions[0].amount").value("1000.00"))
+        .andExpect(jsonPath("$.transactions[0].transactionType").value("BUY"));
 
-    verify(accountClient, times(1)).getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull());
+    verify(accountClient, times(1)).getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
   }
 
   @Test
   @DisplayName("List Transactions - With Pagination")
   void listTransactions_withPagination() throws Exception {
-    List<Map<String, Object>> mockTransactions = List.of(
-        createMockTransaction("TXN1", "2024-01-15", 1000.00, "BUY", "AAPL"),
-        createMockTransaction("TXN2", "2024-01-14", 500.00, "SELL", "MSFT"),
-        createMockTransaction("TXN3", "2024-01-13", 750.00, "BUY", "GOOGL")
-    );
-    when(accountClient.getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), eq(3)))
-        .thenReturn(mockTransactions);
+    Map<String, Object> mockResponse = createMockTransactionResponseWithPagination();
+    when(accountClient.getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), eq(3), isNull(), isNull(), isNull(), isNull(), isNull()))
+        .thenReturn(mockResponse);
 
     mockMvc.perform(get("/api/etrade/accounts/{accountId}/transactions", testAccountId)
             .param("count", "3"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isArray())
-        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasSize(3)));
+        .andExpect(jsonPath("$.transactionCount").value(3))
+        .andExpect(jsonPath("$.moreTransactions").value(true))
+        .andExpect(jsonPath("$.transactions").isArray())
+        .andExpect(jsonPath("$.transactions").value(org.hamcrest.Matchers.hasSize(3)));
 
-    verify(accountClient, times(1)).getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), eq(3));
+    verify(accountClient, times(1)).getTransactions(eq(testAccountId), eq(testAccountIdKey), isNull(), eq(3), isNull(), isNull(), isNull(), isNull(), isNull());
   }
 
   @Test
-  @DisplayName("List Transactions - With Marker")
-  void listTransactions_withMarker() throws Exception {
-    List<Map<String, Object>> mockTransactions = List.of(
-        createMockTransaction("TXN4", "2024-01-12", 200.00, "BUY", "TSLA")
-    );
-    when(accountClient.getTransactions(eq(testAccountId), eq(testAccountIdKey), eq("MARKER123"), isNull()))
-        .thenReturn(mockTransactions);
+  @DisplayName("List Transactions - With Parameters")
+  void listTransactions_withParameters() throws Exception {
+    Map<String, Object> mockResponse = createMockTransactionResponse();
+    when(accountClient.getTransactions(eq(testAccountId), eq(testAccountIdKey), eq("MARKER123"), eq(10), 
+                                       eq("01012024"), eq("12312024"), eq("DESC"), eq("json"), eq("STORE123")))
+        .thenReturn(mockResponse);
 
     mockMvc.perform(get("/api/etrade/accounts/{accountId}/transactions", testAccountId)
-            .param("marker", "MARKER123"))
+            .param("marker", "MARKER123")
+            .param("count", "10")
+            .param("startDate", "01012024")
+            .param("endDate", "12312024")
+            .param("sortOrder", "DESC")
+            .param("accept", "json")
+            .param("storeId", "STORE123"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isArray());
+        .andExpect(jsonPath("$.transactions").isArray());
 
-    verify(accountClient, times(1)).getTransactions(eq(testAccountId), eq(testAccountIdKey), eq("MARKER123"), isNull());
+    verify(accountClient, times(1)).getTransactions(eq(testAccountId), eq(testAccountIdKey), eq("MARKER123"), eq(10), 
+                                                    eq("01012024"), eq("12312024"), eq("DESC"), eq("json"), eq("STORE123"));
   }
 
   @Test
@@ -93,7 +98,7 @@ class EtradeTransactionsApiIntegrationTest extends EtradeApiIntegrationTestBase 
     mockMvc.perform(get("/api/etrade/accounts/{accountId}/transactions", invalidAccountId))
         .andExpect(status().isInternalServerError()); // Our service throws RuntimeException
 
-    verify(accountClient, never()).getTransactions(any(), any(), any(), any());
+    verify(accountClient, never()).getTransactions(any(), any(), any(), any(), any(), any(), any(), any(), any());
   }
 
   // ============================================================================
@@ -105,7 +110,7 @@ class EtradeTransactionsApiIntegrationTest extends EtradeApiIntegrationTestBase 
   void getTransactionDetails_success() throws Exception {
     // Mock E*TRADE client response
     Map<String, Object> mockDetails = createMockTransactionDetails("TXN123", "2024-01-15", 1000.00, "BUY");
-    when(accountClient.getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("TXN123")))
+    when(accountClient.getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("TXN123"), isNull(), isNull()))
         .thenReturn(mockDetails);
 
     // Call our application endpoint
@@ -116,25 +121,74 @@ class EtradeTransactionsApiIntegrationTest extends EtradeApiIntegrationTestBase 
         .andExpect(jsonPath("$.amount").value("1000.00"))
         .andExpect(jsonPath("$.description").exists());
 
-    verify(accountClient, times(1)).getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("TXN123"));
+    verify(accountClient, times(1)).getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("TXN123"), isNull(), isNull());
+  }
+
+  @Test
+  @DisplayName("Get Transaction Details - With Parameters")
+  void getTransactionDetails_withParameters() throws Exception {
+    Map<String, Object> mockDetails = createMockTransactionDetails("TXN123", "2024-01-15", 1000.00, "BUY");
+    when(accountClient.getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("TXN123"), eq("json"), eq("STORE123")))
+        .thenReturn(mockDetails);
+
+    mockMvc.perform(get("/api/etrade/accounts/{accountId}/transactions/{transactionId}", 
+            testAccountId, "TXN123")
+            .param("accept", "json")
+            .param("storeId", "STORE123"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.transactionId").value("TXN123"));
+
+    verify(accountClient, times(1)).getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("TXN123"), eq("json"), eq("STORE123"));
   }
 
   @Test
   @DisplayName("Get Transaction Details - Invalid Transaction ID")
   void getTransactionDetails_invalidTransactionId() throws Exception {
-    when(accountClient.getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("INVALID")))
+    when(accountClient.getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("INVALID"), isNull(), isNull()))
         .thenThrow(new RuntimeException("Transaction not found"));
 
     mockMvc.perform(get("/api/etrade/accounts/{accountId}/transactions/{transactionId}", 
             testAccountId, "INVALID"))
         .andExpect(status().isInternalServerError());
 
-    verify(accountClient, times(1)).getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("INVALID"));
+    verify(accountClient, times(1)).getTransactionDetails(eq(testAccountId), eq(testAccountIdKey), eq("INVALID"), isNull(), isNull());
   }
 
   // ============================================================================
   // HELPER METHODS
   // ============================================================================
+
+  private Map<String, Object> createMockTransactionResponse() {
+    Map<String, Object> response = new HashMap<>();
+    response.put("transactionCount", 1);
+    response.put("totalCount", 1);
+    response.put("moreTransactions", false);
+    
+    List<Map<String, Object>> transactions = List.of(
+        createMockTransaction("TXN123", "2024-01-15", 1000.00, "BUY", "AAPL")
+    );
+    response.put("transactions", transactions);
+    
+    return response;
+  }
+
+  private Map<String, Object> createMockTransactionResponseWithPagination() {
+    Map<String, Object> response = new HashMap<>();
+    response.put("transactionCount", 3);
+    response.put("totalCount", 10);
+    response.put("moreTransactions", true);
+    response.put("next", "NEXT_MARKER");
+    response.put("marker", "CURRENT_MARKER");
+    
+    List<Map<String, Object>> transactions = List.of(
+        createMockTransaction("TXN1", "2024-01-15", 1000.00, "BUY", "AAPL"),
+        createMockTransaction("TXN2", "2024-01-14", 500.00, "SELL", "MSFT"),
+        createMockTransaction("TXN3", "2024-01-13", 750.00, "BUY", "GOOGL")
+    );
+    response.put("transactions", transactions);
+    
+    return response;
+  }
 
   private Map<String, Object> createMockTransaction(String transactionId, String date, 
                                                      double amount, String type, String symbol) {

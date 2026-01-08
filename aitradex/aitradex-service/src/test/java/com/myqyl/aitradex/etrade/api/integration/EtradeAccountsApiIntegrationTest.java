@@ -76,7 +76,7 @@ class EtradeAccountsApiIntegrationTest extends EtradeApiIntegrationTestBase {
   void getAccountBalance_success() throws Exception {
     // Mock E*TRADE client response
     Map<String, Object> mockBalance = createMockBalance();
-    when(accountClient.getBalance(eq(testAccountId), eq(testAccountIdKey)))
+    when(accountClient.getBalance(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull()))
         .thenReturn(mockBalance);
 
     // Call our application endpoint
@@ -84,9 +84,28 @@ class EtradeAccountsApiIntegrationTest extends EtradeApiIntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.accountId").exists())
         .andExpect(jsonPath("$.accountType").value("BROKERAGE"))
-        .andExpect(jsonPath("$.computed").exists());
+        .andExpect(jsonPath("$.computed").exists())
+        .andExpect(jsonPath("$.cash").exists())
+        .andExpect(jsonPath("$.margin").exists());
 
-    verify(accountClient, times(1)).getBalance(eq(testAccountId), eq(testAccountIdKey));
+    verify(accountClient, times(1)).getBalance(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull());
+  }
+
+  @Test
+  @DisplayName("Get Account Balance - With Parameters")
+  void getAccountBalance_withParameters() throws Exception {
+    Map<String, Object> mockBalance = createMockBalance();
+    when(accountClient.getBalance(eq(testAccountId), eq(testAccountIdKey), eq("BROKERAGE"), eq("CASH"), eq(true)))
+        .thenReturn(mockBalance);
+
+    mockMvc.perform(get("/api/etrade/accounts/{accountId}/balance", testAccountId)
+            .param("instType", "BROKERAGE")
+            .param("accountType", "CASH")
+            .param("realTimeNAV", "true"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.computed.total").exists());
+
+    verify(accountClient, times(1)).getBalance(eq(testAccountId), eq(testAccountIdKey), eq("BROKERAGE"), eq("CASH"), eq(true));
   }
 
   @Test
@@ -109,7 +128,7 @@ class EtradeAccountsApiIntegrationTest extends EtradeApiIntegrationTestBase {
   void getAccountPortfolio_success() throws Exception {
     // Mock E*TRADE client response
     Map<String, Object> mockPortfolio = createMockPortfolio();
-    when(accountClient.getPortfolio(eq(testAccountId), eq(testAccountIdKey)))
+    when(accountClient.getPortfolio(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
         .thenReturn(mockPortfolio);
 
     // Call our application endpoint
@@ -117,9 +136,34 @@ class EtradeAccountsApiIntegrationTest extends EtradeApiIntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.accountId").exists())
         .andExpect(jsonPath("$.positions").isArray())
-        .andExpect(jsonPath("$.positions[0].symbol").value("AAPL"));
+        .andExpect(jsonPath("$.positions[0].symbol").value("AAPL"))
+        .andExpect(jsonPath("$.positions[0].positionId").exists())
+        .andExpect(jsonPath("$.positions[0].marketValue").exists())
+        .andExpect(jsonPath("$.totalPages").exists());
 
-    verify(accountClient, times(1)).getPortfolio(eq(testAccountId), eq(testAccountIdKey));
+    verify(accountClient, times(1)).getPortfolio(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
+  }
+
+  @Test
+  @DisplayName("Get Account Portfolio - With Parameters")
+  void getAccountPortfolio_withParameters() throws Exception {
+    Map<String, Object> mockPortfolio = createMockPortfolio();
+    when(accountClient.getPortfolio(eq(testAccountId), eq(testAccountIdKey), eq(10), eq("SYMBOL"), eq("ASC"), eq(1), eq("REGULAR"), eq(true), eq(false), eq("QUICK")))
+        .thenReturn(mockPortfolio);
+
+    mockMvc.perform(get("/api/etrade/accounts/{accountId}/portfolio", testAccountId)
+            .param("count", "10")
+            .param("sortBy", "SYMBOL")
+            .param("sortOrder", "ASC")
+            .param("pageNumber", "1")
+            .param("marketSession", "REGULAR")
+            .param("totalsRequired", "true")
+            .param("lotsRequired", "false")
+            .param("view", "QUICK"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.positions").isArray());
+
+    verify(accountClient, times(1)).getPortfolio(eq(testAccountId), eq(testAccountIdKey), eq(10), eq("SYMBOL"), eq("ASC"), eq(1), eq("REGULAR"), eq(true), eq(false), eq("QUICK"));
   }
 
   @Test
@@ -181,11 +225,35 @@ class EtradeAccountsApiIntegrationTest extends EtradeApiIntegrationTestBase {
     Map<String, Object> balance = new HashMap<>();
     balance.put("accountId", testAccountIdKey);
     balance.put("accountType", "BROKERAGE");
+    balance.put("accountDescription", "Test Account");
+    balance.put("accountMode", "MARGIN");
     
+    // Cash section
+    Map<String, Object> cash = new HashMap<>();
+    cash.put("cashBalance", 50000.0);
+    cash.put("cashAvailable", 45000.0);
+    cash.put("unclearedDeposits", 0.0);
+    cash.put("cashSweep", 0.0);
+    balance.put("cash", cash);
+    
+    // Margin section
+    Map<String, Object> margin = new HashMap<>();
+    margin.put("marginBalance", 100000.0);
+    margin.put("marginAvailable", 95000.0);
+    margin.put("marginBuyingPower", 190000.0);
+    margin.put("dayTradingBuyingPower", 380000.0);
+    balance.put("margin", margin);
+    
+    // Computed section (enhanced)
     Map<String, Object> computed = new HashMap<>();
-    computed.put("total", "100000.00");
-    computed.put("netCash", "50000.00");
-    computed.put("cashAvailableForInvestment", "45000.00");
+    computed.put("total", 100000.0);
+    computed.put("netCash", 50000.0);
+    computed.put("cashAvailableForInvestment", 45000.0);
+    computed.put("totalValue", 100000.0);
+    computed.put("netValue", 100000.0);
+    computed.put("settledCash", 50000.0);
+    computed.put("openCalls", 0.0);
+    computed.put("openPuts", 0.0);
     balance.put("computed", computed);
     
     return balance;
@@ -194,9 +262,12 @@ class EtradeAccountsApiIntegrationTest extends EtradeApiIntegrationTestBase {
   private Map<String, Object> createMockPortfolio() {
     Map<String, Object> portfolio = new HashMap<>();
     portfolio.put("accountId", testAccountIdKey);
+    portfolio.put("totalPages", 1);
     
     List<Map<String, Object>> positions = new ArrayList<>();
     Map<String, Object> position = new HashMap<>();
+    position.put("positionId", 12345L);
+    position.put("positionType", "LONG");
     position.put("symbol", "AAPL");
     position.put("quantity", 10.0);
     position.put("marketValue", 1518.00);

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myqyl.aitradex.etrade.client.EtradeApiClient;
 import com.myqyl.aitradex.etrade.config.EtradeProperties;
 import java.util.List;
 import java.util.Map;
