@@ -1,0 +1,167 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0004-etrade-integration
+      author: aitradex
+      context: dev,test,prod
+      logicalFilePath: db/changelog/changesets/0004-etrade-integration.yaml
+      changes:
+        # E*TRADE Account table
+        - createTable:
+            tableName: etrade_account
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: user_id, type: uuid}
+              - column: {name: account_id_key, type: varchar(255), constraints: {nullable: false, unique: true}}
+              - column: {name: account_type, type: varchar(50)}
+              - column: {name: account_name, type: varchar(255)}
+              - column: {name: account_status, type: varchar(50)}
+              - column: {name: linked_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: last_synced_at, type: timestamptz}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_account
+            indexName: idx_etrade_account_user_id
+            columns:
+              - column: {name: user_id}
+
+        - createIndex:
+            tableName: etrade_account
+            indexName: idx_etrade_account_account_id_key
+            columns:
+              - column: {name: account_id_key}
+
+        # E*TRADE OAuth Token table (encrypted tokens)
+        - createTable:
+            tableName: etrade_oauth_token
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: access_token_encrypted, type: text, constraints: {nullable: false}}
+              - column: {name: access_token_secret_encrypted, type: text, constraints: {nullable: false}}
+              - column: {name: token_type, type: varchar(50), defaultValue: 'Bearer'}
+              - column: {name: expires_at, type: timestamptz}
+              - column: {name: refresh_token_encrypted, type: text}
+              - column: {name: request_token, type: varchar(255)}
+              - column: {name: request_token_secret, type: varchar(255)}
+              - column: {name: oauth_verifier, type: varchar(255)}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_oauth_token
+            indexName: idx_etrade_oauth_token_account_id
+            columns:
+              - column: {name: account_id}
+
+        - addForeignKeyConstraint:
+            baseTableName: etrade_oauth_token
+            baseColumnNames: account_id
+            constraintName: fk_etrade_oauth_token_account
+            referencedTableName: etrade_account
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        # E*TRADE Order table
+        - createTable:
+            tableName: etrade_order
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: etrade_order_id, type: varchar(255)}
+              - column: {name: symbol, type: varchar(10), constraints: {nullable: false}}
+              - column: {name: order_type, type: varchar(50), constraints: {nullable: false}}
+              - column: {name: price_type, type: varchar(50), constraints: {nullable: false}}
+              - column: {name: side, type: varchar(10), constraints: {nullable: false}}
+              - column: {name: quantity, type: integer, constraints: {nullable: false}}
+              - column: {name: limit_price, type: "numeric(19,8)"}
+              - column: {name: stop_price, type: "numeric(19,8)"}
+              - column: {name: order_status, type: varchar(50)}
+              - column: {name: placed_at, type: timestamptz}
+              - column: {name: executed_at, type: timestamptz}
+              - column: {name: cancelled_at, type: timestamptz}
+              - column: {name: preview_data, type: jsonb}
+              - column: {name: order_response, type: jsonb}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_order
+            indexName: idx_etrade_order_account_id
+            columns:
+              - column: {name: account_id}
+
+        - createIndex:
+            tableName: etrade_order
+            indexName: idx_etrade_order_etrade_order_id
+            columns:
+              - column: {name: etrade_order_id}
+
+        - createIndex:
+            tableName: etrade_order
+            indexName: idx_etrade_order_symbol
+            columns:
+              - column: {name: symbol}
+
+        - createIndex:
+            tableName: etrade_order
+            indexName: idx_etrade_order_status
+            columns:
+              - column: {name: order_status}
+
+        - createIndex:
+            tableName: etrade_order
+            indexName: idx_etrade_order_placed_at
+            columns:
+              - column: {name: placed_at, descending: true}
+
+        - addForeignKeyConstraint:
+            baseTableName: etrade_order
+            baseColumnNames: account_id
+            constraintName: fk_etrade_order_account
+            referencedTableName: etrade_account
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        # E*TRADE Audit Log table
+        - createTable:
+            tableName: etrade_audit_log
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: account_id, type: uuid}
+              - column: {name: action, type: varchar(100), constraints: {nullable: false}}
+              - column: {name: resource_type, type: varchar(50)}
+              - column: {name: resource_id, type: varchar(255)}
+              - column: {name: request_body, type: jsonb}
+              - column: {name: response_body, type: jsonb}
+              - column: {name: status_code, type: integer}
+              - column: {name: error_message, type: text}
+              - column: {name: duration_ms, type: integer}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_audit_log
+            indexName: idx_etrade_audit_log_account_id
+            columns:
+              - column: {name: account_id}
+
+        - createIndex:
+            tableName: etrade_audit_log
+            indexName: idx_etrade_audit_log_action
+            columns:
+              - column: {name: action}
+
+        - createIndex:
+            tableName: etrade_audit_log
+            indexName: idx_etrade_audit_log_created_at
+            columns:
+              - column: {name: created_at, descending: true}
+
+        - addForeignKeyConstraint:
+            baseTableName: etrade_audit_log
+            baseColumnNames: account_id
+            constraintName: fk_etrade_audit_log_account
+            referencedTableName: etrade_account
+            referencedColumnNames: id
+            onDelete: SET NULL

@@ -29,6 +29,15 @@ app:
     api-key: ${ALPHA_VANTAGE_API_KEY:B8IQ3ONTC1RTKRH7}
     base-url: ${ALPHA_VANTAGE_BASE_URL:https://www.alphavantage.co}
     enabled: ${ALPHA_VANTAGE_ENABLED:true}
+  etrade:
+    consumer-key: ${ETRADE_CONSUMER_KEY:a83b0321f09e97fc8f4315ad5fbcd489}
+    consumer-secret: ${ETRADE_CONSUMER_SECRET:c4d304698d156d4c3681c73de0c4e400060cac46ee1504259b324695daa77dd4}
+    callback-url: ${ETRADE_CALLBACK_URL:http://localhost:4200/etrade-review-trade/callback}
+    environment: ${ETRADE_ENVIRONMENT:SANDBOX}
+    base-url: ${ETRADE_BASE_URL:https://apisb.etrade.com}
+    authorize-url: ${ETRADE_AUTHORIZE_URL:https://us.etrade.com/e/t/etws/authorize}
+    enabled: ${ETRADE_ENABLED:true}
+    encryption-key: ${ETRADE_ENCRYPTION_KEY:default-encryption-key-change-in-production-min-32-chars}
   stop-loss:
     poll-interval-ms: ${APP_STOP_LOSS_POLL_MS:60000}
     source: ${APP_STOP_LOSS_SOURCE:quote-snapshots}

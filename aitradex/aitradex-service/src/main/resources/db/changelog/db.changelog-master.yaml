@@ -11,3 +11,6 @@ databaseChangeLog:
   - include:
       file: changesets/0003-stock-quote-search.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changesets/0004-etrade-integration.yaml
+      relativeToChangelogFile: true

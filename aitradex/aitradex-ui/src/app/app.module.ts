@@ -18,6 +18,7 @@ import { AuditComponent } from './features/audit/audit.component';
 import { StockReviewComponent } from './features/stock-review/stock-review.component';
 import { StockReviewStackComponent } from './features/stock-review/stock-review-stack.component';
 import { StockChartComponent } from './features/stock-review/stock-chart.component';
+import { EtradeReviewTradeComponent } from './features/etrade-review-trade/etrade-review-trade.component';
 
 @NgModule({
   declarations: [
@@ -30,7 +31,8 @@ import { StockChartComponent } from './features/stock-review/stock-chart.compone
     AuditComponent,
     StockReviewComponent,
     StockReviewStackComponent,
-    StockChartComponent
+    StockChartComponent,
+    EtradeReviewTradeComponent
   ],
   imports: [
     BrowserModule,

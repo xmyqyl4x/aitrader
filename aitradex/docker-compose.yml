@@ -21,6 +21,12 @@ services:
       POSTGRES_USER: aitradex
       POSTGRES_PASSWORD: aitradex
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/aitradex
+      ETRADE_CONSUMER_KEY: ${ETRADE_CONSUMER_KEY:-a83b0321f09e97fc8f4315ad5fbcd489}
+      ETRADE_CONSUMER_SECRET: ${ETRADE_CONSUMER_SECRET:-c4d304698d156d4c3681c73de0c4e400060cac46ee1504259b324695daa77dd4}
+      ETRADE_ENVIRONMENT: ${ETRADE_ENVIRONMENT:-SANDBOX}
+      ETRADE_CALLBACK_URL: ${ETRADE_CALLBACK_URL:-http://localhost:4200/etrade-review-trade/callback}
+      ETRADE_ENABLED: ${ETRADE_ENABLED:-true}
+      ETRADE_ENCRYPTION_KEY: ${ETRADE_ENCRYPTION_KEY:-default-encryption-key-change-in-production-min-32-chars}
     depends_on:
       - db
     ports:
