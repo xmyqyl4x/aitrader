@@ -34,7 +34,7 @@ export type ChartType = 'line' | 'area' | 'bar' | 'candlestick' | 'ohlc';
 @Component({
   selector: 'app-stock-chart',
   template: `
-    <div class="stock-chart-container">
+    <div class="stock-chart-container" [attr.data-testid]="'stock-chart'">
       <apx-chart
         [series]="chartOptions.series"
         [chart]="chartOptions.chart"

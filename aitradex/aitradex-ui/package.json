@@ -7,7 +7,12 @@
     "start": "ng serve",
     "build": "ng build",
     "test": "ng test",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@angular/animations": "^17.3.0",
@@ -44,7 +49,9 @@
     "@angular-devkit/build-angular": "^17.3.0",
     "@angular/cli": "^17.3.0",
     "@angular/compiler-cli": "^17.3.0",
+    "@playwright/test": "^1.57.0",
     "@types/jasmine": "~5.1.0",
+    "@types/node": "^25.0.3",
     "jasmine-core": "~5.1.1",
     "karma": "~6.4.3",
     "karma-chrome-launcher": "~3.2.0",

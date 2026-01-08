@@ -27,6 +27,7 @@
                 <input
                   type="text"
                   id="symbol"
+                  [attr.data-testid]="'symbol-input'"
                   formControlName="symbol"
                   class="form-control"
                   placeholder="e.g., AAPL"
@@ -41,7 +42,7 @@
             <div class="col-md-3">
               <div class="position-relative form-group">
                 <label for="range">Time Range <span class="text-danger">*</span></label>
-                <select id="range" formControlName="range" class="form-control">
+                <select id="range" [attr.data-testid]="'range-select'" formControlName="range" class="form-control">
                   <option value="1D">1 Day</option>
                   <option value="5D">5 Days</option>
                   <option value="1M">1 Month</option>
@@ -56,6 +57,7 @@
                 <input
                   type="text"
                   id="exchange"
+                  [attr.data-testid]="'exchange-input'"
                   formControlName="exchange"
                   class="form-control"
                   placeholder="e.g., NASDAQ"
@@ -67,10 +69,11 @@
                 <label>&nbsp;</label>
                 <button
                   type="submit"
+                  [attr.data-testid]="'search-button'"
                   [disabled]="searchForm.invalid || loading"
                   class="btn btn-primary btn-block"
                 >
-                  <span *ngIf="loading">
+                  <span *ngIf="loading" data-testid="loading-indicator">
                     <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                     Loading...
                   </span>
@@ -82,10 +85,10 @@
         </form>
 
         <!-- Alert Messages -->
-        <div *ngIf="error" class="alert alert-danger mt-3" role="alert">
+        <div *ngIf="error" [attr.data-testid]="'error-alert'" class="alert alert-danger mt-3" role="alert">
           <i class="pe-7s-close-circle"></i> {{ error }}
         </div>
-        <div *ngIf="successMessage" class="alert alert-success mt-3" role="alert">
+        <div *ngIf="successMessage" [attr.data-testid]="'success-alert'" class="alert alert-success mt-3" role="alert">
           <i class="pe-7s-check"></i> {{ successMessage }}
         </div>
       </div>
@@ -94,7 +97,7 @@
 </div>
 
 <!-- Quote Display Dashboard -->
-<div *ngIf="quote && !loading" class="row">
+<div *ngIf="quote && !loading" [attr.data-testid]="'quote-dashboard'" class="row">
   <!-- Quote Header and Key Metrics -->
   <div class="col-md-12">
     <div class="main-card mb-3 card">
@@ -242,6 +245,7 @@
             <button
               *ngFor="let type of availableChartTypes"
               type="button"
+              [attr.data-testid]="'chart-type-' + type.value"
               class="btn"
               [ngClass]="chartType === type.value ? 'btn-primary active' : 'btn-outline-secondary'"
               (click)="setChartType(type.value)"
