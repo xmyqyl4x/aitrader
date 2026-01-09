@@ -23,10 +23,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * Unit tests for EtradeOAuthService.
  * 
- * Updated to test the refactored service that delegates to EtradeApiClientAuthorizationAPI.
+ * @deprecated This mocked unit test has been replaced by functional tests that make real calls to E*TRADE.
+ * Use {@link EtradeOAuthFunctionalTest} instead, which validates the complete OAuth flow through our
+ * REST API endpoints and validates database persistence.
+ * 
+ * This test is kept for reference but should not be used for validating OAuth functionality.
  */
+@Deprecated
 @ExtendWith(MockitoExtension.class)
-@DisplayName("EtradeOAuthService Tests")
+@DisplayName("EtradeOAuthService Tests (DEPRECATED - Use Functional Tests Instead)")
 class EtradeOAuthServiceTest {
 
   @Mock

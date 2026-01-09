@@ -11,5 +11,9 @@ public interface EtradeOAuthTokenRepository extends JpaRepository<EtradeOAuthTok
   
   Optional<EtradeOAuthToken> findByAccountId(UUID accountId);
   
+  Optional<EtradeOAuthToken> findByRequestToken(String requestToken);
+  
+  Optional<EtradeOAuthToken> findByCorrelationId(String correlationId);
+  
   void deleteByAccountId(UUID accountId);
 }

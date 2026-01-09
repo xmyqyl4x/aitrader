@@ -16,13 +16,16 @@ public class EtradeOAuthToken {
   @GeneratedValue(strategy = GenerationType.AUTO)
   private UUID id;
 
-  @Column(name = "account_id", nullable = false)
+  @Column(name = "account_id")
   private UUID accountId;
 
-  @Column(name = "access_token_encrypted", nullable = false, columnDefinition = "TEXT")
+  @Column(name = "user_id")
+  private UUID userId;
+
+  @Column(name = "access_token_encrypted", columnDefinition = "TEXT")
   private String accessTokenEncrypted;
 
-  @Column(name = "access_token_secret_encrypted", nullable = false, columnDefinition = "TEXT")
+  @Column(name = "access_token_secret_encrypted", columnDefinition = "TEXT")
   private String accessTokenSecretEncrypted;
 
   @Column(name = "token_type")
@@ -42,6 +45,28 @@ public class EtradeOAuthToken {
 
   @Column(name = "oauth_verifier")
   private String oauthVerifier;
+
+  // Authorization attempt tracking fields
+  @Column(name = "start_time")
+  private OffsetDateTime startTime;
+
+  @Column(name = "end_time")
+  private OffsetDateTime endTime;
+
+  @Column(name = "status")
+  private String status; // PENDING, SUCCESS, FAILED
+
+  @Column(name = "error_message", columnDefinition = "TEXT")
+  private String errorMessage;
+
+  @Column(name = "error_code")
+  private String errorCode;
+
+  @Column(name = "environment")
+  private String environment; // SANDBOX, PRODUCTION
+
+  @Column(name = "correlation_id")
+  private String correlationId;
 
   @CreatedDate
   @Column(name = "created_at", nullable = false)
@@ -70,6 +95,14 @@ public class EtradeOAuthToken {
 
   public void setAccountId(UUID accountId) {
     this.accountId = accountId;
+  }
+
+  public UUID getUserId() {
+    return userId;
+  }
+
+  public void setUserId(UUID userId) {
+    this.userId = userId;
   }
 
   public String getAccessTokenEncrypted() {
@@ -150,5 +183,61 @@ public class EtradeOAuthToken {
 
   public void setUpdatedAt(OffsetDateTime updatedAt) {
     this.updatedAt = updatedAt;
+  }
+
+  public OffsetDateTime getStartTime() {
+    return startTime;
+  }
+
+  public void setStartTime(OffsetDateTime startTime) {
+    this.startTime = startTime;
+  }
+
+  public OffsetDateTime getEndTime() {
+    return endTime;
+  }
+
+  public void setEndTime(OffsetDateTime endTime) {
+    this.endTime = endTime;
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
+  public String getErrorMessage() {
+    return errorMessage;
+  }
+
+  public void setErrorMessage(String errorMessage) {
+    this.errorMessage = errorMessage;
+  }
+
+  public String getErrorCode() {
+    return errorCode;
+  }
+
+  public void setErrorCode(String errorCode) {
+    this.errorCode = errorCode;
+  }
+
+  public String getEnvironment() {
+    return environment;
+  }
+
+  public void setEnvironment(String environment) {
+    this.environment = environment;
+  }
+
+  public String getCorrelationId() {
+    return correlationId;
+  }
+
+  public void setCorrelationId(String correlationId) {
+    this.correlationId = correlationId;
   }
 }

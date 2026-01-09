@@ -1,11 +1,12 @@
 package com.myqyl.aitradex.api.controller;
 
-import com.myqyl.aitradex.etrade.authorization.dto.RenewAccessTokenResponse;
-import com.myqyl.aitradex.etrade.authorization.dto.RevokeAccessTokenResponse;
+import com.myqyl.aitradex.etrade.domain.EtradeOAuthToken;
 import com.myqyl.aitradex.etrade.oauth.EtradeOAuthService;
+import com.myqyl.aitradex.etrade.repository.EtradeOAuthTokenRepository;
 import com.myqyl.aitradex.etrade.service.EtradeAccountService;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,43 +25,44 @@ import org.springframework.web.servlet.view.RedirectView;
 public class EtradeOAuthController {
 
   private static final Logger log = LoggerFactory.getLogger(EtradeOAuthController.class);
-  
-  // Temporary storage for request tokens (use Redis in production)
-  private final Map<String, RequestTokenData> requestTokenStore = new HashMap<>();
 
   private final EtradeOAuthService oauthService;
   private final EtradeAccountService accountService;
+  private final EtradeOAuthTokenRepository tokenRepository;
 
-  public EtradeOAuthController(EtradeOAuthService oauthService, EtradeAccountService accountService) {
+  public EtradeOAuthController(EtradeOAuthService oauthService, EtradeAccountService accountService,
+                               EtradeOAuthTokenRepository tokenRepository) {
     this.oauthService = oauthService;
     this.accountService = accountService;
+    this.tokenRepository = tokenRepository;
   }
 
   /**
    * Step 1: Initiates OAuth flow, returns authorization URL.
+   * Creates and persists an authorization attempt record with PENDING status.
    */
   @GetMapping("/authorize")
-  public ResponseEntity<Map<String, String>> initiateOAuth(@RequestParam(required = false) UUID userId) {
+  public ResponseEntity<Map<String, String>> initiateOAuth(
+      @RequestParam(required = false) UUID userId,
+      @RequestParam(required = false) String correlationId) {
     try {
       if (userId == null) {
         userId = UUID.randomUUID(); // For MVP, generate temp user ID
       }
       
-      EtradeOAuthService.RequestTokenResponse tokenResponse = oauthService.getRequestToken(userId);
-      
-      // Store request token temporarily
-      UUID tempAccountId = UUID.randomUUID(); // Temporary until we get real account ID
-      RequestTokenData tokenData = new RequestTokenData(
-          tokenResponse.getRequestToken(),
-          tokenResponse.getRequestTokenSecret(),
-          userId,
-          tempAccountId);
-      requestTokenStore.put(tokenResponse.getRequestToken(), tokenData);
+      // Get request token (service will persist authorization attempt)
+      EtradeOAuthService.RequestTokenResponse tokenResponse = oauthService.getRequestToken(userId, correlationId);
       
       Map<String, String> response = new HashMap<>();
       response.put("authorizationUrl", tokenResponse.getAuthorizationUrl());
       response.put("state", UUID.randomUUID().toString()); // CSRF protection
       response.put("requestToken", tokenResponse.getRequestToken()); // For frontend to track
+      if (tokenResponse.getCorrelationId() != null) {
+        response.put("correlationId", tokenResponse.getCorrelationId());
+      }
+      if (tokenResponse.getAuthAttemptId() != null) {
+        response.put("authAttemptId", tokenResponse.getAuthAttemptId().toString());
+      }
       
       return ResponseEntity.ok(response);
     } catch (Exception e) {
@@ -92,24 +94,25 @@ public class EtradeOAuthController {
         return new RedirectView("/etrade-review-trade?error=invalid_callback", true);
       }
 
-      // Get request token from store (in production, use Redis)
-      RequestTokenData tokenData = requestTokenStore.get(oauth_token);
-      if (tokenData == null) {
-        log.error("Request token not found for {}", oauth_token);
+      // Look up authorization attempt by request token (persisted from Step 1)
+      Optional<EtradeOAuthToken> authAttempt = tokenRepository.findByRequestToken(oauth_token);
+      if (authAttempt.isEmpty() || authAttempt.get().getRequestTokenSecret() == null) {
+        log.error("Authorization attempt not found for request token {}", oauth_token);
         return new RedirectView("/etrade-review-trade?error=token_not_found", true);
       }
 
+      EtradeOAuthToken attempt = authAttempt.get();
       if (userId == null) {
-        userId = tokenData.getUserId();
+        userId = attempt.getUserId();
       }
 
       // Exchange for access token (we'll create account after getting account list)
-      // For now, create a temporary account ID
+      // For now, create a temporary account ID (will be updated after account list retrieval)
       UUID accountId = UUID.randomUUID();
       
       Map<String, String> tokenResponse = oauthService.exchangeForAccessToken(
-          tokenData.getRequestToken(),
-          tokenData.getRequestTokenSecret(),
+          attempt.getRequestToken(),
+          attempt.getRequestTokenSecret(),
           oauth_verifier,
           accountId);
 
@@ -130,9 +133,6 @@ public class EtradeOAuthController {
       } catch (Exception e) {
         log.warn("Failed to link account, may already exist", e);
       }
-
-      // Clean up
-      requestTokenStore.remove(oauth_token);
 
       return new RedirectView("/etrade-review-trade?success=account_linked", true);
     } catch (Exception e) {
@@ -203,36 +203,4 @@ public class EtradeOAuthController {
     }
   }
 
-  /**
-   * Temporary storage for request token data.
-   */
-  private static class RequestTokenData {
-    private final String requestToken;
-    private final String requestTokenSecret;
-    private final UUID userId;
-    private final UUID accountId;
-
-    public RequestTokenData(String requestToken, String requestTokenSecret, UUID userId, UUID accountId) {
-      this.requestToken = requestToken;
-      this.requestTokenSecret = requestTokenSecret;
-      this.userId = userId;
-      this.accountId = accountId;
-    }
-
-    public String getRequestToken() {
-      return requestToken;
-    }
-
-    public String getRequestTokenSecret() {
-      return requestTokenSecret;
-    }
-
-    public UUID getUserId() {
-      return userId;
-    }
-
-    public UUID getAccountId() {
-      return accountId;
-    }
-  }
 }
