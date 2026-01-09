@@ -658,11 +658,18 @@ For every position (from View Portfolio), capture (upsert):
 
 ### Running Tests
 
+**Prerequisites:**
+- Local PostgreSQL database must be running on localhost:5432
+- Database 'aitradex_test' must exist (or will be created by Liquibase)
+- User 'aitradex' with password 'aitradex' must have access to the database
+
 **Run all Accounts API functional tests:**
 ```bash
 cd aitradex-service
 mvn test -Dtest=EtradeAccountsFunctionalTest
 ```
+
+**Note:** Tests do NOT require Docker. They use local PostgreSQL configured in `application-test.yml`.
 
 **Run specific test:**
 ```bash

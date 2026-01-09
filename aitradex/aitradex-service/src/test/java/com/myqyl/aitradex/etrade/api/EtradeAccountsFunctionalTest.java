@@ -33,13 +33,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Functional tests for E*TRADE Accounts API endpoints.
@@ -58,38 +53,23 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * - Required fields are populated correctly
  *
  * Prerequisites:
- * - Docker must be running (for Testcontainers PostgreSQL)
+ * - Local PostgreSQL database must be running on localhost:5432
+ * - Database 'aitradex_test' must exist (or will be created by Liquibase)
+ * - User 'aitradex' with password 'aitradex' must have access to the database
  * - ETRADE_CONSUMER_KEY environment variable set
  * - ETRADE_CONSUMER_SECRET environment variable set
  * - ETRADE_ENCRYPTION_KEY environment variable set
  * - ETRADE_ACCESS_TOKEN environment variable set (or ETRADE_OAUTH_VERIFIER for automatic token exchange)
  * - ETRADE_ACCESS_TOKEN_SECRET environment variable set (or obtained via verifier)
- * - ETRADE_ACCOUNT_ID_KEY environment variable set (E*TRADE account ID key for testing)
+ * - ETRADE_ACCOUNT_ID_KEY environment variable set (E*TRADE account ID key for testing, optional)
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Testcontainers
 @DisplayName("E*TRADE Accounts API - Functional Tests")
 @EnabledIfEnvironmentVariable(named = "ETRADE_CONSUMER_KEY", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "ETRADE_CONSUMER_SECRET", matches = ".+")
 class EtradeAccountsFunctionalTest {
-
-  @Container
-  @SuppressWarnings("resource")
-  static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>("postgres:16-alpine")
-          .withDatabaseName("aitradex_test")
-          .withUsername("aitradex")
-          .withPassword("aitradex")
-          .withReuse(true);
-
-  @DynamicPropertySource
-  static void registerDataSource(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
-  }
 
   @Autowired
   protected MockMvc mockMvc;

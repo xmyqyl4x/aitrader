@@ -243,8 +243,10 @@ EtradeAccountController
 ## 🧪 Test Execution
 
 ### Prerequisites
-1. **Docker running** (for Testcontainers PostgreSQL)
-2. **Environment variables:**
+1. **Local PostgreSQL database** running on localhost:5432
+2. **Database 'aitradex_test'** must exist (or will be created by Liquibase)
+3. **User 'aitradex'** with password 'aitradex' must have access to the database
+4. **Environment variables:**
    - `ETRADE_CONSUMER_KEY` - E*TRADE consumer key
    - `ETRADE_CONSUMER_SECRET` - E*TRADE consumer secret
    - `ETRADE_ENCRYPTION_KEY` - Encryption key for tokens
@@ -378,6 +380,7 @@ mvn test -Dtest=EtradeAccountsFunctionalTest#fullWorkflow_allSteps_endToEnd_viaA
 - Tests validate database persistence
 - Tests validate upsert/append-only behavior
 - Tests compile successfully
+- Tests use local PostgreSQL (NO Docker/Testcontainers required)
 
 ✅ **Mock Tests Removed:**
 - All mock tests for Account API removed
