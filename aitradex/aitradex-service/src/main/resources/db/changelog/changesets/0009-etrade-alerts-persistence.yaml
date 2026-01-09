@@ -1,0 +1,123 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0009-etrade-alerts-persistence
+      author: aitradex
+      context: dev,test,prod
+      logicalFilePath: db/changelog/changesets/0009-etrade-alerts-persistence.yaml
+      changes:
+        # Create etrade_alert table (main alerts table)
+        - createTable:
+            tableName: etrade_alert
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: alert_id, type: bigint, constraints: {nullable: false}}
+              - column: {name: create_time, type: bigint}
+              - column: {name: subject, type: varchar(500)}
+              - column: {name: status, type: varchar(50)}
+              - column: {name: last_synced_at, type: timestamptz}
+              - column: {name: created_at, type: timestamptz, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, constraints: {nullable: false}}
+        
+        # Create etrade_alert_detail table (alert details)
+        - createTable:
+            tableName: etrade_alert_detail
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: alert_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: msg_text, type: text}
+              - column: {name: read_time, type: bigint}
+              - column: {name: delete_time, type: bigint}
+              - column: {name: symbol, type: varchar(50)}
+              - column: {name: next_url, type: varchar(500)}
+              - column: {name: prev_url, type: varchar(500)}
+              - column: {name: details_fetched_at, type: timestamptz}
+              - column: {name: created_at, type: timestamptz, constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, constraints: {nullable: false}}
+        
+        # Create etrade_alert_event table (audit/event log)
+        - createTable:
+            tableName: etrade_alert_event
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: alert_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: event_type, type: varchar(50), constraints: {nullable: false}}
+              - column: {name: event_status, type: varchar(50)}
+              - column: {name: error_message, type: text}
+              - column: {name: event_data, type: jsonb}
+              - column: {name: created_at, type: timestamptz, constraints: {nullable: false}}
+        
+        # Add foreign key constraints
+        - addForeignKeyConstraint:
+            baseTableName: etrade_alert
+            baseColumnNames: account_id
+            referencedTableName: etrade_account
+            referencedColumnNames: id
+            constraintName: fk_etrade_alert_account
+            onDelete: CASCADE
+        
+        - addForeignKeyConstraint:
+            baseTableName: etrade_alert_detail
+            baseColumnNames: alert_id
+            referencedTableName: etrade_alert
+            referencedColumnNames: id
+            constraintName: fk_etrade_alert_detail_alert
+            onDelete: CASCADE
+        
+        - addForeignKeyConstraint:
+            baseTableName: etrade_alert_event
+            baseColumnNames: alert_id
+            referencedTableName: etrade_alert
+            referencedColumnNames: id
+            constraintName: fk_etrade_alert_event_alert
+            onDelete: CASCADE
+        
+        # Add unique constraint for upsert logic: alertId per account
+        - addUniqueConstraint:
+            tableName: etrade_alert
+            columnNames: account_id, alert_id
+            constraintName: uk_etrade_alert_account_alert_id
+            deferrable: false
+        
+        # Add indexes for efficient queries
+        - createIndex:
+            tableName: etrade_alert
+            indexName: idx_etrade_alert_account_id
+            columns:
+              - column: {name: account_id}
+        
+        - createIndex:
+            tableName: etrade_alert
+            indexName: idx_etrade_alert_alert_id
+            columns:
+              - column: {name: alert_id}
+        
+        - createIndex:
+            tableName: etrade_alert
+            indexName: idx_etrade_alert_status
+            columns:
+              - column: {name: status}
+        
+        - createIndex:
+            tableName: etrade_alert
+            indexName: idx_etrade_alert_last_synced_at
+            columns:
+              - column: {name: last_synced_at, descending: true}
+        
+        - createIndex:
+            tableName: etrade_alert_detail
+            indexName: idx_etrade_alert_detail_alert_id
+            columns:
+              - column: {name: alert_id}
+        
+        - createIndex:
+            tableName: etrade_alert_event
+            indexName: idx_etrade_alert_event_alert_id
+            columns:
+              - column: {name: alert_id}
+        
+        - createIndex:
+            tableName: etrade_alert_event
+            indexName: idx_etrade_alert_event_type
+            columns:
+              - column: {name: event_type}
