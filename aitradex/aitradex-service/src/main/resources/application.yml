@@ -44,18 +44,31 @@ app:
   snapshots:
     poll-interval-ms: ${APP_SNAPSHOT_POLL_MS:300000}
   datasource:
-    url: jdbc:postgresql://localhost:5432/aitradex
-    username: aitradex
-    password: aitradex
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aitradexdb}
+    driver-class-name: org.postgresql.Driver
+    username: ${SPRING_DATASOURCE_USERNAME:aitradex_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:aitradex_pass}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: aitradexHikariPool
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate  # Use Liquibase for schema management
     open-in-view: false
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: true
+        generate_statistics: false
   liquibase:
+    enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+    drop-first: false
+    contexts: ${LIQUIBASE_CONTEXTS:}
 
 server:
   port: 8080
@@ -78,6 +91,13 @@ springdoc:
 logging:
   level:
     root: INFO
+    com.myqyl.aitradex: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.liquibase: INFO
+  file:
+    name: ${LOG_FILE:logs/aitradex-service.log}
 
 ---
 spring:
@@ -85,16 +105,29 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/aitradex
-    username: aitradex
-    password: aitradex
+    url: jdbc:postgresql://localhost:5432/aitradexdb
+    username: aitradex_user
+    password: aitradex_pass
+    hikari:
+      pool-name: aitradexHikariPool-DEV
+  jpa:
+    show-sql: true
   liquibase:
-    contexts: dev
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    drop-first: false
+    contexts: dev,schema,data
 
 logging:
   level:
+    root: INFO
+    com.myqyl.aitradex: DEBUG
+    org.springframework.web: DEBUG
     org.hibernate.SQL: DEBUG
-    org.springframework: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.liquibase: INFO
+  file:
+    name: logs/aitradex-service-dev.log
 
 ---
 spring:
@@ -102,15 +135,23 @@ spring:
     activate:
       on-profile: test
   datasource:
-    url: jdbc:postgresql://localhost:5432/aitradex_test
-    username: aitradex
-    password: aitradex
+    url: jdbc:postgresql://localhost:5432/aitradexdb_test
+    username: aitradex_user
+    password: aitradex_pass
+    hikari:
+      pool-name: aitradexHikariPool-TEST
+  jpa:
+    show-sql: false
   liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    drop-first: false
     contexts: test
 
 logging:
   level:
     root: WARN
+    com.myqyl.aitradex: INFO
 
 ---
 spring:
@@ -118,16 +159,31 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: jdbc:postgresql://localhost:5432/aitradex
-    username: ${POSTGRES_USER:aitradex}
-    password: ${POSTGRES_PASSWORD:aitradex}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aitradexdb}
+    username: ${SPRING_DATASOURCE_USERNAME:aitradex_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:aitradex_pass}
+    hikari:
+      pool-name: aitradexHikariPool-PROD
+  jpa:
+    show-sql: false
   liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    drop-first: false
     contexts: prod
 
 server:
   port: ${PORT:8080}
+
 management:
   endpoints:
     web:
       exposure:
         include: health, info
+
+logging:
+  level:
+    root: INFO
+    com.myqyl.aitradex: INFO
+  file:
+    name: ${LOG_FILE:logs/aitradex-service-prod.log}

@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://db:5432/aitradex
-    username: ${POSTGRES_USER:aitradex}
-    password: ${POSTGRES_PASSWORD:aitradex}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aitradexdb}
+    username: ${SPRING_DATASOURCE_USERNAME:aitradex_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:aitradex_pass}
 
 management:
   endpoints:

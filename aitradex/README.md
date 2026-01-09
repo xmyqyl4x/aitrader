@@ -13,56 +13,74 @@ Aitradex is a two-tier application composed of a Spring Boot backend and an Angu
 - **Java 21** (for the backend)
 - **Maven 3.9+**
 - **Node.js 18+ and npm** (for the frontend)
-- **Docker + Docker Compose** (optional, for containerized runs)
+- **PostgreSQL 16** (installed locally)
+
+## Database Setup
+
+Before running the application, set up the PostgreSQL database:
+
+1. **Create database user:**
+   ```bash
+   psql -U postgres -f db/scripts/01-create-user.sql
+   ```
+
+2. **Create database:**
+   ```bash
+   psql -U postgres -f db/scripts/03-create-database.sql
+   ```
+
+   Or use the reset script for a fresh setup:
+   ```bash
+   psql -U postgres -f db/scripts/05-reset-database.sql
+   ```
+
+See `db/scripts/README.md` for detailed database management scripts.
 
 ## Build / Install Dependencies
 
 ### Backend (Spring Boot)
 
 ```bash
-cd aitradex
-mvn -pl aitradex-service -am package
+cd aitradex-service
+mvn clean install
 ```
 
 If you want to skip tests during packaging:
 
 ```bash
-mvn -pl aitradex-service -am package -DskipTests
+mvn clean install -DskipTests
 ```
 
 ### Frontend (Angular)
 
 ```bash
-cd aitradex/aitradex-ui
+cd aitradex-ui
 npm install
+```
+
+Build for production:
+
+```bash
 npm run build
 ```
 
 Build artifacts are emitted to `aitradex-ui/dist/aitradex-ui`.
-
-### Container Images (optional)
-
-```bash
-cd aitradex
-docker build -t aitradex-service -f aitradex-service/Dockerfile .
-docker build -t aitradex-ui -f aitradex-ui/Dockerfile ./aitradex-ui
-```
 
 ## Tests
 
 ### Backend
 
 ```bash
-cd aitradex
-mvn -pl aitradex-service test
+cd aitradex-service
+mvn test
 ```
 
-> Tests use Testcontainers and require Docker to be running.
+> Note: Integration tests use Testcontainers and require Docker to be running. Unit tests run without Docker.
 
 ### Frontend
 
 ```bash
-cd aitradex/aitradex-ui
+cd aitradex-ui
 npm test
 ```
 
@@ -74,65 +92,48 @@ npm run lint
 
 ## Run the Application
 
-### Option 1: Run everything with Docker Compose (recommended)
+### Prerequisites
+
+1. **PostgreSQL must be running locally** on port 5432
+2. **Database and user must be created** (see Database Setup above)
+
+### Run Backend
 
 ```bash
-cd aitradex
-docker-compose up --build
+cd aitradex-service
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-Services and ports:
+The backend will:
+- Connect to PostgreSQL at `localhost:5432/aitradexdb`
+- Run Liquibase migrations automatically
+- Listen on `http://localhost:8080`
+- Expose API routes under `/api`
 
-- **UI**: `http://localhost:4200/`
-- **API**: `http://localhost:8080/api`
-- **Swagger UI**: `http://localhost:8080/api/swagger-ui.html`
-- **Database**: `localhost:5432` (user/pass: `aitradex` / `aitradex`)
-
-### Option 2: Run backend and frontend locally (dev)
-
-#### Start PostgreSQL
-
-Using Docker:
+### Run Frontend
 
 ```bash
-docker run --name aitradex-postgres -e POSTGRES_DB=aitradex -e POSTGRES_USER=aitradex -e POSTGRES_PASSWORD=aitradex -p 5432:5432 -d postgres:16-alpine
-```
-
-#### Run the backend
-
-```bash
-cd aitradex
-mvn -pl aitradex-service spring-boot:run
-```
-
-The backend listens on `http://localhost:8080` and exposes API routes under `/api`.
-
-#### Run the frontend
-
-```bash
-cd aitradex/aitradex-ui
-npm install
+cd aitradex-ui
 npm start
 ```
 
-The Angular dev server runs at `http://localhost:4200/` and proxies API calls to `http://localhost:8080/api` via `environment.ts`.
+The Angular dev server will:
+- Run at `http://localhost:4200/`
+- Proxy API calls to `http://localhost:8080/api`
 
-### Option 3: Run only the backend
+### Development Workflow
 
-```bash
-cd aitradex
-mvn -pl aitradex-service spring-boot:run
-```
-
-### Option 4: Run only the frontend
-
-```bash
-cd aitradex/aitradex-ui
-npm install
-npm start
-```
-
-> Note: The UI expects the API at `http://localhost:8080/api` (see `aitradex-ui/src/environments/environment.ts`).
+1. **Start PostgreSQL** (if not already running)
+2. **Start backend:**
+   ```bash
+   cd aitradex-service
+   mvn spring-boot:run -Dspring-boot.run.profiles=dev
+   ```
+3. **Start frontend** (in a separate terminal):
+   ```bash
+   cd aitradex-ui
+   npm start
+   ```
 
 ## Access the Application
 
@@ -141,10 +142,56 @@ npm start
 - **Swagger UI**: `http://localhost:8080/api/swagger-ui.html`
 - **Health check**: `http://localhost:8080/actuator/health`
 
-## Environment Configuration
+## Configuration
 
-The backend uses environment variables for configuration. Common ones include:
+### Database Configuration
 
-- `SPRING_DATASOURCE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`: database connection
+The application is configured to use a local PostgreSQL instance:
 
-See `aitradex/CONTAINERS.md` and `aitradex-service/src/main/resources/application.yml` for more defaults and profiles.
+- **Database**: `aitradexdb`
+- **User**: `aitradex_user`
+- **Password**: `aitradex_pass`
+- **Host**: `localhost:5432`
+
+These can be overridden via environment variables:
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+
+### E*TRADE Configuration
+
+E*TRADE credentials are configured in `application.yml` and can be overridden via environment variables:
+
+- `ETRADE_CONSUMER_KEY` (default: `a83b0321f09e97fc8f4315ad5fbcd489`)
+- `ETRADE_CONSUMER_SECRET` (default: `c4d304698d156d4c3681c73de0c4e400060cac46ee1504259b324695daa77dd4`)
+- `ETRADE_ENVIRONMENT` (default: `SANDBOX`)
+- `ETRADE_CALLBACK_URL` (default: `http://localhost:4200/etrade-review-trade/callback`)
+
+### Configuration Files
+
+- **Main config**: `aitradex-service/src/main/resources/application.yml`
+- **Dev profile**: `aitradex-service/src/main/resources/application-dev.properties`
+- **Prod profile**: `aitradex-service/src/main/resources/application-prod.yml`
+
+## Container Artifacts (Archived)
+
+Container-related files (Dockerfiles, docker-compose.yml, etc.) have been moved to the `attic/` directory for reference. The application now runs as a standard non-containerized application.
+
+## Troubleshooting
+
+### Database Connection Issues
+
+- Ensure PostgreSQL is running: `pg_isready` or `psql -U postgres -c "SELECT 1"`
+- Verify database exists: `psql -U postgres -l | grep aitradexdb`
+- Check user permissions: `psql -U postgres -c "\du aitradex_user"`
+
+### Port Conflicts
+
+- Backend default port: `8080` (override with `SERVER_PORT` environment variable)
+- Frontend default port: `4200` (override with `PORT` environment variable or `ng serve --port <port>`)
+
+### Liquibase Migration Issues
+
+- Check logs for migration errors
+- Verify database user has CREATE/ALTER privileges
+- Reset database if needed: `psql -U postgres -f db/scripts/05-reset-database.sql`
