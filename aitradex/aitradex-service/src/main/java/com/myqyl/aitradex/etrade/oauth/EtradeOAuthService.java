@@ -74,6 +74,18 @@ public class EtradeOAuthService {
     authAttempt.setEnvironment(properties.getEnvironment().name());
     authAttempt.setCorrelationId(correlationId);
     
+    // Persist authorization attempt BEFORE making API call (so we have a record even if API call fails)
+    // This ensures we track every attempt, successful or not
+    UUID authAttemptId = null;
+    try {
+      authAttempt = tokenRepository.save(authAttempt);
+      authAttemptId = authAttempt.getId();
+      log.debug("Authorization attempt created with ID: {} (correlationId: {})", authAttemptId, correlationId);
+    } catch (Exception saveException) {
+      log.error("Failed to save initial authorization attempt (correlationId: {})", correlationId, saveException);
+      // Continue anyway - we'll try to save again in catch block if API call fails
+    }
+    
     try {
       // For sandbox/testing, use "oob" (out-of-band) instead of callback URL
       // This allows manual verifier input for testing
@@ -92,7 +104,7 @@ public class EtradeOAuthService {
       authAttempt.setRequestToken(apiResponse.getOauthToken());
       authAttempt.setRequestTokenSecret(apiResponse.getOauthTokenSecret());
       
-      // Persist authorization attempt (still PENDING until access token exchange)
+      // Update authorization attempt (still PENDING until access token exchange)
       tokenRepository.save(authAttempt);
       
       log.info("Request token obtained for user {} (correlationId: {})", userId, correlationId);
@@ -109,26 +121,58 @@ public class EtradeOAuthService {
           apiResponse.getOauthToken(),
           apiResponse.getOauthTokenSecret(),
           correlationId,
-          authAttempt.getId());
+          authAttemptId != null ? authAttemptId : authAttempt.getId());
       
       return response;
     } catch (EtradeApiException e) {
       // Update authorization attempt with failure
-      authAttempt.setStatus("FAILED");
-      authAttempt.setEndTime(OffsetDateTime.now());
-      authAttempt.setErrorMessage(e.getErrorMessage());
-      authAttempt.setErrorCode(e.getErrorCode());
-      tokenRepository.save(authAttempt);
+      try {
+        if (authAttemptId != null || authAttempt.getId() != null) {
+          // Update existing attempt
+          authAttempt.setStatus("FAILED");
+          authAttempt.setEndTime(OffsetDateTime.now());
+          authAttempt.setErrorMessage(e.getErrorMessage());
+          authAttempt.setErrorCode(e.getErrorCode());
+          tokenRepository.save(authAttempt);
+          log.info("Authorization attempt marked as FAILED (ID: {}, correlationId: {})", authAttempt.getId(), correlationId);
+        } else {
+          // Try to save new failed attempt
+          authAttempt.setStatus("FAILED");
+          authAttempt.setEndTime(OffsetDateTime.now());
+          authAttempt.setErrorMessage(e.getErrorMessage());
+          authAttempt.setErrorCode(e.getErrorCode());
+          tokenRepository.save(authAttempt);
+          log.info("Authorization attempt saved as FAILED (ID: {}, correlationId: {})", authAttempt.getId(), correlationId);
+        }
+      } catch (Exception saveException) {
+        log.error("Failed to save failed authorization attempt (correlationId: {})", correlationId, saveException);
+      }
       
       log.error("Failed to get request token (correlationId: {})", correlationId, e);
       throw new RuntimeException("OAuth request token failed: " + e.getErrorMessage(), e);
     } catch (Exception e) {
       // Update authorization attempt with failure
-      authAttempt.setStatus("FAILED");
-      authAttempt.setEndTime(OffsetDateTime.now());
-      authAttempt.setErrorMessage(e.getMessage());
-      authAttempt.setErrorCode("EXCEPTION");
-      tokenRepository.save(authAttempt);
+      try {
+        if (authAttemptId != null || authAttempt.getId() != null) {
+          // Update existing attempt
+          authAttempt.setStatus("FAILED");
+          authAttempt.setEndTime(OffsetDateTime.now());
+          authAttempt.setErrorMessage(e.getMessage() != null ? e.getMessage() : "Unknown error");
+          authAttempt.setErrorCode("EXCEPTION");
+          tokenRepository.save(authAttempt);
+          log.info("Authorization attempt marked as FAILED (ID: {}, correlationId: {})", authAttempt.getId(), correlationId);
+        } else {
+          // Try to save new failed attempt
+          authAttempt.setStatus("FAILED");
+          authAttempt.setEndTime(OffsetDateTime.now());
+          authAttempt.setErrorMessage(e.getMessage() != null ? e.getMessage() : "Unknown error");
+          authAttempt.setErrorCode("EXCEPTION");
+          tokenRepository.save(authAttempt);
+          log.info("Authorization attempt saved as FAILED (ID: {}, correlationId: {})", authAttempt.getId(), correlationId);
+        }
+      } catch (Exception saveException) {
+        log.error("Failed to save failed authorization attempt (correlationId: {})", correlationId, saveException);
+      }
       
       log.error("Failed to get request token (correlationId: {})", correlationId, e);
       throw new RuntimeException("OAuth request token failed", e);
