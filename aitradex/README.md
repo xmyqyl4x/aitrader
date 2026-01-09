@@ -38,29 +38,39 @@ See `db/scripts/README.md` for detailed database management scripts.
 
 ## Build / Install Dependencies
 
+**⚠️ IMPORTANT: You must run build commands from the individual project directories, NOT from the root directory.**
+
 ### Backend (Spring Boot)
 
+**From `aitradex-service` directory:**
+
 ```bash
-cd aitradex-service
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
 mvn clean install
 ```
 
 If you want to skip tests during packaging:
 
 ```bash
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
 mvn clean install -DskipTests
 ```
 
+Build artifacts are created in `aitradex-service/target/aitradex-service-0.0.1-SNAPSHOT.jar`.
+
 ### Frontend (Angular)
 
+**From `aitradex-ui` directory:**
+
 ```bash
-cd aitradex-ui
-npm install
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
+npm install --legacy-peer-deps
 ```
 
 Build for production:
 
 ```bash
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
 npm run build
 ```
 
@@ -99,8 +109,10 @@ npm run lint
 
 ### Run Backend
 
+**⚠️ Must run from `aitradex-service` directory:**
+
 ```bash
-cd aitradex-service
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
@@ -112,8 +124,10 @@ The backend will:
 
 ### Run Frontend
 
+**⚠️ Must run from `aitradex-ui` directory:**
+
 ```bash
-cd aitradex-ui
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
 npm start
 ```
 
@@ -124,16 +138,20 @@ The Angular dev server will:
 ### Development Workflow
 
 1. **Start PostgreSQL** (if not already running)
-2. **Start backend:**
+
+2. **Start backend** (from `aitradex-service` directory):
    ```bash
-   cd aitradex-service
+   cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
    mvn spring-boot:run -Dspring-boot.run.profiles=dev
    ```
-3. **Start frontend** (in a separate terminal):
+
+3. **Start frontend** (in a separate terminal, from `aitradex-ui` directory):
    ```bash
-   cd aitradex-ui
+   cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
    npm start
    ```
+
+**Note:** You cannot run the application from the root directory (`C:\dev2025\java-projects\devspaces\aitrader\aitradex`). Each component must be run from its respective directory.
 
 ## Access the Application
 

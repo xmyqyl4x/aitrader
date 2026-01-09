@@ -45,26 +45,34 @@ psql -U aitradex_user -d aitradexdb -c "SELECT version();"
 
 ## Build the Application
 
+**⚠️ IMPORTANT: You must run all commands from the individual project directories, NOT from the root directory.**
+
 ### Backend
 
+**From `aitradex-service` directory:**
+
 ```bash
-cd aitradex-service
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
 mvn clean install
 ```
 
 ### Frontend
 
+**From `aitradex-ui` directory:**
+
 ```bash
-cd aitradex-ui
-npm install
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
+npm install --legacy-peer-deps
 ```
 
 ## Run the Application
 
 ### 1. Start Backend
 
+**⚠️ Must run from `aitradex-service` directory:**
+
 ```bash
-cd aitradex-service
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
@@ -75,8 +83,10 @@ The backend will:
 
 ### 2. Start Frontend (in a separate terminal)
 
+**⚠️ Must run from `aitradex-ui` directory:**
+
 ```bash
-cd aitradex-ui
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
 npm start
 ```
 
@@ -183,14 +193,14 @@ npm test
 
 **Backend:**
 ```bash
-cd aitradex-service
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
 mvn clean package -DskipTests
 # JAR will be in: target/aitradex-service-*.jar
 ```
 
 **Frontend:**
 ```bash
-cd aitradex-ui
+cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
 npm run build
 # Build artifacts in: dist/aitradex-ui/
 ```
@@ -217,7 +227,19 @@ export ALPHA_VANTAGE_API_KEY=your_key_here
 ## Next Steps
 
 1. Set up database (see Database Setup above)
-2. Build the application
-3. Run backend: `mvn spring-boot:run -Dspring-boot.run.profiles=dev`
-4. Run frontend: `npm start`
+2. Build the application:
+   - Backend: `cd aitradex-service && mvn clean install`
+   - Frontend: `cd aitradex-ui && npm install --legacy-peer-deps`
+3. Run backend (from `aitradex-service` directory):
+   ```bash
+   cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-service
+   mvn spring-boot:run -Dspring-boot.run.profiles=dev
+   ```
+4. Run frontend (from `aitradex-ui` directory, in separate terminal):
+   ```bash
+   cd C:\dev2025\java-projects\devspaces\aitrader\aitradex\aitradex-ui
+   npm start
+   ```
 5. Access application at `http://localhost:4200`
+
+**Important:** You cannot run the application from the root directory. Each component must be run from its respective directory (`aitradex-service` or `aitradex-ui`).
