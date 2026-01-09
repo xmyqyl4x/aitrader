@@ -6,393 +6,358 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.myqyl.aitradex.etrade.api.integration.EtradeApiIntegrationTestBase;
-import com.myqyl.aitradex.etrade.domain.EtradeOrder;
-import com.myqyl.aitradex.etrade.order.OrderRequestBuilder;
-import com.myqyl.aitradex.etrade.repository.EtradeOrderRepository;
+import com.myqyl.aitradex.api.dto.EtradeOrderDto;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientOrderAPI;
+import com.myqyl.aitradex.etrade.orders.dto.*;
+import com.myqyl.aitradex.etrade.service.EtradeOrderService;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 
 /**
  * Integration tests for E*TRADE Orders API endpoints.
  * 
- * These tests validate our application's order management functionality by:
- * - Calling our REST API endpoints (/api/etrade/orders/*)
- * - Mocking the underlying E*TRADE client calls
- * - Validating request building, response parsing, error handling
- * 
- * Tests do NOT call E*TRADE's public endpoints directly.
+ * These tests validate our Orders REST API endpoints by:
+ * - Calling our REST API endpoints (via MockMvc)
+ * - Mocking the underlying Order API client
+ * - Validating request/response handling, error handling, etc.
  */
 @DisplayName("E*TRADE Orders API Integration Tests")
 class EtradeOrdersApiIntegrationTest extends EtradeApiIntegrationTestBase {
 
-  @Autowired
-  private EtradeOrderRepository orderRepository;
+  @MockBean
+  private EtradeOrderService orderService;
 
-  // ============================================================================
-  // 1. LIST ORDERS TESTS
-  // ============================================================================
+  @MockBean
+  private EtradeApiClientOrderAPI orderApi;
+
+  private UUID testOrderId;
+
+  @BeforeEach
+  void setUpOrders() {
+    testOrderId = UUID.randomUUID();
+  }
 
   @Test
-  @DisplayName("List Orders - Success")
-  void listOrders_success() throws Exception {
-    // Mock E*TRADE client response
-    List<Map<String, Object>> mockOrders = List.of(
-        createMockOrder("ORDER123", "AAPL", "OPEN", "BUY", 10)
-    );
-    
-    when(orderClient.getOrders(eq(testAccountId), eq(testAccountIdKey), 
-        isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
-        .thenReturn(mockOrders);
+  @DisplayName("POST /api/etrade/orders/preview should return preview response")
+  void previewOrder_shouldReturnPreviewResponse() throws Exception {
+    UUID accountId = testAccountId;
 
-    // Call our application endpoint
+    PreviewOrderRequest request = createTestPreviewOrderRequest();
+    PreviewOrderResponse response = createTestPreviewOrderResponse();
+
+    when(orderService.previewOrder(eq(accountId), any(PreviewOrderRequest.class)))
+        .thenReturn(response);
+
+    mockMvc.perform(post("/api/etrade/orders/preview")
+            .param("accountId", accountId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.accountId").value("840104290"))
+        .andExpect(jsonPath("$.previewIds").isArray())
+        .andExpect(jsonPath("$.previewIds[0].previewId").value("PREVIEW123"))
+        .andExpect(jsonPath("$.totalOrderValue").value(10000.0))
+        .andExpect(jsonPath("$.estimatedCommission").value(1.99));
+
+    verify(orderService, times(1)).previewOrder(eq(accountId), any(PreviewOrderRequest.class));
+  }
+
+  @Test
+  @DisplayName("POST /api/etrade/orders should place order and return order DTO")
+  void placeOrder_shouldReturnOrderDto() throws Exception {
+    UUID accountId = testAccountId;
+
+    PlaceOrderRequest request = createTestPlaceOrderRequest();
+    EtradeOrderDto orderDto = createTestEtradeOrderDto();
+
+    when(orderService.placeOrder(eq(accountId), any(PlaceOrderRequest.class)))
+        .thenReturn(orderDto);
+
+    mockMvc.perform(post("/api/etrade/orders")
+            .param("accountId", accountId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(testOrderId.toString()))
+        .andExpect(jsonPath("$.accountId").value(accountId.toString()))
+        .andExpect(jsonPath("$.symbol").value("AAPL"))
+        .andExpect(jsonPath("$.quantity").value(100))
+        .andExpect(jsonPath("$.side").value("BUY"));
+
+    verify(orderService, times(1)).placeOrder(eq(accountId), any(PlaceOrderRequest.class));
+  }
+
+  @Test
+  @DisplayName("GET /api/etrade/orders/list should return orders list")
+  void listOrders_shouldReturnOrdersList() throws Exception {
+    UUID accountId = testAccountId;
+
+    OrdersResponse response = createTestOrdersResponse();
+
+    when(orderService.listOrders(eq(accountId), any(ListOrdersRequest.class)))
+        .thenReturn(response);
+
+    mockMvc.perform(get("/api/etrade/orders/list")
+            .param("accountId", accountId.toString())
+            .param("count", "25")
+            .param("status", "OPEN"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.orders").isArray())
+        .andExpect(jsonPath("$.orders[0].orderId").value("987654321"))
+        .andExpect(jsonPath("$.orders[0].orderType").value("EQ"))
+        .andExpect(jsonPath("$.orders[0].orderStatus").value("OPEN"))
+        .andExpect(jsonPath("$.moreOrders").value(false));
+
+    verify(orderService, times(1)).listOrders(eq(accountId), any(ListOrdersRequest.class));
+  }
+
+  @Test
+  @DisplayName("GET /api/etrade/orders should return paged orders from database")
+  void getOrders_shouldReturnPagedOrders() throws Exception {
+    UUID accountId = testAccountId;
+
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<EtradeOrderDto> orderPage = new PageImpl<>(List.of(createTestEtradeOrderDto()), pageable, 1);
+
+    when(orderService.getOrders(eq(accountId), any(Pageable.class)))
+        .thenReturn(orderPage);
+
     mockMvc.perform(get("/api/etrade/orders")
-            .param("accountId", testAccountId.toString())
+            .param("accountId", accountId.toString())
             .param("page", "0")
             .param("size", "20"))
         .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.content").isArray())
-        .andExpect(jsonPath("$.content[0].symbol").value("AAPL"))
-        .andExpect(jsonPath("$.content[0].side").value("BUY"))
-        .andExpect(jsonPath("$.content[0].quantity").value(10));
+        .andExpect(jsonPath("$.content[0].id").value(testOrderId.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.totalPages").value(1));
 
-    // Verify our service called the E*TRADE client
-    verify(orderClient, times(1)).getOrders(eq(testAccountId), eq(testAccountIdKey),
-        isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
+    verify(orderService, times(1)).getOrders(eq(accountId), any(Pageable.class));
   }
 
   @Test
-  @DisplayName("List Orders - With Status Filter")
-  void listOrders_withStatusFilter() throws Exception {
-    List<Map<String, Object>> mockOrders = List.of(
-        createMockOrder("ORDER456", "MSFT", "EXECUTED", "SELL", 5)
-    );
-    
-    when(orderClient.getOrders(eq(testAccountId), eq(testAccountIdKey),
-        isNull(), isNull(), eq("EXECUTED"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
-        .thenReturn(mockOrders);
+  @DisplayName("PUT /api/etrade/orders/{orderId}/preview should return preview response")
+  void changePreviewOrder_shouldReturnPreviewResponse() throws Exception {
+    UUID accountId = testAccountId;
+    UUID orderId = testOrderId;
 
-    // Note: Our current controller doesn't support status filter directly
-    // This test validates the service layer can handle it if we add it
-    // For now, we test the service method directly via mocking
-    
-    verify(orderClient, never()).getOrders(any(), any(), any(), any(), eq("EXECUTED"), 
-        any(), any(), any(), any(), any(), any());
-  }
+    PreviewOrderRequest request = createTestPreviewOrderRequest();
+    PreviewOrderResponse response = createTestPreviewOrderResponse();
 
-  // ============================================================================
-  // 2. PREVIEW ORDER TESTS
-  // ============================================================================
+    when(orderService.changePreviewOrder(eq(accountId), eq(orderId), any(PreviewOrderRequest.class)))
+        .thenReturn(response);
 
-  @Test
-  @DisplayName("Preview Order - Market Order")
-  void previewOrder_marketOrder() throws Exception {
-    // Build order request
-    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
-        "AAPL",
-        OrderRequestBuilder.OrderAction.BUY,
-        10,
-        OrderRequestBuilder.PriceType.MARKET,
-        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
-        null,
-        null,
-        OrderRequestBuilder.MarketSession.REGULAR,
-        "TEST_CLIENT_123");
-
-    // Mock E*TRADE client response
-    Map<String, Object> mockPreviewResponse = createMockPreviewResponse("PREVIEW123");
-    when(orderClient.previewOrder(eq(testAccountId), eq(testAccountIdKey), 
-        eq("AAPL"), eq(OrderRequestBuilder.OrderAction.BUY), eq(10),
-        eq(OrderRequestBuilder.PriceType.MARKET), eq(OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY),
-        isNull(), isNull(), eq(OrderRequestBuilder.MarketSession.REGULAR), anyString()))
-        .thenReturn(mockPreviewResponse);
-
-    // Call our application endpoint
-    mockMvc.perform(post("/api/etrade/orders/preview")
-            .param("accountId", testAccountId.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(orderRequest)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.PreviewIds").exists())
-        .andExpect(jsonPath("$.accountId").exists());
-
-    // Verify our service called the E*TRADE client
-    verify(orderClient, times(1)).previewOrder(eq(testAccountId), eq(testAccountIdKey), any(Map.class));
-  }
-
-  @Test
-  @DisplayName("Preview Order - Limit Order")
-  void previewOrder_limitOrder() throws Exception {
-    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
-        "AAPL",
-        OrderRequestBuilder.OrderAction.BUY,
-        5,
-        OrderRequestBuilder.PriceType.LIMIT,
-        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
-        150.00,
-        null,
-        OrderRequestBuilder.MarketSession.REGULAR,
-        "TEST_LIMIT_123");
-
-    // Mock E*TRADE client response
-    Map<String, Object> mockPreviewResponse = createMockPreviewResponse("PREVIEW456");
-    when(orderClient.previewOrder(eq(testAccountId), eq(testAccountIdKey), any(Map.class)))
-        .thenReturn(mockPreviewResponse);
-
-    mockMvc.perform(post("/api/etrade/orders/preview")
-            .param("accountId", testAccountId.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(orderRequest)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.PreviewIds").exists());
-
-    verify(orderClient, times(1)).previewOrder(eq(testAccountId), eq(testAccountIdKey), any(Map.class));
-  }
-
-  @Test
-  @DisplayName("Preview Order - Invalid Account")
-  void previewOrder_invalidAccount() throws Exception {
-    UUID invalidAccountId = UUID.randomUUID();
-    
-    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
-        "AAPL",
-        OrderRequestBuilder.OrderAction.BUY,
-        10,
-        OrderRequestBuilder.PriceType.MARKET,
-        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
-        null,
-        null,
-        OrderRequestBuilder.MarketSession.REGULAR,
-        null);
-
-    // Call our application endpoint with invalid account
-    mockMvc.perform(post("/api/etrade/orders/preview")
-            .param("accountId", invalidAccountId.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(orderRequest)))
-        .andExpect(status().isInternalServerError()); // Our service throws RuntimeException
-
-    // Verify E*TRADE client was never called
-    verify(orderClient, never()).previewOrder(any(), any(), any());
-  }
-
-  // ============================================================================
-  // 3. PLACE ORDER TESTS
-  // ============================================================================
-
-  @Test
-  @DisplayName("Place Order - Success")
-  void placeOrder_success() throws Exception {
-    // Build order request
-    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
-        "AAPL",
-        OrderRequestBuilder.OrderAction.BUY,
-        1,
-        OrderRequestBuilder.PriceType.MARKET,
-        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
-        null,
-        null,
-        OrderRequestBuilder.MarketSession.REGULAR,
-        "TEST_PLACE_123");
-
-    // Mock preview response (service calls preview first)
-    Map<String, Object> mockPreviewResponse = createMockPreviewResponse("PREVIEW789");
-    when(orderClient.previewOrder(eq(testAccountId), eq(testAccountIdKey), any(Map.class)))
-        .thenReturn(mockPreviewResponse);
-
-    // Mock place order response (service calls deprecated method with Map)
-    Map<String, Object> mockPlaceResponse = createMockPlaceOrderResponse("ORDER789");
-    when(orderClient.placeOrder(eq(testAccountId), eq(testAccountIdKey), any(Map.class)))
-        .thenReturn(mockPlaceResponse);
-
-    // Call our application endpoint
-    mockMvc.perform(post("/api/etrade/orders")
-            .param("accountId", testAccountId.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(orderRequest)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.symbol").value("AAPL"))
-        .andExpect(jsonPath("$.side").value("BUY"))
-        .andExpect(jsonPath("$.quantity").value(1))
-        .andExpect(jsonPath("$.orderStatus").value("SUBMITTED"));
-
-    // Verify our service called both preview and place
-    verify(orderClient, times(1)).previewOrder(eq(testAccountId), eq(testAccountIdKey), any(Map.class));
-    verify(orderClient, times(1)).placeOrder(eq(testAccountId), eq(testAccountIdKey), any(Map.class));
-  }
-
-  // ============================================================================
-  // 4. CANCEL ORDER TESTS
-  // ============================================================================
-
-  @Test
-  @DisplayName("Cancel Order - Success")
-  void cancelOrder_success() throws Exception {
-    // Create an order in database first
-    UUID orderId = createTestOrderInDatabase("ORDER_CANCEL_123", "OPEN");
-
-    // Mock cancel response
-    Map<String, Object> mockCancelResponse = Map.of("success", true);
-    when(orderClient.cancelOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CANCEL_123")))
-        .thenReturn(mockCancelResponse);
-
-    // Call our application endpoint
-    mockMvc.perform(delete("/api/etrade/orders/{orderId}", orderId)
-            .param("accountId", testAccountId.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.orderStatus").value("CANCELLED"));
-
-    // Verify our service called the E*TRADE client
-    verify(orderClient, times(1)).cancelOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CANCEL_123"));
-  }
-
-  @Test
-  @DisplayName("Cancel Order - Order Not Found")
-  void cancelOrder_orderNotFound() throws Exception {
-    UUID nonExistentOrderId = UUID.randomUUID();
-
-    // Call our application endpoint
-    mockMvc.perform(delete("/api/etrade/orders/{orderId}", nonExistentOrderId)
-            .param("accountId", testAccountId.toString()))
-        .andExpect(status().isInternalServerError()); // Our service throws RuntimeException
-
-    // Verify E*TRADE client was never called
-    verify(orderClient, never()).cancelOrder(any(), any(), any());
-  }
-
-  // ============================================================================
-  // 5. CHANGE ORDER TESTS
-  // ============================================================================
-
-  @Test
-  @DisplayName("Change Preview Order - Success")
-  void changePreviewOrder_success() throws Exception {
-    // Create an order in database first
-    UUID orderId = createTestOrderInDatabase("ORDER_CHANGE_123", "OPEN");
-
-    // Build order request
-    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
-        "AAPL",
-        OrderRequestBuilder.OrderAction.BUY,
-        20, // Changed quantity
-        OrderRequestBuilder.PriceType.LIMIT,
-        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
-        155.00, // Changed limit price
-        null,
-        OrderRequestBuilder.MarketSession.REGULAR,
-        "CHANGE_PREVIEW_123");
-
-    // Mock E*TRADE client response
-    Map<String, Object> mockPreviewResponse = createMockPreviewResponse("CHANGE_PREVIEW_456");
-    when(orderClient.changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_123"), any(Map.class)))
-        .thenReturn(mockPreviewResponse);
-
-    // Call our application endpoint
     mockMvc.perform(put("/api/etrade/orders/{orderId}/preview", orderId)
-            .param("accountId", testAccountId.toString())
+            .param("accountId", accountId.toString())
             .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(orderRequest)))
+            .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.PreviewIds").exists());
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.accountId").value("840104290"))
+        .andExpect(jsonPath("$.previewIds[0].previewId").value("PREVIEW123"));
 
-    verify(orderClient, times(1)).changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_123"), any(Map.class));
+    verify(orderService, times(1)).changePreviewOrder(eq(accountId), eq(orderId), any(PreviewOrderRequest.class));
   }
 
   @Test
-  @DisplayName("Change Place Order - Success")
-  void changePlaceOrder_success() throws Exception {
-    // Create an order in database first
-    UUID orderId = createTestOrderInDatabase("ORDER_CHANGE_PLACE_123", "OPEN");
+  @DisplayName("PUT /api/etrade/orders/{orderId} should place changed order and return order DTO")
+  void placeChangedOrder_shouldReturnOrderDto() throws Exception {
+    UUID accountId = testAccountId;
+    UUID orderId = testOrderId;
 
-    // Build order request
-    Map<String, Object> orderRequest = OrderRequestBuilder.buildPreviewOrderRequest(
-        "AAPL",
-        OrderRequestBuilder.OrderAction.BUY,
-        15, // Changed quantity
-        OrderRequestBuilder.PriceType.LIMIT,
-        OrderRequestBuilder.OrderTerm.GOOD_FOR_DAY,
-        152.00, // Changed limit price
-        null,
-        OrderRequestBuilder.MarketSession.REGULAR,
-        "CHANGE_PLACE_123");
+    PlaceOrderRequest request = createTestPlaceOrderRequest();
+    EtradeOrderDto orderDto = createTestEtradeOrderDto();
 
-    // Mock preview response
-    Map<String, Object> mockPreviewResponse = createMockPreviewResponse("CHANGE_PREVIEW_789");
-    when(orderClient.changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class)))
-        .thenReturn(mockPreviewResponse);
+    when(orderService.placeChangedOrder(eq(accountId), eq(orderId), any(PlaceOrderRequest.class)))
+        .thenReturn(orderDto);
 
-    // Mock place response
-    Map<String, Object> mockPlaceResponse = createMockPlaceOrderResponse("ORDER_CHANGED_789");
-    when(orderClient.changePlaceOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class)))
-        .thenReturn(mockPlaceResponse);
-
-    // Call our application endpoint
     mockMvc.perform(put("/api/etrade/orders/{orderId}", orderId)
-            .param("accountId", testAccountId.toString())
+            .param("accountId", accountId.toString())
             .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(orderRequest)))
+            .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.symbol").value("AAPL"))
-        .andExpect(jsonPath("$.orderStatus").value("SUBMITTED"));
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(testOrderId.toString()))
+        .andExpect(jsonPath("$.symbol").value("AAPL"));
 
-    verify(orderClient, times(1)).changePreviewOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class));
-    verify(orderClient, times(1)).changePlaceOrder(eq(testAccountId), eq(testAccountIdKey), eq("ORDER_CHANGE_PLACE_123"), any(Map.class));
+    verify(orderService, times(1)).placeChangedOrder(eq(accountId), eq(orderId), any(PlaceOrderRequest.class));
   }
 
-  // ============================================================================
-  // HELPER METHODS
-  // ============================================================================
+  @Test
+  @DisplayName("DELETE /api/etrade/orders/{orderId} should cancel order and return cancel response")
+  void cancelOrder_shouldReturnCancelResponse() throws Exception {
+    UUID accountId = testAccountId;
+    UUID orderId = testOrderId;
 
-  private Map<String, Object> createMockOrder(String orderId, String symbol, String status, 
-                                               String side, int quantity) {
-    Map<String, Object> order = new HashMap<>();
-    order.put("orderId", orderId);
-    order.put("symbol", symbol);
-    order.put("orderStatus", status);
-    order.put("side", side);
-    order.put("quantity", quantity);
-    order.put("orderType", "EQ");
-    order.put("priceType", "MARKET");
-    return order;
+    CancelOrderResponse response = new CancelOrderResponse();
+    response.setSuccess(true);
+
+    when(orderService.cancelOrder(eq(accountId), eq(orderId)))
+        .thenReturn(response);
+
+    mockMvc.perform(delete("/api/etrade/orders/{orderId}", orderId)
+            .param("accountId", accountId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.success").value(true));
+
+    verify(orderService, times(1)).cancelOrder(eq(accountId), eq(orderId));
   }
 
-  private Map<String, Object> createMockPreviewResponse(String previewId) {
-    Map<String, Object> response = new HashMap<>();
-    response.put("accountId", testAccountIdKey);
-    response.put("PreviewIds", List.of(Map.of("previewId", previewId)));
-    response.put("totalOrderValue", 1500.00);
-    response.put("estimatedCommission", 6.95);
+  @Test
+  @DisplayName("POST /api/etrade/orders/preview should handle validation errors")
+  void previewOrder_shouldHandleValidationErrors() throws Exception {
+    UUID accountId = testAccountId;
+
+    // Invalid request - missing orderType
+    PreviewOrderRequest request = new PreviewOrderRequest();
+    request.setClientOrderId("CLIENT123");
+    // orderType is null - should fail validation
+
+    mockMvc.perform(post("/api/etrade/orders/preview")
+            .param("accountId", accountId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest());
+
+    verify(orderService, never()).previewOrder(any(), any());
+  }
+
+  // Helper methods
+
+  private PreviewOrderRequest createTestPreviewOrderRequest() {
+    PreviewOrderRequest request = new PreviewOrderRequest();
+    request.setOrderType("EQ");
+    request.setClientOrderId("CLIENT123");
+
+    OrderDetailDto orderDetail = new OrderDetailDto();
+    orderDetail.setPriceType("MARKET");
+    orderDetail.setOrderTerm("GOOD_FOR_DAY");
+    orderDetail.setMarketSession("REGULAR");
+    orderDetail.setAllOrNone(false);
+
+    OrderInstrumentDto instrument = new OrderInstrumentDto();
+    instrument.setOrderAction("BUY");
+    instrument.setQuantity(100);
+    instrument.setQuantityType("QUANTITY");
+
+    OrderProductDto product = new OrderProductDto();
+    product.setSymbol("AAPL");
+    product.setSecurityType("EQ");
+    instrument.setProduct(product);
+
+    orderDetail.setInstruments(List.of(instrument));
+    request.setOrders(List.of(orderDetail));
+
+    return request;
+  }
+
+  private PlaceOrderRequest createTestPlaceOrderRequest() {
+    PlaceOrderRequest request = new PlaceOrderRequest();
+    request.setPreviewId("PREVIEW123");
+    request.setOrderType("EQ");
+    request.setClientOrderId("CLIENT123");
+
+    OrderDetailDto orderDetail = new OrderDetailDto();
+    orderDetail.setPriceType("MARKET");
+    orderDetail.setOrderTerm("GOOD_FOR_DAY");
+    orderDetail.setMarketSession("REGULAR");
+
+    OrderInstrumentDto instrument = new OrderInstrumentDto();
+    instrument.setOrderAction("BUY");
+    instrument.setQuantity(100);
+    instrument.setQuantityType("QUANTITY");
+
+    OrderProductDto product = new OrderProductDto();
+    product.setSymbol("AAPL");
+    product.setSecurityType("EQ");
+    instrument.setProduct(product);
+
+    orderDetail.setInstruments(List.of(instrument));
+    request.setOrders(List.of(orderDetail));
+
+    return request;
+  }
+
+  private PreviewOrderResponse createTestPreviewOrderResponse() {
+    PreviewOrderResponse response = new PreviewOrderResponse();
+    response.setAccountId("840104290");
+
+    PreviewIdDto previewId = new PreviewIdDto("PREVIEW123");
+    response.setPreviewIds(List.of(previewId));
+
+    response.setTotalOrderValue(10000.0);
+    response.setEstimatedCommission(1.99);
+    response.setEstimatedTotalAmount(10001.99);
+
     return response;
   }
 
-  private Map<String, Object> createMockPlaceOrderResponse(String orderId) {
-    Map<String, Object> response = new HashMap<>();
-    response.put("orderIds", List.of(Map.of("orderId", orderId)));
-    response.put("messages", List.of(Map.of(
-        "type", "INFO",
-        "code", "ORDER_PLACED",
-        "description", "Order placed successfully"
-    )));
-    return response;
-  }
+  private OrdersResponse createTestOrdersResponse() {
+    OrdersResponse response = new OrdersResponse();
 
-  private UUID createTestOrderInDatabase(String etradeOrderId, String status) {
-    EtradeOrder order = new EtradeOrder();
-    order.setAccountId(testAccountId);
-    order.setEtradeOrderId(etradeOrderId);
-    order.setSymbol("AAPL");
+    EtradeOrderModel order = new EtradeOrderModel();
+    order.setOrderId("987654321");
     order.setOrderType("EQ");
-    order.setPriceType("MARKET");
-    order.setSide("BUY");
-    order.setQuantity(10);
-    order.setOrderStatus(status);
-    order.setPlacedAt(OffsetDateTime.now());
-    EtradeOrder saved = orderRepository.save(order);
-    return saved.getId();
+    order.setOrderStatus("OPEN");
+    order.setAccountId("840104290");
+    order.setClientOrderId("CLIENT123");
+
+    OrderDetailDto orderDetail = new OrderDetailDto();
+    orderDetail.setPriceType("MARKET");
+    orderDetail.setOrderTerm("GOOD_FOR_DAY");
+
+    OrderInstrumentDto instrument = new OrderInstrumentDto();
+    instrument.setOrderAction("BUY");
+    instrument.setQuantity(100);
+
+    OrderProductDto product = new OrderProductDto();
+    product.setSymbol("AAPL");
+    product.setSecurityType("EQ");
+    instrument.setProduct(product);
+
+    orderDetail.setInstruments(List.of(instrument));
+    order.setOrderDetails(List.of(orderDetail));
+
+    response.setOrders(List.of(order));
+    response.setMoreOrders(false);
+
+    return response;
+  }
+
+  private EtradeOrderDto createTestEtradeOrderDto() {
+    return new EtradeOrderDto(
+        testOrderId,
+        testAccountId,
+        "987654321",
+        "AAPL",
+        "EQ",
+        "MARKET",
+        "BUY",
+        100,
+        BigDecimal.valueOf(150.00),
+        null,
+        "SUBMITTED",
+        OffsetDateTime.now(),
+        null,
+        null,
+        null,
+        null);
   }
 }

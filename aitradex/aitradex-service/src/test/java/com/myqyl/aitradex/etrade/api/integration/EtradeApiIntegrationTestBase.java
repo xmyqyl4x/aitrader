@@ -74,6 +74,9 @@ public abstract class EtradeApiIntegrationTestBase {
   protected EtradeApiClientAccountAPI accountsApi;
 
   @MockBean
+  protected EtradeApiClientOrderAPI orderApi;
+
+  @MockBean
   protected com.myqyl.aitradex.etrade.client.EtradeAlertsClient alertsClient;
 
   @Autowired

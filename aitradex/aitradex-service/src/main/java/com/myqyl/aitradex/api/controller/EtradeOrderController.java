@@ -1,7 +1,9 @@
 package com.myqyl.aitradex.api.controller;
 
 import com.myqyl.aitradex.api.dto.EtradeOrderDto;
+import com.myqyl.aitradex.etrade.orders.dto.*;
 import com.myqyl.aitradex.etrade.service.EtradeOrderService;
+import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -15,6 +17,9 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Controller for E*TRADE order operations.
+ * 
+ * Refactored to use DTOs/Models instead of Maps.
+ * New endpoints use Order API DTOs.
  */
 @RestController
 @RequestMapping("/api/etrade/orders")
@@ -30,29 +35,40 @@ public class EtradeOrderController {
   }
 
   /**
-   * Previews an order before placement.
+   * Previews an order before placement using DTOs.
    */
   @PostMapping("/preview")
-  public ResponseEntity<Map<String, Object>> previewOrder(
+  public ResponseEntity<PreviewOrderResponse> previewOrder(
       @RequestParam UUID accountId,
-      @RequestBody Map<String, Object> orderRequest) {
-    Map<String, Object> preview = orderService.previewOrder(accountId, orderRequest);
+      @Valid @RequestBody PreviewOrderRequest request) {
+    PreviewOrderResponse preview = orderService.previewOrder(accountId, request);
     return ResponseEntity.ok(preview);
   }
 
   /**
-   * Places an order.
+   * Places an order using DTOs.
    */
   @PostMapping
   public ResponseEntity<EtradeOrderDto> placeOrder(
       @RequestParam UUID accountId,
-      @RequestBody Map<String, Object> orderRequest) {
-    EtradeOrderDto order = orderService.placeOrder(accountId, orderRequest);
+      @Valid @RequestBody PlaceOrderRequest request) {
+    EtradeOrderDto order = orderService.placeOrder(accountId, request);
     return ResponseEntity.ok(order);
   }
 
   /**
-   * Gets orders for an account.
+   * Lists orders for an account from E*TRADE API using DTOs.
+   */
+  @GetMapping("/list")
+  public ResponseEntity<OrdersResponse> listOrders(
+      @RequestParam UUID accountId,
+      @ModelAttribute ListOrdersRequest request) {
+    OrdersResponse orders = orderService.listOrders(accountId, request);
+    return ResponseEntity.ok(orders);
+  }
+
+  /**
+   * Gets orders for an account from database (paged).
    */
   @GetMapping
   public ResponseEntity<Page<EtradeOrderDto>> getOrders(
@@ -74,37 +90,37 @@ public class EtradeOrderController {
   }
 
   /**
-   * Previews a changed order (modifies an existing order).
+   * Previews a changed order (modifies an existing order) using DTOs.
    */
   @PutMapping("/{orderId}/preview")
-  public ResponseEntity<Map<String, Object>> changePreviewOrder(
+  public ResponseEntity<PreviewOrderResponse> changePreviewOrder(
       @RequestParam UUID accountId,
       @PathVariable UUID orderId,
-      @RequestBody Map<String, Object> orderRequest) {
-    Map<String, Object> preview = orderService.changePreviewOrder(accountId, orderId, orderRequest);
+      @Valid @RequestBody PreviewOrderRequest request) {
+    PreviewOrderResponse preview = orderService.changePreviewOrder(accountId, orderId, request);
     return ResponseEntity.ok(preview);
   }
 
   /**
-   * Places a changed order (modifies and places an existing order).
+   * Places a changed order (modifies and places an existing order) using DTOs.
    */
   @PutMapping("/{orderId}")
-  public ResponseEntity<EtradeOrderDto> changePlaceOrder(
+  public ResponseEntity<EtradeOrderDto> placeChangedOrder(
       @RequestParam UUID accountId,
       @PathVariable UUID orderId,
-      @RequestBody Map<String, Object> orderRequest) {
-    EtradeOrderDto order = orderService.changePlaceOrder(accountId, orderId, orderRequest);
+      @Valid @RequestBody PlaceOrderRequest request) {
+    EtradeOrderDto order = orderService.placeChangedOrder(accountId, orderId, request);
     return ResponseEntity.ok(order);
   }
 
   /**
-   * Cancels an order.
+   * Cancels an order using DTOs.
    */
   @DeleteMapping("/{orderId}")
-  public ResponseEntity<EtradeOrderDto> cancelOrder(
+  public ResponseEntity<CancelOrderResponse> cancelOrder(
       @RequestParam UUID accountId,
       @PathVariable UUID orderId) {
-    EtradeOrderDto order = orderService.cancelOrder(accountId, orderId);
-    return ResponseEntity.ok(order);
+    CancelOrderResponse response = orderService.cancelOrder(accountId, orderId);
+    return ResponseEntity.ok(response);
   }
 }

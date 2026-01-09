@@ -2,13 +2,16 @@ package com.myqyl.aitradex.etrade.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqyl.aitradex.api.dto.EtradeOrderDto;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientOrderAPI;
 import com.myqyl.aitradex.etrade.client.EtradeOrderClient;
 import com.myqyl.aitradex.etrade.domain.EtradeAccount;
 import com.myqyl.aitradex.etrade.domain.EtradeOrder;
+import com.myqyl.aitradex.etrade.orders.dto.*;
 import com.myqyl.aitradex.etrade.repository.EtradeAccountRepository;
 import com.myqyl.aitradex.etrade.repository.EtradeOrderRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -21,6 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service for managing E*TRADE orders.
+ * 
+ * Refactored to use DTOs/Models instead of Maps.
+ * New methods use EtradeApiClientOrderAPI with DTOs.
+ * Old methods are deprecated and delegate to new methods where possible.
  */
 @Service
 public class EtradeOrderService {
@@ -29,23 +36,42 @@ public class EtradeOrderService {
 
   private final EtradeOrderRepository orderRepository;
   private final EtradeAccountRepository accountRepository;
-  private final EtradeOrderClient orderClient;
+  private final EtradeOrderClient orderClient; // Deprecated - use orderApi instead
+  private final EtradeApiClientOrderAPI orderApi; // New API client with DTOs
   private final ObjectMapper objectMapper;
 
   public EtradeOrderService(
       EtradeOrderRepository orderRepository,
       EtradeAccountRepository accountRepository,
       EtradeOrderClient orderClient,
+      EtradeApiClientOrderAPI orderApi,
       ObjectMapper objectMapper) {
     this.orderRepository = orderRepository;
     this.accountRepository = accountRepository;
     this.orderClient = orderClient;
+    this.orderApi = orderApi;
     this.objectMapper = objectMapper;
   }
 
   /**
-   * Previews an order before placement.
+   * Previews an order before placement using DTOs.
+   * 
+   * @param accountId Internal account UUID
+   * @param request PreviewOrderRequest DTO
+   * @return PreviewOrderResponse DTO
    */
+  public PreviewOrderResponse previewOrder(UUID accountId, PreviewOrderRequest request) {
+    EtradeAccount account = accountRepository.findById(accountId)
+        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+
+    return orderApi.previewOrder(accountId, account.getAccountIdKey(), request);
+  }
+
+  /**
+   * Previews an order before placement (deprecated - uses Maps).
+   * @deprecated Use {@link #previewOrder(UUID, PreviewOrderRequest)} instead
+   */
+  @Deprecated
   public Map<String, Object> previewOrder(UUID accountId, Map<String, Object> orderRequest) {
     EtradeAccount account = accountRepository.findById(accountId)
         .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
@@ -54,8 +80,95 @@ public class EtradeOrderService {
   }
 
   /**
-   * Places an order.
+   * Places an order using DTOs.
+   * 
+   * @param accountId Internal account UUID
+   * @param request PlaceOrderRequest DTO
+   * @return EtradeOrderDto (internal order DTO for database entity)
    */
+  @Transactional
+  public EtradeOrderDto placeOrder(UUID accountId, PlaceOrderRequest request) {
+    EtradeAccount account = accountRepository.findById(accountId)
+        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+
+    // Build preview request from place request
+    PreviewOrderRequest previewRequest = new PreviewOrderRequest();
+    previewRequest.setOrderType(request.getOrderType());
+    previewRequest.setClientOrderId(request.getClientOrderId());
+    previewRequest.setOrders(request.getOrders());
+
+    // Preview first
+    PreviewOrderResponse preview = orderApi.previewOrder(accountId, account.getAccountIdKey(), previewRequest);
+
+    // Use the first preview ID from the preview response
+    if (preview.getPreviewIds().isEmpty()) {
+      throw new RuntimeException("No preview ID returned from preview order");
+    }
+    String previewId = preview.getPreviewIds().get(0).getPreviewId();
+
+    // Update place request with preview ID
+    PlaceOrderRequest placeRequest = new PlaceOrderRequest();
+    placeRequest.setPreviewId(previewId);
+    placeRequest.setOrderType(request.getOrderType());
+    placeRequest.setClientOrderId(request.getClientOrderId());
+    placeRequest.setOrders(request.getOrders());
+
+    // Place order
+    PlaceOrderResponse placeResponse = orderApi.placeOrder(accountId, account.getAccountIdKey(), placeRequest);
+
+    // Save order to database
+    EtradeOrder order = new EtradeOrder();
+    order.setAccountId(accountId);
+    
+    if (!placeResponse.getOrderIds().isEmpty()) {
+      order.setEtradeOrderId(placeResponse.getOrderIds().get(0).getOrderId());
+    }
+
+    // Extract order details from request
+    if (!request.getOrders().isEmpty()) {
+      OrderDetailDto orderDetail = request.getOrders().get(0);
+      order.setPriceType(orderDetail.getPriceType());
+      order.setOrderType(request.getOrderType());
+      
+      if (orderDetail.getLimitPrice() != null) {
+        order.setLimitPrice(BigDecimal.valueOf(orderDetail.getLimitPrice()));
+      }
+      if (orderDetail.getStopPrice() != null) {
+        order.setStopPrice(BigDecimal.valueOf(orderDetail.getStopPrice()));
+      }
+
+      // Extract instrument details
+      if (!orderDetail.getInstruments().isEmpty()) {
+        OrderInstrumentDto instrument = orderDetail.getInstruments().get(0);
+        if (instrument.getProduct() != null) {
+          order.setSymbol(instrument.getProduct().getSymbol());
+        }
+        order.setQuantity(instrument.getQuantity());
+        order.setSide(instrument.getOrderAction());
+      }
+    }
+
+    try {
+      order.setPreviewData(objectMapper.writeValueAsString(preview));
+      order.setOrderResponse(objectMapper.writeValueAsString(placeResponse));
+    } catch (Exception e) {
+      log.warn("Failed to serialize order data", e);
+    }
+
+    order.setOrderStatus("SUBMITTED");
+    order.setPlacedAt(OffsetDateTime.now());
+
+    EtradeOrder saved = orderRepository.save(order);
+    log.info("Placed E*TRADE order {} for account {}", saved.getEtradeOrderId(), accountId);
+
+    return toDto(saved);
+  }
+
+  /**
+   * Places an order (deprecated - uses Maps).
+   * @deprecated Use {@link #placeOrder(UUID, PlaceOrderRequest)} instead
+   */
+  @Deprecated
   @Transactional
   public EtradeOrderDto placeOrder(UUID accountId, Map<String, Object> orderRequest) {
     EtradeAccount account = accountRepository.findById(accountId)
@@ -119,19 +232,32 @@ public class EtradeOrderService {
   }
 
   /**
-   * Gets orders for an account.
-   * Fetches from E*TRADE API and syncs with database.
+   * Gets orders for an account using DTOs.
+   * 
+   * @param accountId Internal account UUID
+   * @param request ListOrdersRequest DTO containing query parameters
+   * @return OrdersResponse DTO
    */
-  public Page<EtradeOrderDto> getOrders(UUID accountId, Pageable pageable) {
+  public OrdersResponse listOrders(UUID accountId, ListOrdersRequest request) {
     EtradeAccount account = accountRepository.findById(accountId)
         .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
     
-    // Fetch orders from E*TRADE API
-    List<Map<String, Object>> etradeOrders = orderClient.getOrders(accountId, account.getAccountIdKey(),
-        null, null, null, null, null, null, null, null, null);
+    return orderApi.listOrders(accountId, account.getAccountIdKey(), request);
+  }
+
+  /**
+   * Gets orders for an account (paged from database).
+   * Fetches from database with pagination.
+   * 
+   * @param accountId Internal account UUID
+   * @param pageable Pagination parameters
+   * @return Page of EtradeOrderDto (internal order DTOs)
+   */
+  public Page<EtradeOrderDto> getOrders(UUID accountId, Pageable pageable) {
+    accountRepository.findById(accountId)
+        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
     
-    // Sync with database (simplified - in production, you'd want to merge/update existing orders)
-    // For now, return from database with pagination
+    // Return from database with pagination
     return orderRepository.findByAccountId(accountId, pageable)
         .map(this::toDto);
   }
@@ -151,8 +277,32 @@ public class EtradeOrderService {
   }
 
   /**
-   * Previews a changed order (modifies an existing order).
+   * Previews a changed order (modifies an existing order) using DTOs.
+   * 
+   * @param accountId Internal account UUID
+   * @param orderId Internal order UUID
+   * @param request PreviewOrderRequest DTO
+   * @return PreviewOrderResponse DTO
    */
+  public PreviewOrderResponse changePreviewOrder(UUID accountId, UUID orderId, PreviewOrderRequest request) {
+    EtradeOrder order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+    if (!order.getAccountId().equals(accountId)) {
+      throw new RuntimeException("Order does not belong to account");
+    }
+
+    EtradeAccount account = accountRepository.findById(accountId)
+        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+
+    return orderApi.changePreviewOrder(accountId, account.getAccountIdKey(), order.getEtradeOrderId(), request);
+  }
+
+  /**
+   * Previews a changed order (deprecated - uses Maps).
+   * @deprecated Use {@link #changePreviewOrder(UUID, UUID, PreviewOrderRequest)} instead
+   */
+  @Deprecated
   public Map<String, Object> changePreviewOrder(UUID accountId, UUID orderId, Map<String, Object> orderRequest) {
     EtradeOrder order = orderRepository.findById(orderId)
         .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
@@ -168,8 +318,78 @@ public class EtradeOrderService {
   }
 
   /**
-   * Places a changed order (modifies and places an existing order).
+   * Places a changed order (modifies and places an existing order) using DTOs.
+   * 
+   * @param accountId Internal account UUID
+   * @param orderId Internal order UUID
+   * @param request PlaceOrderRequest DTO
+   * @return EtradeOrderDto (internal order DTO)
    */
+  @Transactional
+  public EtradeOrderDto placeChangedOrder(UUID accountId, UUID orderId, PlaceOrderRequest request) {
+    EtradeOrder order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
+    if (!order.getAccountId().equals(accountId)) {
+      throw new RuntimeException("Order does not belong to account");
+    }
+
+    EtradeAccount account = accountRepository.findById(accountId)
+        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+
+    // Build preview request from place request
+    PreviewOrderRequest previewRequest = new PreviewOrderRequest();
+    previewRequest.setOrderType(request.getOrderType());
+    previewRequest.setClientOrderId(request.getClientOrderId());
+    previewRequest.setOrders(request.getOrders());
+
+    // Preview first
+    PreviewOrderResponse preview = orderApi.changePreviewOrder(accountId, account.getAccountIdKey(), 
+        order.getEtradeOrderId(), previewRequest);
+
+    // Use the first preview ID from the preview response
+    if (preview.getPreviewIds().isEmpty()) {
+      throw new RuntimeException("No preview ID returned from preview order");
+    }
+    String previewId = preview.getPreviewIds().get(0).getPreviewId();
+
+    // Update place request with preview ID
+    PlaceOrderRequest placeRequest = new PlaceOrderRequest();
+    placeRequest.setPreviewId(previewId);
+    placeRequest.setOrderType(request.getOrderType());
+    placeRequest.setClientOrderId(request.getClientOrderId());
+    placeRequest.setOrders(request.getOrders());
+
+    // Place changed order
+    PlaceOrderResponse placeResponse = orderApi.placeChangedOrder(accountId, account.getAccountIdKey(), 
+        order.getEtradeOrderId(), placeRequest);
+
+    // Update order in database
+    if (!placeResponse.getOrderIds().isEmpty()) {
+      order.setEtradeOrderId(placeResponse.getOrderIds().get(0).getOrderId());
+    }
+
+    try {
+      order.setPreviewData(objectMapper.writeValueAsString(preview));
+      order.setOrderResponse(objectMapper.writeValueAsString(placeResponse));
+    } catch (Exception e) {
+      log.warn("Failed to serialize order data", e);
+    }
+
+    order.setOrderStatus("SUBMITTED");
+    order.setPlacedAt(OffsetDateTime.now());
+
+    EtradeOrder saved = orderRepository.save(order);
+    log.info("Placed changed E*TRADE order {} for account {}", saved.getEtradeOrderId(), accountId);
+
+    return toDto(saved);
+  }
+
+  /**
+   * Places a changed order (deprecated - uses Maps).
+   * @deprecated Use {@link #placeChangedOrder(UUID, UUID, PlaceOrderRequest)} instead
+   */
+  @Deprecated
   @Transactional
   public EtradeOrderDto changePlaceOrder(UUID accountId, UUID orderId, Map<String, Object> orderRequest) {
     EtradeOrder order = orderRepository.findById(orderId)
@@ -214,10 +434,14 @@ public class EtradeOrderService {
   }
 
   /**
-   * Cancels an order.
+   * Cancels an order using DTOs.
+   * 
+   * @param accountId Internal account UUID
+   * @param orderId Internal order UUID
+   * @return CancelOrderResponse DTO
    */
   @Transactional
-  public EtradeOrderDto cancelOrder(UUID accountId, UUID orderId) {
+  public CancelOrderResponse cancelOrder(UUID accountId, UUID orderId) {
     EtradeOrder order = orderRepository.findById(orderId)
         .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
@@ -228,15 +452,34 @@ public class EtradeOrderService {
     EtradeAccount account = accountRepository.findById(accountId)
         .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
 
-    orderClient.cancelOrder(accountId, account.getAccountIdKey(), order.getEtradeOrderId());
+    CancelOrderRequest request = new CancelOrderRequest(order.getEtradeOrderId());
+    CancelOrderResponse response = orderApi.cancelOrder(accountId, account.getAccountIdKey(), request);
 
-    order.setOrderStatus("CANCELLED");
-    order.setCancelledAt(OffsetDateTime.now());
-    EtradeOrder saved = orderRepository.save(order);
+    if (Boolean.TRUE.equals(response.getSuccess())) {
+      order.setOrderStatus("CANCELLED");
+      order.setCancelledAt(OffsetDateTime.now());
+      orderRepository.save(order);
+      log.info("Cancelled E*TRADE order {}", order.getEtradeOrderId());
+    } else {
+      log.warn("Failed to cancel E*TRADE order {}: {}", order.getEtradeOrderId(), response.getMessages());
+    }
 
-    log.info("Cancelled E*TRADE order {}", order.getEtradeOrderId());
+    return response;
+  }
 
-    return toDto(saved);
+  /**
+   * Cancels an order (deprecated - returns internal order DTO).
+   * @deprecated Use {@link #cancelOrder(UUID, UUID)} which returns CancelOrderResponse
+   */
+  @Deprecated
+  @Transactional
+  public EtradeOrderDto cancelOrderLegacy(UUID accountId, UUID orderId) {
+    CancelOrderResponse response = cancelOrder(accountId, orderId);
+    
+    EtradeOrder order = orderRepository.findById(orderId)
+        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+    
+    return toDto(order);
   }
 
   private EtradeOrderDto toDto(EtradeOrder order) {
