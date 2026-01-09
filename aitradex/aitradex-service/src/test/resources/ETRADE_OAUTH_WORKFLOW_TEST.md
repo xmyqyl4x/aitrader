@@ -66,7 +66,7 @@ For Step 3 tests, you need to manually authorize and provide the `oauth_verifier
 4. **Get the `oauth_verifier`:**
    - **Option A (Callback URL):** If callback URL is configured, check the redirect URL:
      ```
-     http://localhost:4200/etrade-review-trade/callback?oauth_verifier=<VERIFIER>
+     http://localhost:4205/etrade-review-trade/callback?oauth_verifier=<VERIFIER>
      ```
    - **Option B (Out-of-band):** If using out-of-band flow, the verifier will be displayed on the page
 

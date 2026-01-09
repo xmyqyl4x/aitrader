@@ -201,7 +201,7 @@ Using Playwright or Cypress:
 - Check Liquibase migration ran successfully
 
 ### API Errors
-- Verify backend is running on port 8080
+- Verify backend is running on port 8085
 - Check CORS configuration if accessing from different origin
 - Verify Alpha Vantage API key is configured
 

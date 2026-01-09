@@ -84,7 +84,7 @@ aitradex-ui/
 
 The Playwright configuration (`playwright.config.ts`) includes:
 
-- **Base URL**: `http://localhost:4200` (configurable via `PLAYWRIGHT_BASE_URL` environment variable)
+- **Base URL**: `http://localhost:4205` (configurable via `PLAYWRIGHT_BASE_URL` environment variable)
 - **Test Directory**: `./e2e`
 - **Reporters**: HTML report and console list
 - **Browsers**: Chromium, Firefox, WebKit (Safari)

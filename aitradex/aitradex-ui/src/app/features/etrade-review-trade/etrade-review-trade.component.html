@@ -1,43 +1,22 @@
-<!-- Page Title -->
-<div class="page-title">
-  <h1>E*TRADE Review & Trade</h1>
-  <p>Link your E*TRADE account, view quotes, place orders, and manage your portfolio.</p>
-</div>
-
-<!-- OAuth Status -->
+<!-- Status Banner -->
 <div class="row mb-3">
   <div class="col-md-12">
-    <div class="card">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h5 class="mb-0">Connection Status</h5>
-            <p class="text-muted mb-0">
-              <span [ngClass]="oauthStatus.connected ? 'text-success' : 'text-danger'">
-                {{ oauthStatus.connected ? 'Connected' : 'Not Connected' }}
-              </span>
-              <span *ngIf="oauthStatus.hasAccounts" class="ms-3">
-                {{ oauthStatus.accountCount }} account(s) linked
-              </span>
-            </p>
-          </div>
-          <button 
-            *ngIf="!oauthStatus.connected" 
-            type="button" 
-            class="btn btn-primary"
-            (click)="initiateOAuth()"
-            [disabled]="loading">
-            <i class="fa fa-link me-2"></i>Link E*TRADE Account
-          </button>
-          <button 
-            *ngIf="oauthStatus.connected" 
-            type="button" 
-            class="btn btn-outline-secondary"
-            (click)="loadAccounts()"
-            [disabled]="loading">
-            <i class="fa fa-refresh me-2"></i>Refresh Accounts
-          </button>
+    <div class="alert" [ngClass]="getStatusBannerClass()" role="alert">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <strong>Connection Status:</strong> {{ getStatusBannerText() }}
+          <span *ngIf="oauthStatus.hasAccounts" class="ms-3">
+            {{ oauthStatus.accountCount }} account(s) linked
+          </span>
         </div>
+        <button 
+          *ngIf="!oauthStatus.connected || oauthStatus.tokenStatus === 'EXPIRED' || oauthStatus.tokenStatus === 'INVALID' || oauthStatus.tokenStatus === 'MISSING'" 
+          type="button" 
+          class="btn btn-sm btn-primary"
+          (click)="onLinkAccountClick()"
+          [disabled]="loading">
+          <i class="fa fa-link me-2"></i>Link E*TRADE Account
+        </button>
       </div>
     </div>
   </div>
@@ -53,285 +32,207 @@
   <button type="button" class="btn-close" (click)="successMessage = null" aria-label="Close"></button>
 </div>
 
-<!-- Account Selection -->
-<div *ngIf="oauthStatus.hasAccounts && accounts.length > 0" class="row mb-3">
+<!-- Navigation Menu -->
+<div class="row mb-3">
   <div class="col-md-12">
-    <div class="card">
-      <div class="card-header">
-        <i class="fa fa-wallet me-2"></i>Select Account
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6" *ngFor="let account of accounts">
-            <div class="card mb-2" [class.bg-primary]="selectedAccount?.id === account.id" 
-                 [class.text-white]="selectedAccount?.id === account.id"
-                 style="cursor: pointer;" (click)="selectAccount(account)">
-              <div class="card-body">
-                <h6 class="card-title mb-1">{{ account.accountName || 'E*TRADE Account' }}</h6>
-                <small class="card-text">{{ account.accountType }} - {{ account.accountStatus }}</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="activeSection === 'accounts'" 
+           (click)="setActiveSection('accounts')" style="cursor: pointer;">
+          <i class="fa fa-wallet me-2"></i>Accounts
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="activeSection === 'market'" 
+           (click)="setActiveSection('market')" style="cursor: pointer;">
+          <i class="fa fa-chart-line me-2"></i>Market
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="activeSection === 'order'" 
+           (click)="setActiveSection('order')" style="cursor: pointer;">
+          <i class="fa fa-shopping-cart me-2"></i>Order
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="activeSection === 'alerts'" 
+           (click)="setActiveSection('alerts')" style="cursor: pointer;">
+          <i class="fa fa-bell me-2"></i>Alerts
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="activeSection === 'research'" 
+           (click)="setActiveSection('research')" style="cursor: pointer;">
+          <i class="fa fa-search me-2"></i>Research and Analysis
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="activeSection === 'algorithm'" 
+           (click)="setActiveSection('algorithm')" style="cursor: pointer;">
+          <i class="fa fa-cogs me-2"></i>Algorithm
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" [class.active]="activeSection === 'quant'" 
+           (click)="setActiveSection('quant')" style="cursor: pointer;">
+          <i class="fa fa-calculator me-2"></i>Quant
+        </a>
+      </li>
+    </ul>
   </div>
 </div>
 
-<!-- Account Balance & Portfolio -->
-<div *ngIf="selectedAccount" class="row mb-3">
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">
-        <i class="fa fa-dollar-sign me-2"></i>Account Balance
-      </div>
-      <div class="card-body">
-        <div *ngIf="accountBalance">
-          <div class="h5 mb-0" *ngIf="accountBalance.computed?.total">
-            ${{ accountBalance.computed.total }}
-          </div>
-          <small class="text-muted">Available: ${{ accountBalance.computed?.cashAvailableForInvestment || 'N/A' }}</small>
-        </div>
-        <div *ngIf="!accountBalance && !loading" class="text-muted">No balance data</div>
-      </div>
-    </div>
-  </div>
-  
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">
-        <i class="fa fa-briefcase me-2"></i>Portfolio
-      </div>
-      <div class="card-body">
-        <div *ngIf="accountPortfolio?.positions?.length > 0">
-          <div *ngFor="let position of accountPortfolio.positions" class="mb-2">
-            <strong>{{ position.symbol }}</strong> - {{ position.quantity }} shares
-          </div>
-        </div>
-        <div *ngIf="!accountPortfolio || !accountPortfolio.positions || accountPortfolio.positions.length === 0" class="text-muted">
-          No positions
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Quote Search -->
-<div *ngIf="selectedAccount" class="row mb-3">
+<!-- Accounts Section -->
+<div *ngIf="activeSection === 'accounts'" class="row">
   <div class="col-md-12">
     <div class="card">
-      <div class="card-header">
-        <i class="fa fa-chart-line me-2"></i>Get Quote
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fa fa-wallet me-2"></i>E*TRADE Accounts</h5>
+        <button 
+          type="button" 
+          class="btn btn-sm btn-primary"
+          (click)="loadAccounts()"
+          [disabled]="loading">
+          <i class="fa fa-refresh me-2"></i>Refresh
+        </button>
       </div>
       <div class="card-body">
-        <form [formGroup]="quoteForm" (ngSubmit)="getQuote()" class="row g-3">
-          <div class="col-md-8">
-            <input
-              type="text"
-              formControlName="symbol"
-              class="form-control"
-              placeholder="Enter symbol (e.g., AAPL)"
-              [class.is-invalid]="quoteForm.get('symbol')?.invalid && quoteForm.get('symbol')?.touched"
-            />
-          </div>
-          <div class="col-md-4">
-            <button type="submit" class="btn btn-primary w-100" [disabled]="quoteForm.invalid || loading">
-              <i class="fa fa-search me-2"></i>Get Quote
-            </button>
-          </div>
-        </form>
-        
-        <!-- Quote Display -->
-        <div *ngIf="currentQuote" class="mt-3">
-          <div class="card bg-light">
-            <div class="card-body">
-              <h5>{{ currentQuote.symbol }} - {{ currentQuote.companyName }}</h5>
-              <div class="row">
-                <div class="col-md-3">
-                  <strong>Last:</strong> ${{ currentQuote.lastTrade }}
-                </div>
-                <div class="col-md-3">
-                  <strong>Change:</strong> 
-                  <span [ngClass]="currentQuote.change >= 0 ? 'text-success' : 'text-danger'">
-                    {{ currentQuote.change >= 0 ? '+' : '' }}{{ currentQuote.change }} 
-                    ({{ currentQuote.changePercent }}%)
-                  </span>
-                </div>
-                <div class="col-md-3">
-                  <strong>High:</strong> ${{ currentQuote.high }}
-                </div>
-                <div class="col-md-3">
-                  <strong>Low:</strong> ${{ currentQuote.low }}
-                </div>
-              </div>
-            </div>
-          </div>
+        <!-- Link Account Button (when no accounts) -->
+        <div *ngIf="accounts.length === 0 && !loading" class="text-center py-5">
+          <i class="fa fa-link" style="font-size: 64px; color: #ccc;"></i>
+          <h5 class="mt-3 text-muted">No E*TRADE Accounts Linked</h5>
+          <p class="text-muted">Link your E*TRADE account to start trading and managing your portfolio.</p>
+          <button type="button" class="btn btn-primary" (click)="initiateOAuthFlow()" [disabled]="loading">
+            <i class="fa fa-link me-2"></i>Link E*TRADE Account
+          </button>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- Order Form -->
-<div *ngIf="selectedAccount" class="row mb-3">
-  <div class="col-md-12">
-    <div class="card">
-      <div class="card-header">
-        <i class="fa fa-shopping-cart me-2"></i>Place Order
-      </div>
-      <div class="card-body">
-        <form [formGroup]="orderForm" class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label">Symbol <span class="text-danger">*</span></label>
-            <input
-              type="text"
-              formControlName="symbol"
-              class="form-control"
-              placeholder="AAPL"
-              [class.is-invalid]="orderForm.get('symbol')?.invalid && orderForm.get('symbol')?.touched"
-            />
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Side <span class="text-danger">*</span></label>
-            <select formControlName="side" class="form-select">
-              <option value="BUY">BUY</option>
-              <option value="SELL">SELL</option>
-            </select>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Quantity <span class="text-danger">*</span></label>
-            <input
-              type="number"
-              formControlName="quantity"
-              class="form-control"
-              min="1"
-            />
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Price Type <span class="text-danger">*</span></label>
-            <select formControlName="priceType" class="form-select">
-              <option value="LIMIT">LIMIT</option>
-              <option value="MARKET">MARKET</option>
-              <option value="STOP">STOP</option>
-              <option value="STOP_LIMIT">STOP LIMIT</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Limit Price</label>
-            <input
-              type="number"
-              formControlName="limitPrice"
-              class="form-control"
-              step="0.01"
-              *ngIf="orderForm.value.priceType !== 'MARKET'"
-            />
-            <input
-              type="text"
-              class="form-control"
-              value="Market Price"
-              disabled
-              *ngIf="orderForm.value.priceType === 'MARKET'"
-            />
-          </div>
-          <div class="col-12">
-            <button
-              type="button"
-              class="btn btn-outline-primary me-2"
-              (click)="previewOrder()"
-              [disabled]="orderForm.invalid || loading">
-              <i class="fa fa-eye me-2"></i>Preview Order
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              (click)="placeOrder()"
-              [disabled]="orderForm.invalid || loading">
-              <i class="fa fa-check me-2"></i>Place Order
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Order List -->
-<div *ngIf="selectedAccount && orders.length > 0" class="row">
-  <div class="col-md-12">
-    <div class="card">
-      <div class="card-header">
-        <i class="fa fa-list me-2"></i>Recent Orders
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
+        <!-- Account List Table -->
+        <div *ngIf="accounts.length > 0" class="table-responsive">
           <table class="table table-hover">
             <thead>
               <tr>
-                <th>Symbol</th>
-                <th>Side</th>
-                <th>Quantity</th>
-                <th>Type</th>
-                <th>Price</th>
+                <th>Account Name</th>
+                <th>Account Type</th>
+                <th>Account ID Key</th>
                 <th>Status</th>
-                <th>Placed At</th>
+                <th>Connection Status</th>
+                <th>Authorization Status</th>
+                <th>Last Synced</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let order of orders">
-                <td>{{ order.symbol }}</td>
-                <td>{{ order.side }}</td>
-                <td>{{ order.quantity }}</td>
-                <td>{{ order.orderType }}</td>
-                <td>${{ order.limitPrice || 'Market' }}</td>
+              <tr *ngFor="let account of accounts">
+                <td>{{ account.accountName || 'E*TRADE Account' }}</td>
+                <td>{{ account.accountType }}</td>
+                <td>
+                  <code>{{ account.accountIdKey || account.id }}</code>
+                </td>
                 <td>
                   <span class="badge" [ngClass]="{
-                    'bg-success': order.orderStatus === 'EXECUTED',
-                    'bg-warning': order.orderStatus === 'SUBMITTED',
-                    'bg-danger': order.orderStatus === 'CANCELLED'
+                    'bg-success': account.accountStatus === 'ACTIVE',
+                    'bg-warning': account.accountStatus === 'PENDING',
+                    'bg-danger': account.accountStatus === 'INACTIVE'
                   }">
-                    {{ order.orderStatus }}
+                    {{ account.accountStatus }}
                   </span>
                 </td>
-                <td>{{ order.placedAt | date:'short' }}</td>
                 <td>
-                  <button
-                    *ngIf="order.orderStatus !== 'CANCELLED' && order.orderStatus !== 'EXECUTED'"
-                    type="button"
-                    class="btn btn-sm btn-danger"
-                    (click)="cancelOrder(order.id)">
-                    <i class="fa fa-times"></i> Cancel
-                  </button>
+                  <span class="badge" [ngClass]="{
+                    'bg-success': getAccountConnectionStatus(account) === 'Connected',
+                    'bg-warning': getAccountConnectionStatus(account) === 'Not Connected'
+                  }">
+                    {{ getAccountConnectionStatus(account) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="{
+                    'bg-success': getAccountAuthorizationStatus(account) === 'Authorized',
+                    'bg-warning': getAccountAuthorizationStatus(account) === 'Token Expired',
+                    'bg-danger': getAccountAuthorizationStatus(account) === 'Token Invalid' || getAccountAuthorizationStatus(account) === 'Missing',
+                    'bg-secondary': getAccountAuthorizationStatus(account) === 'Not Authorized'
+                  }">
+                    {{ getAccountAuthorizationStatus(account) }}
+                  </span>
+                </td>
+                <td>
+                  <small class="text-muted">
+                    {{ account.lastSyncedAt ? (account.lastSyncedAt | date:'short') : 'Never' }}
+                  </small>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary"
+                      (click)="viewAccountDetails(account)"
+                      title="View Details">
+                      <i class="fa fa-eye"></i> View Details
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-success"
+                      (click)="connectAccount(account)"
+                      [disabled]="loading"
+                      title="Connect Account">
+                      <i class="fa fa-plug"></i> Connect Account
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <!-- Loading Indicator -->
+        <div *ngIf="loading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-3 text-muted">Loading accounts...</p>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Loading Indicator -->
-<div *ngIf="loading" class="text-center py-5">
-  <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-    <span class="visually-hidden">Loading...</span>
-  </div>
-  <p class="mt-3 text-muted">Processing...</p>
-</div>
-
-<!-- Empty State -->
-<div *ngIf="!oauthStatus.connected && !loading" class="row">
+<!-- Placeholder Sections for Other Tabs -->
+<div *ngIf="activeSection !== 'accounts'" class="row">
   <div class="col-md-12">
     <div class="card">
       <div class="card-body text-center py-5">
-        <i class="fa fa-link" style="font-size: 64px; color: #ccc;"></i>
-        <h5 class="mt-3 text-muted">No E*TRADE Account Linked</h5>
-        <p class="text-muted">Link your E*TRADE account to start trading and managing your portfolio.</p>
-        <button type="button" class="btn btn-primary" (click)="initiateOAuth()">
-          <i class="fa fa-link me-2"></i>Link E*TRADE Account
-        </button>
+        <i class="fa fa-cog fa-spin" style="font-size: 48px; color: #ccc;"></i>
+        <h5 class="mt-3 text-muted">{{ activeSection | titlecase }} Section</h5>
+        <p class="text-muted">This section is coming soon.</p>
       </div>
     </div>
   </div>
 </div>
+
+<!-- OAuth Flow Modal (if needed for manual verifier entry) -->
+<div *ngIf="showVerifierInput && oauthFlowActive" class="modal fade show" style="display: block;" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Enter OAuth Verifier</h5>
+        <button type="button" class="btn-close" (click)="showVerifierInput = false; oauthFlowActive = false"></button>
+      </div>
+      <div class="modal-body">
+        <p>Please enter the verification code from E*TRADE:</p>
+        <input
+          type="text"
+          class="form-control"
+          [value]="oauthVerifier"
+          (input)="oauthVerifier = $any($event.target).value"
+          placeholder="Enter verification code"
+        />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="showVerifierInput = false; oauthFlowActive = false">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="submitOAuthVerifier()">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div *ngIf="showVerifierInput && oauthFlowActive" class="modal-backdrop fade show"></div>

@@ -182,20 +182,20 @@ These providers are disabled by default due to unreliability. Use Alpha Vantage 
 
 ### Fetch from default provider (Alpha Vantage):
 ```bash
-curl http://localhost:8080/api/market-data/quotes/latest?symbol=AAPL
+curl http://localhost:8085/api/market-data/quotes/latest?symbol=AAPL
 ```
 
 ### Fetch from specific provider:
 ```bash
-curl "http://localhost:8080/api/market-data/quotes/latest?symbol=AAPL&source=alphavantage"
+curl "http://localhost:8085/api/market-data/quotes/latest?symbol=AAPL&source=alphavantage"
 ```
 
 ### List available providers:
 ```bash
-curl http://localhost:8080/api/market-data/sources
+curl http://localhost:8085/api/market-data/sources
 ```
 
 ### Check provider health:
 ```bash
-curl http://localhost:8080/api/market-data/health
+curl http://localhost:8085/api/market-data/health
 ```

@@ -20,7 +20,7 @@ public class EtradeProperties {
   private String consumerSecret;
 
   @NotBlank
-  private String callbackUrl = "http://localhost:4200/etrade-review-trade/callback";
+  private String callbackUrl = "http://localhost:4205/etrade-review-trade/callback";
 
   @NotNull
   private Environment environment = Environment.SANDBOX;

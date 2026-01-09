@@ -56,7 +56,7 @@ class EtradeOAuthWorkflowStandaloneTest {
     properties.setAuthorizeUrl(System.getenv().getOrDefault("ETRADE_AUTHORIZE_URL", 
         "https://us.etrade.com/e/t/etws/authorize"));
     properties.setCallbackUrl(System.getenv().getOrDefault("ETRADE_CALLBACK_URL", 
-        "http://localhost:4200/etrade-review-trade/callback"));
+        "http://localhost:4205/etrade-review-trade/callback"));
     
     // Set encryption key (use default if not provided)
     if (encryptionKey == null || encryptionKey.isEmpty()) {

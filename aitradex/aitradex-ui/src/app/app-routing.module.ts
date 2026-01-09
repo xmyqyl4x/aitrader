@@ -9,6 +9,7 @@ import { AuditComponent } from './features/audit/audit.component';
 import { StockReviewComponent } from './features/stock-review/stock-review.component';
 import { StockReviewStackComponent } from './features/stock-review/stock-review-stack.component';
 import { EtradeReviewTradeComponent } from './features/etrade-review-trade/etrade-review-trade.component';
+import { EtradeAccountDetailsComponent } from './features/etrade-review-trade/etrade-account-details/etrade-account-details.component';
 
 const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -21,6 +22,7 @@ const routes: Routes = [
   { path: 'stock-review', component: StockReviewComponent },
   { path: 'stock-review/searches', component: StockReviewStackComponent },
   { path: 'etrade-review-trade', component: EtradeReviewTradeComponent },
+  { path: 'etrade-review-trade/accounts/:accountIdKey', component: EtradeAccountDetailsComponent },
   { path: '**', redirectTo: '' }
 ];
 

@@ -78,9 +78,9 @@ Liquibase migrations will run automatically when the Spring Boot application sta
 ### Health Check Endpoint
 Once the application is running:
 ```bash
-curl http://localhost:8080/actuator/health
+curl http://localhost:8085/actuator/health
 # or
-Invoke-WebRequest -Uri "http://localhost:8080/actuator/health" -UseBasicParsing
+Invoke-WebRequest -Uri "http://localhost:8085/actuator/health" -UseBasicParsing
 ```
 
 Expected response:
@@ -89,9 +89,9 @@ Expected response:
 ```
 
 ### API Endpoints
-- **Swagger UI**: `http://localhost:8080/api/swagger-ui.html`
-- **API Docs**: `http://localhost:8080/api/docs`
-- **Health**: `http://localhost:8080/actuator/health`
+- **Swagger UI**: `http://localhost:8085/api/swagger-ui.html`
+- **API Docs**: `http://localhost:8085/api/docs`
+- **Health**: `http://localhost:8085/actuator/health`
 
 ## 6. Test Suite Execution
 
