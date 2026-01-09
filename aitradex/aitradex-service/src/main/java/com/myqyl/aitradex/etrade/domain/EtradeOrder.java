@@ -57,10 +57,33 @@ public class EtradeOrder {
   private OffsetDateTime cancelledAt;
 
   @Column(name = "preview_data", columnDefinition = "jsonb")
+  @org.hibernate.annotations.ColumnTransformer(write = "?::jsonb")
   private String previewData;
 
   @Column(name = "order_response", columnDefinition = "jsonb")
+  @org.hibernate.annotations.ColumnTransformer(write = "?::jsonb")
   private String orderResponse;
+
+  @Column(name = "client_order_id")
+  private String clientOrderId;
+
+  @Column(name = "preview_id")
+  private String previewId;
+
+  @Column(name = "preview_time")
+  private OffsetDateTime previewTime;
+
+  @Column(name = "last_synced_at")
+  private OffsetDateTime lastSyncedAt;
+
+  @Column(name = "account_id_key")
+  private String accountIdKey;
+
+  @Column(name = "placed_time")
+  private Long placedTime; // Epoch milliseconds from E*TRADE
+
+  @Column(name = "cancel_time")
+  private Long cancelTime; // Epoch milliseconds from E*TRADE
 
   @CreatedDate
   @Column(name = "created_at", nullable = false)
@@ -217,5 +240,61 @@ public class EtradeOrder {
 
   public void setUpdatedAt(OffsetDateTime updatedAt) {
     this.updatedAt = updatedAt;
+  }
+
+  public String getClientOrderId() {
+    return clientOrderId;
+  }
+
+  public void setClientOrderId(String clientOrderId) {
+    this.clientOrderId = clientOrderId;
+  }
+
+  public String getPreviewId() {
+    return previewId;
+  }
+
+  public void setPreviewId(String previewId) {
+    this.previewId = previewId;
+  }
+
+  public OffsetDateTime getPreviewTime() {
+    return previewTime;
+  }
+
+  public void setPreviewTime(OffsetDateTime previewTime) {
+    this.previewTime = previewTime;
+  }
+
+  public OffsetDateTime getLastSyncedAt() {
+    return lastSyncedAt;
+  }
+
+  public void setLastSyncedAt(OffsetDateTime lastSyncedAt) {
+    this.lastSyncedAt = lastSyncedAt;
+  }
+
+  public String getAccountIdKey() {
+    return accountIdKey;
+  }
+
+  public void setAccountIdKey(String accountIdKey) {
+    this.accountIdKey = accountIdKey;
+  }
+
+  public Long getPlacedTime() {
+    return placedTime;
+  }
+
+  public void setPlacedTime(Long placedTime) {
+    this.placedTime = placedTime;
+  }
+
+  public Long getCancelTime() {
+    return cancelTime;
+  }
+
+  public void setCancelTime(Long cancelTime) {
+    this.cancelTime = cancelTime;
   }
 }

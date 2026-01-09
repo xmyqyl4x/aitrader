@@ -686,6 +686,9 @@ public class EtradeApiClientOrderAPI {
       response.setOrderIds(orderIds);
     }
     
+    // Parse placedTime
+    response.setPlacedTime(getLongValue(placeOrderNode, "placedTime"));
+    
     // Parse Messages
     JsonNode messagesNode = placeOrderNode.path("Messages");
     if (!messagesNode.isMissingNode()) {

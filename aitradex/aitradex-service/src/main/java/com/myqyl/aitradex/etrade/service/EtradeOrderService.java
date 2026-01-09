@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,17 +54,23 @@ public class EtradeOrderService {
   }
 
   /**
-   * Previews an order before placement using DTOs.
+   * Previews an order before placement using DTOs and persists preview attempt.
    * 
    * @param accountId Internal account UUID
    * @param request PreviewOrderRequest DTO
    * @return PreviewOrderResponse DTO
    */
+  @Transactional(noRollbackFor = com.myqyl.aitradex.etrade.exception.EtradeApiException.class)
   public PreviewOrderResponse previewOrder(UUID accountId, PreviewOrderRequest request) {
     EtradeAccount account = accountRepository.findById(accountId)
         .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
 
-    return orderApi.previewOrder(accountId, account.getAccountIdKey(), request);
+    PreviewOrderResponse response = orderApi.previewOrder(accountId, account.getAccountIdKey(), request);
+    
+    // Persist preview attempt (save preview record)
+    persistPreviewAttempt(accountId, account.getAccountIdKey(), request, response);
+    
+    return response;
   }
 
   /**
@@ -118,9 +125,23 @@ public class EtradeOrderService {
     // Save order to database
     EtradeOrder order = new EtradeOrder();
     order.setAccountId(accountId);
+    order.setAccountIdKey(account.getAccountIdKey());
+    order.setClientOrderId(request.getClientOrderId());
+    order.setPreviewId(previewId);
+    order.setPreviewTime(OffsetDateTime.now());
     
     if (!placeResponse.getOrderIds().isEmpty()) {
       order.setEtradeOrderId(placeResponse.getOrderIds().get(0).getOrderId());
+    }
+    
+    // Set placedTime from response
+    if (placeResponse.getPlacedTime() != null) {
+      order.setPlacedTime(placeResponse.getPlacedTime());
+      order.setPlacedAt(OffsetDateTime.ofInstant(
+          java.time.Instant.ofEpochMilli(placeResponse.getPlacedTime()),
+          java.time.ZoneOffset.UTC));
+    } else {
+      order.setPlacedAt(OffsetDateTime.now());
     }
 
     // Extract order details from request
@@ -155,7 +176,6 @@ public class EtradeOrderService {
     }
 
     order.setOrderStatus("SUBMITTED");
-    order.setPlacedAt(OffsetDateTime.now());
 
     EtradeOrder saved = orderRepository.save(order);
     log.info("Placed E*TRADE order {} for account {}", saved.getEtradeOrderId(), accountId);
@@ -231,17 +251,23 @@ public class EtradeOrderService {
   }
 
   /**
-   * Gets orders for an account using DTOs.
+   * Gets orders for an account using DTOs and persists orders (upsert by orderId + accountIdKey).
    * 
    * @param accountId Internal account UUID
    * @param request ListOrdersRequest DTO containing query parameters
    * @return OrdersResponse DTO
    */
+  @Transactional(noRollbackFor = com.myqyl.aitradex.etrade.exception.EtradeApiException.class)
   public OrdersResponse listOrders(UUID accountId, ListOrdersRequest request) {
     EtradeAccount account = accountRepository.findById(accountId)
         .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
     
-    return orderApi.listOrders(accountId, account.getAccountIdKey(), request);
+    OrdersResponse response = orderApi.listOrders(accountId, account.getAccountIdKey(), request);
+    
+    // Persist orders (upsert by orderId + accountIdKey)
+    persistOrders(accountId, account.getAccountIdKey(), response);
+    
+    return response;
   }
 
   /**
@@ -367,6 +393,16 @@ public class EtradeOrderService {
     if (!placeResponse.getOrderIds().isEmpty()) {
       order.setEtradeOrderId(placeResponse.getOrderIds().get(0).getOrderId());
     }
+    
+    // Set placedTime from response
+    if (placeResponse.getPlacedTime() != null) {
+      order.setPlacedTime(placeResponse.getPlacedTime());
+      order.setPlacedAt(OffsetDateTime.ofInstant(
+          java.time.Instant.ofEpochMilli(placeResponse.getPlacedTime()),
+          java.time.ZoneOffset.UTC));
+    } else {
+      order.setPlacedAt(OffsetDateTime.now());
+    }
 
     try {
       order.setPreviewData(objectMapper.writeValueAsString(preview));
@@ -376,7 +412,6 @@ public class EtradeOrderService {
     }
 
     order.setOrderStatus("SUBMITTED");
-    order.setPlacedAt(OffsetDateTime.now());
 
     EtradeOrder saved = orderRepository.save(order);
     log.info("Placed changed E*TRADE order {} for account {}", saved.getEtradeOrderId(), accountId);
@@ -480,6 +515,177 @@ public class EtradeOrderService {
         .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
     
     return toDto(order);
+  }
+
+  // ============================================================================
+  // Persistence Helper Methods
+  // ============================================================================
+
+  /**
+   * Persists orders from List Orders response (upsert by orderId + accountIdKey).
+   */
+  private void persistOrders(UUID accountId, String accountIdKey, OrdersResponse response) {
+    try {
+      List<EtradeOrderModel> orders = response.getOrders();
+      if (orders == null || orders.isEmpty()) {
+        log.debug("No orders to persist for account {}", accountId);
+        return;
+      }
+      
+      OffsetDateTime syncTime = OffsetDateTime.now();
+      
+      for (EtradeOrderModel orderModel : orders) {
+        if (orderModel.getOrderId() == null || orderModel.getOrderId().isEmpty()) {
+          log.warn("Order missing orderId, skipping persistence");
+          continue;
+        }
+        
+        // Upsert by orderId + accountIdKey
+        Optional<EtradeOrder> existing = orderRepository.findByEtradeOrderIdAndAccountIdKey(
+            orderModel.getOrderId(), accountIdKey);
+        EtradeOrder order;
+        
+        if (existing.isPresent()) {
+          // Update existing order
+          order = existing.get();
+          order.setLastSyncedAt(syncTime);
+        } else {
+          // Create new order
+          order = new EtradeOrder();
+          order.setAccountId(accountId);
+          order.setAccountIdKey(accountIdKey);
+          order.setEtradeOrderId(orderModel.getOrderId());
+          order.setLastSyncedAt(syncTime);
+        }
+        
+        // Update order fields from model
+        updateOrderFromModel(order, orderModel);
+        
+        // Store raw response as JSON
+        try {
+          order.setOrderResponse(objectMapper.writeValueAsString(orderModel));
+        } catch (Exception e) {
+          log.warn("Failed to serialize order to JSON", e);
+        }
+        
+        orderRepository.save(order);
+        log.debug("Persisted order {} for account {}", orderModel.getOrderId(), accountId);
+      }
+      
+      log.info("Persisted {} orders for account {}", orders.size(), accountId);
+    } catch (Exception e) {
+      log.error("Failed to persist orders for account {}", accountId, e);
+      // Don't throw - persistence failure shouldn't break the API call
+    }
+  }
+
+  /**
+   * Persists preview attempt (saves preview record).
+   */
+  private void persistPreviewAttempt(UUID accountId, String accountIdKey, 
+                                     PreviewOrderRequest request, PreviewOrderResponse response) {
+    try {
+      if (response.getPreviewIds().isEmpty()) {
+        log.debug("No preview IDs in response, skipping preview persistence");
+        return;
+      }
+      
+      String previewId = response.getPreviewIds().get(0).getPreviewId();
+      if (previewId == null || previewId.isEmpty()) {
+        log.debug("Preview ID is null or empty, skipping preview persistence");
+        return;
+      }
+      
+      // Create a preview record (could be stored in a separate table, but for now we'll
+      // store it as an order with preview data)
+      EtradeOrder previewOrder = new EtradeOrder();
+      previewOrder.setAccountId(accountId);
+      previewOrder.setAccountIdKey(accountIdKey);
+      previewOrder.setPreviewId(previewId);
+      previewOrder.setClientOrderId(request.getClientOrderId());
+      previewOrder.setPreviewTime(OffsetDateTime.now());
+      previewOrder.setLastSyncedAt(OffsetDateTime.now());
+      
+      // Extract order details from request for preview record
+      if (!request.getOrders().isEmpty()) {
+        OrderDetailDto orderDetail = request.getOrders().get(0);
+        previewOrder.setPriceType(orderDetail.getPriceType());
+        previewOrder.setOrderType(request.getOrderType());
+        
+        if (orderDetail.getLimitPrice() != null) {
+          previewOrder.setLimitPrice(BigDecimal.valueOf(orderDetail.getLimitPrice()));
+        }
+        if (orderDetail.getStopPrice() != null) {
+          previewOrder.setStopPrice(BigDecimal.valueOf(orderDetail.getStopPrice()));
+        }
+        
+        // Extract instrument details
+        if (!orderDetail.getInstruments().isEmpty()) {
+          OrderInstrumentDto instrument = orderDetail.getInstruments().get(0);
+          if (instrument.getProduct() != null) {
+            previewOrder.setSymbol(instrument.getProduct().getSymbol());
+          }
+          previewOrder.setQuantity(instrument.getQuantity());
+          previewOrder.setSide(instrument.getOrderAction());
+        }
+      }
+      
+      // Store preview response as JSON
+      try {
+        previewOrder.setPreviewData(objectMapper.writeValueAsString(response));
+      } catch (Exception e) {
+        log.warn("Failed to serialize preview response to JSON", e);
+      }
+      
+      // Store preview request as part of preview data
+      previewOrder.setOrderStatus("PREVIEW");
+      
+      orderRepository.save(previewOrder);
+      log.info("Persisted preview attempt {} for account {}", previewId, accountId);
+    } catch (Exception e) {
+      log.error("Failed to persist preview attempt for account {}", accountId, e);
+      // Don't throw - persistence failure shouldn't break the API call
+    }
+  }
+
+  /**
+   * Updates order entity from EtradeOrderModel DTO.
+   */
+  private void updateOrderFromModel(EtradeOrder order, EtradeOrderModel orderModel) {
+    order.setOrderType(orderModel.getOrderType());
+    order.setOrderStatus(orderModel.getOrderStatus());
+    order.setClientOrderId(orderModel.getClientOrderId());
+    
+    if (orderModel.getPlacedTime() != null) {
+      order.setPlacedTime(orderModel.getPlacedTime());
+      // Convert epoch milliseconds to OffsetDateTime
+      order.setPlacedAt(OffsetDateTime.ofInstant(
+          java.time.Instant.ofEpochMilli(orderModel.getPlacedTime()),
+          java.time.ZoneOffset.UTC));
+    }
+    
+    // Update order details from first order detail
+    if (orderModel.getOrderDetails() != null && !orderModel.getOrderDetails().isEmpty()) {
+      OrderDetailDto orderDetail = orderModel.getOrderDetails().get(0);
+      order.setPriceType(orderDetail.getPriceType());
+      
+      if (orderDetail.getLimitPrice() != null) {
+        order.setLimitPrice(BigDecimal.valueOf(orderDetail.getLimitPrice()));
+      }
+      if (orderDetail.getStopPrice() != null) {
+        order.setStopPrice(BigDecimal.valueOf(orderDetail.getStopPrice()));
+      }
+      
+      // Update instrument details
+      if (orderDetail.getInstruments() != null && !orderDetail.getInstruments().isEmpty()) {
+        OrderInstrumentDto instrument = orderDetail.getInstruments().get(0);
+        if (instrument.getProduct() != null) {
+          order.setSymbol(instrument.getProduct().getSymbol());
+        }
+        order.setQuantity(instrument.getQuantity());
+        order.setSide(instrument.getOrderAction());
+      }
+    }
   }
 
   private EtradeOrderDto toDto(EtradeOrder order) {

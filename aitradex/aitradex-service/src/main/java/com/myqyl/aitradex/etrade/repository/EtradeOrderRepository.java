@@ -18,7 +18,13 @@ public interface EtradeOrderRepository extends JpaRepository<EtradeOrder, UUID> 
   
   Optional<EtradeOrder> findByEtradeOrderId(String etradeOrderId);
   
+  Optional<EtradeOrder> findByEtradeOrderIdAndAccountIdKey(String etradeOrderId, String accountIdKey);
+  
+  Optional<EtradeOrder> findByPreviewId(String previewId);
+  
   List<EtradeOrder> findByAccountIdAndOrderStatus(UUID accountId, String orderStatus);
   
   List<EtradeOrder> findBySymbol(String symbol);
+  
+  List<EtradeOrder> findByAccountIdOrderByLastSyncedAtDesc(UUID accountId);
 }

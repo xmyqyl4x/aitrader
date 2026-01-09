@@ -15,6 +15,8 @@ public class PlaceOrderResponse {
   @Valid
   private List<OrderIdDto> orderIds;
   
+  private Long placedTime; // Epoch milliseconds from E*TRADE
+  
   @Valid
   private List<MessageDto> messages;
 
@@ -29,6 +31,14 @@ public class PlaceOrderResponse {
 
   public void setOrderIds(List<OrderIdDto> orderIds) {
     this.orderIds = orderIds != null ? orderIds : new ArrayList<>();
+  }
+
+  public Long getPlacedTime() {
+    return placedTime;
+  }
+
+  public void setPlacedTime(Long placedTime) {
+    this.placedTime = placedTime;
   }
 
   public List<MessageDto> getMessages() {

@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0008-etrade-orders-persistence
+      author: aitradex
+      context: dev,test,prod
+      logicalFilePath: db/changelog/changesets/0008-etrade-orders-persistence.yaml
+      changes:
+        # Add missing fields to etrade_order table for Orders API persistence
+        - addColumn:
+            tableName: etrade_order
+            columns:
+              - column: {name: client_order_id, type: varchar(255)}
+              - column: {name: preview_id, type: varchar(255)}
+              - column: {name: preview_time, type: timestamptz}
+              - column: {name: last_synced_at, type: timestamptz}
+              - column: {name: account_id_key, type: varchar(255)}
+              - column: {name: placed_time, type: bigint} # Epoch milliseconds from E*TRADE
+              - column: {name: cancel_time, type: bigint} # Epoch milliseconds from E*TRADE
+        
+        # Add unique constraint for upsert logic: orderId + accountIdKey
+        - addUniqueConstraint:
+            tableName: etrade_order
+            columnNames: etrade_order_id, account_id_key
+            constraintName: uk_etrade_order_order_id_account_key
+            deferrable: false
+        
+        # Add index for last_synced_at for efficient queries
+        - createIndex:
+            tableName: etrade_order
+            indexName: idx_etrade_order_last_synced_at
+            columns:
+              - column: {name: last_synced_at, descending: true}
