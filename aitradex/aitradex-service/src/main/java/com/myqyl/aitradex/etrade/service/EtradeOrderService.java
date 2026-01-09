@@ -11,7 +11,6 @@ import com.myqyl.aitradex.etrade.repository.EtradeAccountRepository;
 import com.myqyl.aitradex.etrade.repository.EtradeOrderRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -474,7 +473,8 @@ public class EtradeOrderService {
   @Deprecated
   @Transactional
   public EtradeOrderDto cancelOrderLegacy(UUID accountId, UUID orderId) {
-    CancelOrderResponse response = cancelOrder(accountId, orderId);
+    // Cancel the order (response is used to ensure cancellation happens)
+    cancelOrder(accountId, orderId);
     
     EtradeOrder order = orderRepository.findById(orderId)
         .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
