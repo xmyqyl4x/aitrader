@@ -236,7 +236,7 @@ class EtradeOrdersApiIntegrationTest extends EtradeApiIntegrationTestBase {
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
 
-    verify(orderService, never()).previewOrder(any(), any());
+    verify(orderService, never()).previewOrder(any(UUID.class), any(com.myqyl.aitradex.etrade.orders.dto.PreviewOrderRequest.class));
   }
 
   // Helper methods

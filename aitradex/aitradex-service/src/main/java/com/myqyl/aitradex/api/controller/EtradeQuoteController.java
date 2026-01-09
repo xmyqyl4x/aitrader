@@ -1,24 +1,22 @@
 package com.myqyl.aitradex.api.controller;
 
+import com.myqyl.aitradex.etrade.market.dto.*;
 import com.myqyl.aitradex.etrade.service.EtradeQuoteService;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * Controller for E*TRADE quote operations.
+ * 
+ * Refactored to use DTOs/Models instead of Maps.
+ * New endpoints use Market API DTOs.
  */
 @RestController
 @RequestMapping("/api/etrade/quotes")
 @ConditionalOnProperty(name = "app.etrade.enabled", havingValue = "true", matchIfMissing = false)
 public class EtradeQuoteController {
-
-  private static final Logger log = LoggerFactory.getLogger(EtradeQuoteController.class);
 
   private final EtradeQuoteService quoteService;
 
@@ -27,57 +25,60 @@ public class EtradeQuoteController {
   }
 
   /**
-   * Gets quote for a symbol.
+   * Gets quote for a symbol using DTOs.
    */
   @GetMapping("/{symbol}")
-  public ResponseEntity<Map<String, Object>> getQuote(
+  public ResponseEntity<EtradeQuoteModel> getQuote(
       @PathVariable String symbol,
-      @RequestParam UUID accountId,
+      @RequestParam(required = false) UUID accountId,
       @RequestParam(required = false) String detailFlag,
       @RequestParam(required = false) Boolean requireEarningsDate,
-      @RequestParam(required = false) Integer overrideSymbolCount,
+      @RequestParam(required = false) Boolean overrideSymbolCount,
       @RequestParam(required = false) Boolean skipMiniOptionsCheck) {
-    String[] symbolArray = {symbol};
-    List<Map<String, Object>> quotes = quoteService.getQuotes(accountId, symbolArray, detailFlag,
-                                                               requireEarningsDate, overrideSymbolCount, skipMiniOptionsCheck);
-    if (quotes.isEmpty()) {
-      throw new RuntimeException("Quote not found for symbol: " + symbol);
-    }
-    return ResponseEntity.ok(quotes.get(0));
+    EtradeQuoteModel quote = quoteService.getQuote(accountId, symbol, detailFlag);
+    return ResponseEntity.ok(quote);
   }
 
   /**
-   * Gets quotes for multiple symbols.
+   * Gets quotes for multiple symbols using DTOs.
    */
   @GetMapping
-  public ResponseEntity<List<Map<String, Object>>> getQuotes(
+  public ResponseEntity<QuoteResponse> getQuotes(
       @RequestParam String symbols,
-      @RequestParam UUID accountId,
+      @RequestParam(required = false) UUID accountId,
       @RequestParam(required = false) String detailFlag,
       @RequestParam(required = false) Boolean requireEarningsDate,
-      @RequestParam(required = false) Integer overrideSymbolCount,
+      @RequestParam(required = false) Boolean overrideSymbolCount,
       @RequestParam(required = false) Boolean skipMiniOptionsCheck) {
-    String[] symbolArray = symbols.split(",");
-    List<Map<String, Object>> quotes = quoteService.getQuotes(accountId, symbolArray, detailFlag,
-                                                               requireEarningsDate, overrideSymbolCount, skipMiniOptionsCheck);
-    return ResponseEntity.ok(quotes);
+    GetQuotesRequest request = new GetQuotesRequest();
+    request.setSymbols(symbols);
+    request.setDetailFlag(detailFlag);
+    request.setRequireEarningsDate(requireEarningsDate);
+    request.setOverrideSymbolCount(overrideSymbolCount);
+    request.setSkipMiniOptionsCheck(skipMiniOptionsCheck);
+    
+    QuoteResponse response = quoteService.getQuotes(accountId, request);
+    return ResponseEntity.ok(response);
   }
 
   /**
-   * Looks up products by symbol or company name.
+   * Looks up products by symbol or company name using DTOs.
    */
   @GetMapping("/lookup")
-  public ResponseEntity<List<Map<String, Object>>> lookupProduct(
+  public ResponseEntity<LookupProductResponse> lookupProduct(
       @RequestParam String input) {
-    List<Map<String, Object>> products = quoteService.lookupProduct(input);
-    return ResponseEntity.ok(products);
+    LookupProductRequest request = new LookupProductRequest();
+    request.setInput(input);
+    
+    LookupProductResponse response = quoteService.lookupProduct(request);
+    return ResponseEntity.ok(response);
   }
 
   /**
-   * Gets option chains for a symbol.
+   * Gets option chains for a symbol using DTOs.
    */
   @GetMapping("/option-chains")
-  public ResponseEntity<Map<String, Object>> getOptionChains(
+  public ResponseEntity<OptionChainResponse> getOptionChains(
       @RequestParam String symbol,
       @RequestParam(required = false) Integer expiryYear,
       @RequestParam(required = false) Integer expiryMonth,
@@ -86,19 +87,32 @@ public class EtradeQuoteController {
       @RequestParam(required = false) Integer noOfStrikes,
       @RequestParam(required = false) String optionCategory,
       @RequestParam(required = false) String chainType) {
-    Map<String, Object> chains = quoteService.getOptionChains(symbol, expiryYear, expiryMonth,
-        expiryDay, strikePriceNear, noOfStrikes, optionCategory, chainType);
-    return ResponseEntity.ok(chains);
+    GetOptionChainsRequest request = new GetOptionChainsRequest();
+    request.setSymbol(symbol);
+    request.setExpiryYear(expiryYear);
+    request.setExpiryMonth(expiryMonth);
+    request.setExpiryDay(expiryDay);
+    request.setStrikePriceNear(strikePriceNear);
+    request.setNoOfStrikes(noOfStrikes);
+    request.setOptionCategory(optionCategory);
+    request.setChainType(chainType);
+    
+    OptionChainResponse response = quoteService.getOptionChains(request);
+    return ResponseEntity.ok(response);
   }
 
   /**
-   * Gets option expire dates for a symbol.
+   * Gets option expire dates for a symbol using DTOs.
    */
   @GetMapping("/option-expire-dates")
-  public ResponseEntity<List<Map<String, Object>>> getOptionExpireDates(
+  public ResponseEntity<OptionExpireDateResponse> getOptionExpireDates(
       @RequestParam String symbol,
       @RequestParam(required = false) String expiryType) {
-    List<Map<String, Object>> dates = quoteService.getOptionExpireDates(symbol, expiryType);
-    return ResponseEntity.ok(dates);
+    GetOptionExpireDatesRequest request = new GetOptionExpireDatesRequest();
+    request.setSymbol(symbol);
+    request.setExpiryType(expiryType);
+    
+    OptionExpireDateResponse response = quoteService.getOptionExpireDates(request);
+    return ResponseEntity.ok(response);
   }
 }
