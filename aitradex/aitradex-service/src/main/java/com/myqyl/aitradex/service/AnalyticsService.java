@@ -9,6 +9,7 @@ import com.myqyl.aitradex.exception.NotFoundException;
 import com.myqyl.aitradex.repository.AccountRepository;
 import com.myqyl.aitradex.repository.PortfolioSnapshotRepository;
 import com.myqyl.aitradex.repository.PositionRepository;
+import com.myqyl.aitradex.util.PriceUtils;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -97,8 +98,10 @@ public class AnalyticsService {
         .map(
             position -> {
               var quote = marketDataService.latestQuote(position.getSymbol(), source);
-              BigDecimal lastPrice =
-                  firstAvailable(quote.close(), quote.open(), quote.high(), quote.low());
+              BigDecimal lastPrice = null;
+              if (quote != null) {
+                lastPrice = PriceUtils.firstAvailable(quote.close(), quote.open(), quote.high(), quote.low());
+              }
               BigDecimal pnl =
                   lastPrice != null && position.getCostBasis() != null
                       ? lastPrice.subtract(position.getCostBasis()).multiply(position.getQuantity())
@@ -136,14 +139,5 @@ public class AnalyticsService {
 
   private NotFoundException accountNotFound(UUID id) {
     return new NotFoundException("Account %s not found".formatted(id));
-  }
-
-  private BigDecimal firstAvailable(BigDecimal... values) {
-    for (BigDecimal value : values) {
-      if (value != null) {
-        return value;
-      }
-    }
-    return null;
   }
 }

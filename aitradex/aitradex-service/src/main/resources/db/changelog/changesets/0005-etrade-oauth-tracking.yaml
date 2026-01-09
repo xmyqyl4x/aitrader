@@ -102,3 +102,47 @@ databaseChangeLog:
             columns:
               - column:
                   name: correlation_id
+
+      rollback:
+        - dropIndex:
+            indexName: idx_etrade_oauth_token_correlation_id
+            tableName: etrade_oauth_token
+        - dropIndex:
+            indexName: idx_etrade_oauth_token_user_id
+            tableName: etrade_oauth_token
+        - dropIndex:
+            indexName: idx_etrade_oauth_token_start_time
+            tableName: etrade_oauth_token
+        - dropIndex:
+            indexName: idx_etrade_oauth_token_status
+            tableName: etrade_oauth_token
+        - sql:
+            sql: ALTER TABLE etrade_oauth_token ALTER COLUMN access_token_secret_encrypted SET NOT NULL
+        - sql:
+            sql: ALTER TABLE etrade_oauth_token ALTER COLUMN access_token_encrypted SET NOT NULL
+        - sql:
+            sql: ALTER TABLE etrade_oauth_token ALTER COLUMN account_id SET NOT NULL
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: user_id
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: correlation_id
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: environment
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: error_code
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: error_message
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: status
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: end_time
+        - dropColumn:
+            tableName: etrade_oauth_token
+            columnName: start_time

@@ -56,3 +56,19 @@ databaseChangeLog:
             indexName: idx_stock_quote_search_user
             columns:
               - column: {name: created_by_user_id}
+
+      rollback:
+        - dropIndex:
+            indexName: idx_stock_quote_search_user
+            tableName: stock_quote_search
+        - dropIndex:
+            indexName: idx_stock_quote_search_status
+            tableName: stock_quote_search
+        - dropIndex:
+            indexName: idx_stock_quote_search_created_at
+            tableName: stock_quote_search
+        - dropIndex:
+            indexName: idx_stock_quote_search_symbol
+            tableName: stock_quote_search
+        - dropTable:
+            tableName: stock_quote_search

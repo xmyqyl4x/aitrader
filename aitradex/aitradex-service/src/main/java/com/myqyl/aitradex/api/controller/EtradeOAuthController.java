@@ -137,7 +137,8 @@ public class EtradeOAuthController {
       return new RedirectView("/etrade-review-trade?success=account_linked", true);
     } catch (Exception e) {
       log.error("OAuth callback failed", e);
-      return new RedirectView("/etrade-review-trade?error=" + e.getMessage(), true);
+      // Use static error code to prevent redirect injection via exception messages
+      return new RedirectView("/etrade-review-trade?error=callback_failed", true);
     }
   }
 

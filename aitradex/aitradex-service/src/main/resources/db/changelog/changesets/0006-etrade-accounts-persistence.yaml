@@ -217,3 +217,59 @@ databaseChangeLog:
             tableName: etrade_portfolio_position
             constraintName: uk_etrade_portfolio_position_account_position
             columnNames: account_id,position_id
+
+      rollback:
+        - dropUniqueConstraint:
+            tableName: etrade_portfolio_position
+            constraintName: uk_etrade_portfolio_position_account_position
+        - dropForeignKeyConstraint:
+            baseTableName: etrade_portfolio_position
+            constraintName: fk_etrade_portfolio_position_account
+        - dropIndex:
+            indexName: idx_etrade_portfolio_position_snapshot_time
+            tableName: etrade_portfolio_position
+        - dropIndex:
+            indexName: idx_etrade_portfolio_position_symbol
+            tableName: etrade_portfolio_position
+        - dropIndex:
+            indexName: idx_etrade_portfolio_position_account_position_id
+            tableName: etrade_portfolio_position
+        - dropIndex:
+            indexName: idx_etrade_portfolio_position_position_id
+            tableName: etrade_portfolio_position
+        - dropIndex:
+            indexName: idx_etrade_portfolio_position_account_id
+            tableName: etrade_portfolio_position
+        - dropTable:
+            tableName: etrade_portfolio_position
+        - dropForeignKeyConstraint:
+            baseTableName: etrade_transaction
+            constraintName: fk_etrade_transaction_account
+        - dropIndex:
+            indexName: idx_etrade_transaction_account_date
+            tableName: etrade_transaction
+        - dropIndex:
+            indexName: idx_etrade_transaction_transaction_date
+            tableName: etrade_transaction
+        - dropIndex:
+            indexName: idx_etrade_transaction_transaction_id
+            tableName: etrade_transaction
+        - dropIndex:
+            indexName: idx_etrade_transaction_account_id
+            tableName: etrade_transaction
+        - dropTable:
+            tableName: etrade_transaction
+        - dropForeignKeyConstraint:
+            baseTableName: etrade_balance
+            constraintName: fk_etrade_balance_account
+        - dropIndex:
+            indexName: idx_etrade_balance_account_snapshot_time
+            tableName: etrade_balance
+        - dropIndex:
+            indexName: idx_etrade_balance_snapshot_time
+            tableName: etrade_balance
+        - dropIndex:
+            indexName: idx_etrade_balance_account_id
+            tableName: etrade_balance
+        - dropTable:
+            tableName: etrade_balance

@@ -9,6 +9,7 @@ import com.myqyl.aitradex.exception.NotFoundException;
 import com.myqyl.aitradex.repository.AccountRepository;
 import com.myqyl.aitradex.repository.PortfolioSnapshotRepository;
 import com.myqyl.aitradex.repository.PositionRepository;
+import com.myqyl.aitradex.util.PriceUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -70,7 +71,10 @@ public class PortfolioSnapshotService {
         continue;
       }
       var quote = marketDataService.latestQuote(position.getSymbol(), source);
-      BigDecimal price = firstAvailable(quote.close(), quote.open(), quote.high(), quote.low());
+      if (quote == null) {
+        continue;
+      }
+      BigDecimal price = PriceUtils.firstAvailable(quote.close(), quote.open(), quote.high(), quote.low());
       if (price == null) {
         continue;
       }
@@ -151,12 +155,4 @@ public class PortfolioSnapshotService {
         .orElse(null);
   }
 
-  private BigDecimal firstAvailable(BigDecimal... values) {
-    for (BigDecimal value : values) {
-      if (value != null) {
-        return value;
-      }
-    }
-    return null;
-  }
 }

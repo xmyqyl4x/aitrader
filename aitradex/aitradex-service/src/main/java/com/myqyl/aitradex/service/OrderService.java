@@ -13,6 +13,7 @@ import com.myqyl.aitradex.exception.NotFoundException;
 import com.myqyl.aitradex.repository.AccountRepository;
 import com.myqyl.aitradex.repository.OrderRepository;
 import com.myqyl.aitradex.repository.PositionRepository;
+import com.myqyl.aitradex.util.PriceUtils;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -185,21 +186,14 @@ public class OrderService {
 
     if (price == null && request.type() == OrderType.MARKET) {
       var quote = marketDataService.latestQuote(request.symbol());
-      price = firstAvailable(quote.close(), quote.open(), quote.high(), quote.low());
+      if (quote != null) {
+        price = PriceUtils.firstAvailable(quote.close(), quote.open(), quote.high(), quote.low());
+      }
     }
 
     if (price == null) {
       throw new IllegalArgumentException("Unable to estimate order price for validation");
     }
     return price.multiply(request.quantity());
-  }
-
-  private BigDecimal firstAvailable(BigDecimal... values) {
-    for (BigDecimal value : values) {
-      if (value != null) {
-        return value;
-      }
-    }
-    return null;
   }
 }

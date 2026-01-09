@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UploadService {
+
+  private static final Logger log = LoggerFactory.getLogger(UploadService.class);
 
   private final UploadRepository uploadRepository;
   private final UserRepository userRepository;
@@ -114,6 +118,7 @@ public class UploadService {
       upload.setStoredPath(targetPath.toString());
       upload.setStatus(UploadStatus.PROCESSING);
     } catch (IOException ex) {
+      log.error("Failed to store uploaded file for upload {}: {}", upload.getId(), ex.getMessage(), ex);
       upload.setStatus(UploadStatus.FAILED);
       upload.setErrorReport(ex.getMessage());
       upload.setCompletedAt(OffsetDateTime.now());
@@ -278,6 +283,7 @@ public class UploadService {
     try {
       return objectMapper.writeValueAsString(payload);
     } catch (JsonProcessingException ex) {
+      log.warn("Failed to serialize validation errors: {}", ex.getMessage(), ex);
       return "{\"errors\":[],\"errorCount\":0}";
     }
   }
