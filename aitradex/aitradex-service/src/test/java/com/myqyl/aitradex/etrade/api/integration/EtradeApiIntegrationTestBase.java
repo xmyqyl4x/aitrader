@@ -3,6 +3,7 @@ package com.myqyl.aitradex.etrade.api.integration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqyl.aitradex.etrade.client.EtradeAccountClient;
 import com.myqyl.aitradex.etrade.client.EtradeApiClientAccountAPI;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAlertsAPI;
 import com.myqyl.aitradex.etrade.client.EtradeApiClientMarketAPI;
 import com.myqyl.aitradex.etrade.client.EtradeApiClientOrderAPI;
 import com.myqyl.aitradex.etrade.client.EtradeOrderClient;

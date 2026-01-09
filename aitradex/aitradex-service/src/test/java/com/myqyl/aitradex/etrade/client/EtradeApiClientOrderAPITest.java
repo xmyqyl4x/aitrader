@@ -232,7 +232,7 @@ class EtradeApiClientOrderAPITest {
     EtradeApiException exception = assertThrows(EtradeApiException.class, () ->
         orderApi.previewOrder(TEST_ACCOUNT_ID, TEST_ACCOUNT_ID_KEY, request));
 
-    assertEquals(400, exception.getStatusCode());
+    assertEquals(400, exception.getHttpStatus());
     assertEquals("PREVIEW_ORDER_FAILED", exception.getErrorCode());
     assertTrue(exception.getMessage().contains("Invalid order request"));
   }
