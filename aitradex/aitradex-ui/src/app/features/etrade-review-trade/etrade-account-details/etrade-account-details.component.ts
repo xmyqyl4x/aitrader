@@ -57,7 +57,7 @@ export class EtradeAccountDetailsComponent implements OnInit, OnDestroy {
               this.account = accountDetails;
               this.loading = false;
             },
-            error: err => {
+            error: (err: any) => {
               // If getAccount fails, use the account from the list
               this.account = account;
               this.loading = false;
@@ -87,11 +87,11 @@ export class EtradeAccountDetailsComponent implements OnInit, OnDestroy {
     this.error = null;
 
     this.etradeService.connectAccount(this.account.id).subscribe({
-      next: accounts => {
+      next: (accounts: EtradeAccount[]) => {
         // Refresh account details
         this.loadAccountDetails();
       },
-      error: err => {
+      error: (err: any) => {
         this.error = 'Failed to connect account: ' + (err.error?.error || err.message);
         this.loading = false;
       }

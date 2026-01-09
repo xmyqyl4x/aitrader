@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface EtradeAccount {
@@ -38,7 +39,7 @@ export interface OAuthInitiateResponse {
 
 @Injectable({ providedIn: 'root' })
 export class EtradeService {
-  private readonly baseUrl = `${environment.apiUrl}/api/etrade`;
+  private readonly baseUrl = `${environment.apiUrl}/etrade`;
 
   constructor(private http: HttpClient) {}
 
@@ -46,11 +47,16 @@ export class EtradeService {
    * Gets OAuth status for the current user.
    */
   getOAuthStatus(userId?: string): Observable<OAuthStatus> {
+    console.log('[EtradeService] getOAuthStatus - userId:', userId);
     let params = new HttpParams();
     if (userId) {
       params = params.set('userId', userId);
     }
-    return this.http.get<OAuthStatus>(`${this.baseUrl}/oauth/status`, { params });
+    const url = `${this.baseUrl}/oauth/status`;
+    console.log('[EtradeService] Calling:', url, 'params:', params.toString());
+    return this.http.get<OAuthStatus>(url, { params }).pipe(
+      tap(status => console.log('[EtradeService] getOAuthStatus - response received:', status))
+    );
   }
 
   /**
@@ -84,6 +90,7 @@ export class EtradeService {
    * Initiates OAuth flow - Step 1: Get request token and authorization URL.
    */
   initiateOAuth(userId?: string, correlationId?: string): Observable<OAuthInitiateResponse> {
+    console.log('[EtradeService] initiateOAuth - userId:', userId, 'correlationId:', correlationId);
     let params = new HttpParams();
     if (userId) {
       params = params.set('userId', userId);
@@ -91,7 +98,11 @@ export class EtradeService {
     if (correlationId) {
       params = params.set('correlationId', correlationId);
     }
-    return this.http.get<OAuthInitiateResponse>(`${this.baseUrl}/oauth/authorize`, { params });
+    const url = `${this.baseUrl}/oauth/authorize`;
+    console.log('[EtradeService] Calling:', url, 'params:', params.toString());
+    return this.http.get<OAuthInitiateResponse>(url, { params }).pipe(
+      tap(response => console.log('[EtradeService] initiateOAuth - response received:', response))
+    );
   }
 
   /**
@@ -107,11 +118,16 @@ export class EtradeService {
    * Gets all linked accounts for a user.
    */
   getAccounts(userId?: string): Observable<EtradeAccount[]> {
+    console.log('[EtradeService] getAccounts - userId:', userId);
     let params = new HttpParams();
     if (userId) {
       params = params.set('userId', userId);
     }
-    return this.http.get<EtradeAccount[]>(`${this.baseUrl}/accounts`, { params });
+    const url = `${this.baseUrl}/accounts`;
+    console.log('[EtradeService] Calling:', url, 'params:', params.toString());
+    return this.http.get<EtradeAccount[]>(url, { params }).pipe(
+      tap(accounts => console.log('[EtradeService] getAccounts - response received:', accounts))
+    );
   }
 
   /**
@@ -125,11 +141,16 @@ export class EtradeService {
    * Syncs accounts from E*TRADE.
    */
   syncAccounts(accountId: string, userId?: string): Observable<EtradeAccount[]> {
+    console.log('[EtradeService] syncAccounts - accountId:', accountId, 'userId:', userId);
     let params = new HttpParams().set('accountId', accountId);
     if (userId) {
       params = params.set('userId', userId);
     }
-    return this.http.post<EtradeAccount[]>(`${this.baseUrl}/accounts/sync`, null, { params });
+    const url = `${this.baseUrl}/accounts/sync`;
+    console.log('[EtradeService] Calling:', url, 'params:', params.toString());
+    return this.http.post<EtradeAccount[]>(url, null, { params }).pipe(
+      tap(accounts => console.log('[EtradeService] syncAccounts - response received:', accounts))
+    );
   }
 
   /**

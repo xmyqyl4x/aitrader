@@ -31,6 +31,12 @@ describe('EtradeReviewTradeComponent', () => {
     httpMock = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router);
     etradeService = TestBed.inject(EtradeService);
+    
+    // Mock the initial ngOnInit calls
+    const oauthReq = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/status`);
+    oauthReq.flush({ connected: false, hasAccounts: false, accountCount: 0 });
+    const accountsReq = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts`);
+    accountsReq.flush([]);
   });
 
   afterEach(() => {
@@ -101,9 +107,14 @@ describe('EtradeReviewTradeComponent', () => {
     it('should call backend to load accounts when Link Account is clicked', () => {
       component.onLinkAccountClick();
       
-      const req = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts`);
+      // Should make a new accounts request (in addition to the one from ngOnInit)
+      const req = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts`);
       expect(req.request.method).toBe('GET');
       req.flush([]);
+      
+      // Then checkOAuthStatus is called
+      const oauthReq = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/status`);
+      oauthReq.flush({ connected: false, hasAccounts: false, accountCount: 0 });
       
       expect(component.activeSection).toBe('accounts');
     });
@@ -124,8 +135,12 @@ describe('EtradeReviewTradeComponent', () => {
 
       component.loadAccounts();
       
-      const req = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts`);
+      const req = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts`);
       req.flush(mockAccounts);
+      
+      // Mock the OAuth status call from loadAccounts
+      const oauthReq2 = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/status`);
+      oauthReq2.flush({ connected: true, hasAccounts: true, accountCount: 1 });
       
       fixture.detectChanges();
       
@@ -138,8 +153,12 @@ describe('EtradeReviewTradeComponent', () => {
     it('should show empty state when no accounts exist', () => {
       component.loadAccounts();
       
-      const req = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts`);
+      const req = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts`);
       req.flush([]);
+      
+      // Mock the OAuth status call from loadAccounts
+      const oauthReq2 = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/status`);
+      oauthReq2.flush({ connected: false, hasAccounts: false, accountCount: 0 });
       
       fixture.detectChanges();
       
@@ -168,9 +187,17 @@ describe('EtradeReviewTradeComponent', () => {
       component.connectAccount(mockAccount);
 
       // Should call syncAccounts which validates token
-      const req = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts/sync?accountId=1`);
+      const req = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts/sync?accountId=1`);
       expect(req.request.method).toBe('POST');
       req.flush([mockAccount]);
+      
+      // Mock the loadAccounts call
+      const accountsReq = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts`);
+      accountsReq.flush([mockAccount]);
+      
+      // Mock the OAuth status call from loadAccounts
+      const oauthReq2 = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/status`);
+      oauthReq2.flush({ connected: true, hasAccounts: true, accountCount: 1 });
     });
 
     it('should initiate OAuth flow when token is invalid', () => {
@@ -188,22 +215,21 @@ describe('EtradeReviewTradeComponent', () => {
       component.accounts = [mockAccount];
       fixture.detectChanges();
 
-      spyOn(window, 'location', 'get').and.returnValue({ href: '' } as Location);
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: { href: '' }
-      });
+      // Mock window.location.href assignment
+      const originalLocation = window.location;
+      delete (window as any).location;
+      (window as any).location = { ...originalLocation, href: '' };
 
       component.connectAccount(mockAccount);
 
       // First call to syncAccounts fails with 401
-      const syncReq = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts/sync?accountId=1`);
+      const syncReq = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts/sync?accountId=1`);
       syncReq.flush({ error: 'Token expired' }, { status: 401, statusText: 'Unauthorized' });
 
       // Should then initiate OAuth
-      const oauthReq = httpMock.expectOne(`${environment.apiUrl}/api/etrade/oauth/authorize`);
-      expect(oauthReq.request.method).toBe('GET');
-      oauthReq.flush({ authorizationUrl: 'https://etrade.com/authorize', state: 'test' });
+      const oauthReq2 = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/authorize`);
+      expect(oauthReq2.request.method).toBe('GET');
+      oauthReq2.flush({ authorizationUrl: 'https://etrade.com/authorize', state: 'test' });
     });
 
     it('should update UI statuses after successful connection', () => {
@@ -221,8 +247,16 @@ describe('EtradeReviewTradeComponent', () => {
       component.accounts = [mockAccount];
       component.connectAccount(mockAccount);
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts/sync?accountId=1`);
+      const req = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts/sync?accountId=1`);
       req.flush([mockAccount]);
+      
+      // Mock the loadAccounts call
+      const accountsReq = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts`);
+      accountsReq.flush([mockAccount]);
+      
+      // Mock the OAuth status call from loadAccounts
+      const oauthReq2 = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/status`);
+      oauthReq2.flush({ connected: true, hasAccounts: true, accountCount: 1 });
 
       expect(component.successMessage).toContain('connected successfully');
     });
@@ -264,18 +298,21 @@ describe('EtradeReviewTradeComponent', () => {
       component.accounts = [mockAccount];
       component.connectAccount(mockAccount);
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts/sync?accountId=1`);
+      const req = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts/sync?accountId=1`);
       req.flush({ error: 'Token expired' }, { status: 401, statusText: 'Unauthorized' });
 
       // OAuth initiation should happen
-      const oauthReq = httpMock.expectOne(`${environment.apiUrl}/api/etrade/oauth/authorize`);
-      oauthReq.flush({ authorizationUrl: 'https://etrade.com/authorize', state: 'test' });
+      const oauthReq2 = httpMock.expectOne(`${environment.apiUrl}/etrade/oauth/authorize`);
+      oauthReq2.flush({ authorizationUrl: 'https://etrade.com/authorize', state: 'test' });
+      
+      expect(component.oauthFlowActive).toBe(true);
     });
 
     it('should display error message when account loading fails', () => {
       component.loadAccounts();
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/api/etrade/accounts`);
+      // This is the second accounts call (first was in ngOnInit)
+      const req = httpMock.expectOne(`${environment.apiUrl}/etrade/accounts`);
       req.flush({ error: 'Server error' }, { status: 500, statusText: 'Internal Server Error' });
 
       expect(component.error).toBeTruthy();

@@ -99,9 +99,24 @@ public class EtradeAccountService {
    * Gets all linked accounts for a user.
    */
   public List<EtradeAccountDto> getUserAccounts(UUID userId) {
-    return accountRepository.findByUserId(userId).stream()
+    log.debug("Getting accounts for userId: {}", userId);
+    List<EtradeAccountDto> accounts = accountRepository.findByUserId(userId).stream()
         .map(this::toDto)
         .collect(Collectors.toList());
+    log.debug("Found {} account(s) for userId: {}", accounts.size(), userId);
+    return accounts;
+  }
+
+  /**
+   * Gets all linked accounts (for MVP/demo when userId is not provided).
+   */
+  public List<EtradeAccountDto> getAllAccounts() {
+    log.debug("Getting all accounts from database");
+    List<EtradeAccountDto> accounts = accountRepository.findAll().stream()
+        .map(this::toDto)
+        .collect(Collectors.toList());
+    log.debug("Found {} total account(s) in database", accounts.size());
+    return accounts;
   }
 
   /**
@@ -240,34 +255,58 @@ public class EtradeAccountService {
    */
   @Transactional
   public List<EtradeAccountDto> syncAccounts(UUID userId, UUID accountId) {
-    AccountListResponse response = accountsApi.listAccounts(accountId);
-    List<EtradeAccountModel> accounts = response.getAccountList();
+    log.debug("Syncing accounts from E*TRADE - userId: {}, accountId: {}", userId, accountId);
     
-    for (EtradeAccountModel accountData : accounts) {
-      String accountIdKey = accountData.getAccountIdKey();
-      accountRepository.findByAccountIdKey(accountIdKey)
-          .ifPresentOrElse(
-              account -> {
-                account.setAccountType(accountData.getAccountType());
-                account.setAccountName(accountData.getAccountName());
-                account.setAccountStatus(accountData.getAccountStatus());
-                account.setLastSyncedAt(OffsetDateTime.now());
-                accountRepository.save(account);
-              },
-              () -> {
-                EtradeAccount account = new EtradeAccount();
-                account.setUserId(userId);
-                account.setAccountIdKey(accountIdKey);
-                account.setAccountType(accountData.getAccountType());
-                account.setAccountName(accountData.getAccountName());
-                account.setAccountStatus(accountData.getAccountStatus());
-                account.setLinkedAt(OffsetDateTime.now());
-                account.setLastSyncedAt(OffsetDateTime.now());
-                accountRepository.save(account);
-              });
-    }
+    try {
+      log.debug("Calling E*TRADE List Accounts API for accountId: {}", accountId);
+      AccountListResponse response = accountsApi.listAccounts(accountId);
+      List<EtradeAccountModel> accounts = response.getAccountList();
+      log.debug("Received {} account(s) from E*TRADE", accounts.size());
+      
+      final int[] updated = {0};
+      final int[] created = {0};
+      
+      for (EtradeAccountModel accountData : accounts) {
+        String accountIdKey = accountData.getAccountIdKey();
+        log.debug("Processing account - accountIdKey: {}, accountName: {}", 
+            accountIdKey, accountData.getAccountName());
+        
+        accountRepository.findByAccountIdKey(accountIdKey)
+            .ifPresentOrElse(
+                existingAccount -> {
+                  log.debug("Updating existing account - accountIdKey: {}", accountIdKey);
+                  existingAccount.setAccountType(accountData.getAccountType());
+                  existingAccount.setAccountName(accountData.getAccountName());
+                  existingAccount.setAccountStatus(accountData.getAccountStatus());
+                  existingAccount.setLastSyncedAt(OffsetDateTime.now());
+                  accountRepository.save(existingAccount);
+                  updated[0]++;
+                },
+                () -> {
+                  log.debug("Creating new account - accountIdKey: {}", accountIdKey);
+                  EtradeAccount newAccount = new EtradeAccount();
+                  newAccount.setUserId(userId);
+                  newAccount.setAccountIdKey(accountIdKey);
+                  newAccount.setAccountType(accountData.getAccountType());
+                  newAccount.setAccountName(accountData.getAccountName());
+                  newAccount.setAccountStatus(accountData.getAccountStatus());
+                  newAccount.setLinkedAt(OffsetDateTime.now());
+                  newAccount.setLastSyncedAt(OffsetDateTime.now());
+                  accountRepository.save(newAccount);
+                  created[0]++;
+                });
+      }
 
-    return getUserAccounts(userId);
+      log.debug("Account sync completed - created: {}, updated: {}, total: {}", 
+          created[0], updated[0], accounts.size());
+      
+      List<EtradeAccountDto> result = getUserAccounts(userId);
+      log.debug("Returning {} account(s) for userId: {}", result.size(), userId);
+      return result;
+    } catch (Exception e) {
+      log.error("Failed to sync accounts for userId: {}, accountId: {}", userId, accountId, e);
+      throw e;
+    }
   }
 
   /**

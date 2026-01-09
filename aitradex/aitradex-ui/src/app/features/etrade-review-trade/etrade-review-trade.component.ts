@@ -74,14 +74,16 @@ export class EtradeReviewTradeComponent implements OnInit, OnDestroy {
   // ============================================================================
 
   checkOAuthStatus() {
+    console.log('[EtradeReviewTrade] checkOAuthStatus - starting');
     this.loading = true;
     this.etradeService.getOAuthStatus().subscribe({
       next: status => {
+        console.log('[EtradeReviewTrade] checkOAuthStatus - success, status:', status);
         this.oauthStatus = status;
         this.loading = false;
       },
       error: err => {
-        console.error('Failed to check OAuth status', err);
+        console.error('[EtradeReviewTrade] checkOAuthStatus - error:', err);
         this.oauthStatus = {
           connected: false,
           hasAccounts: false,
@@ -124,21 +126,29 @@ export class EtradeReviewTradeComponent implements OnInit, OnDestroy {
   // ============================================================================
 
   loadAccounts() {
+    console.log('[EtradeReviewTrade] loadAccounts - starting');
     this.loading = true;
     this.error = null;
     this.etradeService.getAccounts().subscribe({
       next: accounts => {
+        console.log('[EtradeReviewTrade] loadAccounts - success, received accounts:', accounts);
         this.accounts = accounts || [];
+        console.log('[EtradeReviewTrade] loadAccounts - accounts array length:', this.accounts.length);
         this.loading = false;
         this.checkOAuthStatus(); // Refresh status after loading accounts
       },
       error: err => {
-        console.error('Failed to load accounts', err);
+        console.error('[EtradeReviewTrade] loadAccounts - error:', err);
+        console.error('[EtradeReviewTrade] loadAccounts - error status:', err.status);
+        console.error('[EtradeReviewTrade] loadAccounts - error message:', err.message);
+        console.error('[EtradeReviewTrade] loadAccounts - error body:', err.error);
         if (err.status === 404) {
           this.accounts = [];
           this.error = null;
+          console.log('[EtradeReviewTrade] loadAccounts - 404, no accounts found (this is OK)');
         } else {
           this.error = 'Failed to load accounts: ' + (err.error?.error || err.error?.message || err.message || 'Unknown error');
+          console.error('[EtradeReviewTrade] loadAccounts - setting error:', this.error);
         }
         this.loading = false;
       }
@@ -150,24 +160,32 @@ export class EtradeReviewTradeComponent implements OnInit, OnDestroy {
   }
 
   connectAccount(account: EtradeAccount) {
+    console.log('[EtradeReviewTrade] connectAccount - starting for account:', account);
     this.loading = true;
     this.error = null;
     this.successMessage = null;
 
     // Step 1: Check for valid token by trying to sync accounts
+    console.log('[EtradeReviewTrade] connectAccount - calling connectAccount service with accountId:', account.id);
     this.etradeService.connectAccount(account.id).subscribe({
-      next: accounts => {
+      next: (accounts: EtradeAccount[]) => {
+        console.log('[EtradeReviewTrade] connectAccount - success, received accounts:', accounts);
         // Success - token is valid and account is connected
         this.successMessage = `Account "${account.accountName || account.accountIdKey}" connected successfully!`;
+        console.log('[EtradeReviewTrade] connectAccount - success message:', this.successMessage);
         this.loadAccounts(); // Refresh account list
         this.loading = false;
       },
-      error: err => {
+      error: (err: any) => {
+        console.error('[EtradeReviewTrade] connectAccount - error:', err);
+        console.error('[EtradeReviewTrade] connectAccount - error status:', err.status);
         // Token might be missing or expired - initiate OAuth flow
         if (err.status === 401 || err.status === 403 || err.error?.message?.includes('Token')) {
+          console.log('[EtradeReviewTrade] connectAccount - token invalid, initiating OAuth flow');
           this.initiateOAuthFlow(account);
         } else {
           this.error = 'Failed to connect account: ' + (err.error?.error || err.error?.message || err.message || 'Unknown error');
+          console.error('[EtradeReviewTrade] connectAccount - setting error:', this.error);
           this.loading = false;
         }
       }
@@ -179,17 +197,19 @@ export class EtradeReviewTradeComponent implements OnInit, OnDestroy {
   // ============================================================================
 
   initiateOAuthFlow(account?: EtradeAccount) {
+    console.log('[EtradeReviewTrade] initiateOAuthFlow - starting', account ? 'for account: ' + account.accountIdKey : '');
     this.loading = true;
     this.error = null;
     this.oauthFlowActive = true;
 
     this.etradeService.initiateOAuth().subscribe({
       next: response => {
+        console.log('[EtradeReviewTrade] initiateOAuthFlow - success, authorizationUrl:', response.authorizationUrl);
         // Redirect to E*TRADE authorization page
         window.location.href = response.authorizationUrl;
       },
       error: err => {
-        console.error('Failed to initiate OAuth', err);
+        console.error('[EtradeReviewTrade] initiateOAuthFlow - error:', err);
         this.error = 'Failed to initiate OAuth authorization: ' + (err.error?.error || err.message);
         this.loading = false;
         this.oauthFlowActive = false;
@@ -214,6 +234,7 @@ export class EtradeReviewTradeComponent implements OnInit, OnDestroy {
   // ============================================================================
 
   onLinkAccountClick() {
+    console.log('[EtradeReviewTrade] onLinkAccountClick - button clicked');
     this.loadAccounts();
     this.setActiveSection('accounts');
   }

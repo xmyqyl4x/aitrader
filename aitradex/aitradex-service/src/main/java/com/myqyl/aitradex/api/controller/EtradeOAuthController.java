@@ -5,6 +5,7 @@ import com.myqyl.aitradex.etrade.oauth.EtradeOAuthService;
 import com.myqyl.aitradex.etrade.repository.EtradeOAuthTokenRepository;
 import com.myqyl.aitradex.etrade.service.EtradeAccountService;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,13 +46,19 @@ public class EtradeOAuthController {
   public ResponseEntity<Map<String, String>> initiateOAuth(
       @RequestParam(required = false) UUID userId,
       @RequestParam(required = false) String correlationId) {
+    log.debug("GET /api/etrade/oauth/authorize - userId: {}, correlationId: {}", userId, correlationId);
+    
     try {
       if (userId == null) {
         userId = UUID.randomUUID(); // For MVP, generate temp user ID
+        log.debug("Generated temporary userId: {}", userId);
       }
       
+      log.debug("Initiating OAuth flow - requesting token from E*TRADE");
       // Get request token (service will persist authorization attempt)
       EtradeOAuthService.RequestTokenResponse tokenResponse = oauthService.getRequestToken(userId, correlationId);
+      
+      log.debug("Received request token, authorizationUrl: {}", tokenResponse.getAuthorizationUrl());
       
       Map<String, String> response = new HashMap<>();
       response.put("authorizationUrl", tokenResponse.getAuthorizationUrl());
@@ -62,11 +69,13 @@ public class EtradeOAuthController {
       }
       if (tokenResponse.getAuthAttemptId() != null) {
         response.put("authAttemptId", tokenResponse.getAuthAttemptId().toString());
+        log.debug("OAuth authAttemptId: {}", tokenResponse.getAuthAttemptId());
       }
       
+      log.debug("OAuth initiation successful, returning authorization URL");
       return ResponseEntity.ok(response);
     } catch (Exception e) {
-      log.error("Failed to initiate OAuth", e);
+      log.error("Failed to initiate OAuth for userId: {}", userId, e);
       Map<String, String> error = new HashMap<>();
       error.put("error", "Failed to initiate OAuth: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
@@ -84,16 +93,24 @@ public class EtradeOAuthController {
       @RequestParam(required = false) String denied,
       @RequestParam(required = false) UUID userId) {
     
+    log.debug("GET /api/etrade/oauth/callback - oauth_token: {}, oauth_verifier: {}, oauth_problem: {}, denied: {}, userId: {}", 
+        oauth_token != null ? "***" : null, 
+        oauth_verifier != null ? "***" : null, 
+        oauth_problem, denied, userId);
+    
     try {
       if (denied != null || oauth_problem != null) {
-        log.warn("OAuth authorization denied: {}", oauth_problem);
+        log.warn("OAuth authorization denied - denied: {}, oauth_problem: {}", denied, oauth_problem);
         return new RedirectView("/etrade-review-trade?error=authorization_denied", true);
       }
 
       if (oauth_token == null || oauth_verifier == null) {
+        log.error("OAuth callback missing required parameters - oauth_token: {}, oauth_verifier: {}", 
+            oauth_token != null, oauth_verifier != null);
         return new RedirectView("/etrade-review-trade?error=invalid_callback", true);
       }
 
+      log.debug("Looking up authorization attempt by request token");
       // Look up authorization attempt by request token (persisted from Step 1)
       Optional<EtradeOAuthToken> authAttempt = tokenRepository.findByRequestToken(oauth_token);
       if (authAttempt.isEmpty() || authAttempt.get().getRequestTokenSecret() == null) {
@@ -104,8 +121,12 @@ public class EtradeOAuthController {
       EtradeOAuthToken attempt = authAttempt.get();
       if (userId == null) {
         userId = attempt.getUserId();
+        log.debug("Using userId from authorization attempt: {}", userId);
       }
 
+      log.debug("Exchanging request token for access token - userId: {}, authAttemptId: {}", 
+          userId, attempt.getId());
+      
       // Exchange for access token (we'll create account after getting account list)
       // For now, create a temporary account ID (will be updated after account list retrieval)
       UUID accountId = UUID.randomUUID();
@@ -116,6 +137,8 @@ public class EtradeOAuthController {
           oauth_verifier,
           accountId);
 
+      log.debug("Access token exchange successful - accountId: {}", accountId);
+
       // Get account list from E*TRADE (we'll need to implement this)
       // For now, create a basic account entry
       Map<String, Object> accountData = new HashMap<>();
@@ -124,16 +147,21 @@ public class EtradeOAuthController {
       accountData.put("accountStatus", "ACTIVE");
       accountData.put("accountId", tokenResponse.getOrDefault("accountId", "UNKNOWN"));
       
+      log.debug("Linking account - userId: {}, accountIdKey: {}", 
+          userId, tokenResponse.getOrDefault("accountId", accountId.toString()));
+      
       // Try to get account list (will be implemented when account client is available)
       // For now, link with basic data
       try {
         accountService.linkAccount(userId, 
             tokenResponse.getOrDefault("accountId", accountId.toString()), 
             accountData);
+        log.debug("Account linked successfully");
       } catch (Exception e) {
         log.warn("Failed to link account, may already exist", e);
       }
 
+      log.debug("OAuth callback completed successfully, redirecting to UI");
       return new RedirectView("/etrade-review-trade?success=account_linked", true);
     } catch (Exception e) {
       log.error("OAuth callback failed", e);
@@ -147,19 +175,32 @@ public class EtradeOAuthController {
    */
   @GetMapping("/status")
   public ResponseEntity<Map<String, Object>> getOAuthStatus(@RequestParam(required = false) UUID userId) {
+    log.debug("GET /api/etrade/oauth/status - userId: {}", userId);
+    
     Map<String, Object> status = new HashMap<>();
     status.put("connected", false);
     status.put("hasAccounts", false);
+    status.put("accountCount", 0);
     
-    if (userId != null) {
-      try {
-        var accounts = accountService.getUserAccounts(userId);
-        status.put("hasAccounts", !accounts.isEmpty());
-        status.put("connected", !accounts.isEmpty());
-        status.put("accountCount", accounts.size());
-      } catch (Exception e) {
-        log.warn("Failed to check OAuth status", e);
+    try {
+      var accounts = (userId != null) 
+          ? accountService.getUserAccounts(userId)
+          : accountService.getAllAccounts();
+      
+      if (userId != null) {
+        log.debug("Checking OAuth status for userId: {}", userId);
+      } else {
+        log.debug("No userId provided, checking all accounts");
       }
+      
+      boolean hasAccounts = !accounts.isEmpty();
+      status.put("hasAccounts", hasAccounts);
+      status.put("connected", hasAccounts);
+      status.put("accountCount", accounts.size());
+      
+      log.debug("OAuth status - hasAccounts: {}, accountCount: {}", hasAccounts, accounts.size());
+    } catch (Exception e) {
+      log.warn("Failed to check OAuth status for userId: {}", userId, e);
     }
     
     return ResponseEntity.ok(status);

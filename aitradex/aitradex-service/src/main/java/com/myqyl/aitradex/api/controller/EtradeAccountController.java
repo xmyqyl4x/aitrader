@@ -34,12 +34,25 @@ public class EtradeAccountController {
    */
   @GetMapping
   public ResponseEntity<List<EtradeAccountDto>> getUserAccounts(@RequestParam(required = false) UUID userId) {
-    if (userId == null) {
-      userId = UUID.randomUUID(); // For MVP
-    }
+    log.debug("GET /api/etrade/accounts - userId: {}", userId);
     
-    List<EtradeAccountDto> accounts = accountService.getUserAccounts(userId);
-    return ResponseEntity.ok(accounts);
+    try {
+      List<EtradeAccountDto> accounts;
+      if (userId == null) {
+        // If no userId provided, get all accounts (for MVP/demo purposes)
+        log.debug("No userId provided, retrieving all accounts from database");
+        accounts = accountService.getAllAccounts();
+      } else {
+        log.debug("Retrieving accounts for userId: {}", userId);
+        accounts = accountService.getUserAccounts(userId);
+      }
+      
+      log.debug("Found {} account(s) for userId: {}", accounts.size(), userId);
+      return ResponseEntity.ok(accounts);
+    } catch (Exception e) {
+      log.error("Failed to get user accounts for userId: {}", userId, e);
+      throw e;
+    }
   }
 
   /**
@@ -47,8 +60,16 @@ public class EtradeAccountController {
    */
   @GetMapping("/{accountId}")
   public ResponseEntity<EtradeAccountDto> getAccount(@PathVariable UUID accountId) {
-    EtradeAccountDto account = accountService.getAccount(accountId);
-    return ResponseEntity.ok(account);
+    log.debug("GET /api/etrade/accounts/{}", accountId);
+    
+    try {
+      EtradeAccountDto account = accountService.getAccount(accountId);
+      log.debug("Retrieved account: {} ({})", account.accountName(), account.accountIdKey());
+      return ResponseEntity.ok(account);
+    } catch (Exception e) {
+      log.error("Failed to get account: {}", accountId, e);
+      throw e;
+    }
   }
 
   /**
@@ -98,12 +119,22 @@ public class EtradeAccountController {
   public ResponseEntity<List<EtradeAccountDto>> syncAccounts(
       @RequestParam(required = false) UUID userId,
       @RequestParam UUID accountId) {
-    if (userId == null) {
-      userId = UUID.randomUUID(); // For MVP
-    }
+    log.debug("POST /api/etrade/accounts/sync - userId: {}, accountId: {}", userId, accountId);
     
-    List<EtradeAccountDto> accounts = accountService.syncAccounts(userId, accountId);
-    return ResponseEntity.ok(accounts);
+    try {
+      if (userId == null) {
+        log.debug("No userId provided, generating temporary userId for sync");
+        userId = UUID.randomUUID(); // For MVP
+      }
+      
+      log.debug("Syncing accounts from E*TRADE for accountId: {}", accountId);
+      List<EtradeAccountDto> accounts = accountService.syncAccounts(userId, accountId);
+      log.debug("Successfully synced {} account(s) for accountId: {}", accounts.size(), accountId);
+      return ResponseEntity.ok(accounts);
+    } catch (Exception e) {
+      log.error("Failed to sync accounts for accountId: {}", accountId, e);
+      throw e;
+    }
   }
 
   /**
