@@ -1,0 +1,219 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0006-etrade-accounts-persistence
+      author: aitradex
+      context: dev,test,prod
+      logicalFilePath: db/changelog/changesets/0006-etrade-accounts-persistence.yaml
+      changes:
+        # E*TRADE Balance Snapshot table (append-only history)
+        - createTable:
+            tableName: etrade_balance
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: snapshot_time, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              # Cash section
+              - column: {name: cash_balance, type: "numeric(19,4)"}
+              - column: {name: cash_available, type: "numeric(19,4)"}
+              - column: {name: uncleared_deposits, type: "numeric(19,4)"}
+              - column: {name: cash_sweep, type: "numeric(19,4)"}
+              # Margin section
+              - column: {name: margin_balance, type: "numeric(19,4)"}
+              - column: {name: margin_available, type: "numeric(19,4)"}
+              - column: {name: margin_buying_power, type: "numeric(19,4)"}
+              - column: {name: day_trading_buying_power, type: "numeric(19,4)"}
+              # Computed section
+              - column: {name: total_value, type: "numeric(19,4)"}
+              - column: {name: net_value, type: "numeric(19,4)"}
+              - column: {name: settled_cash, type: "numeric(19,4)"}
+              - column: {name: open_calls, type: "numeric(19,4)"}
+              - column: {name: open_puts, type: "numeric(19,4)"}
+              # Account metadata
+              - column: {name: account_id_from_response, type: varchar(255)}
+              - column: {name: account_type, type: varchar(50)}
+              - column: {name: account_description, type: varchar(255)}
+              - column: {name: account_mode, type: varchar(50)}
+              # Raw response for reference (optional)
+              - column: {name: raw_response, type: jsonb}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_balance
+            indexName: idx_etrade_balance_account_id
+            columns:
+              - column: {name: account_id}
+
+        - createIndex:
+            tableName: etrade_balance
+            indexName: idx_etrade_balance_snapshot_time
+            columns:
+              - column: {name: snapshot_time, descending: true}
+
+        - createIndex:
+            tableName: etrade_balance
+            indexName: idx_etrade_balance_account_snapshot_time
+            columns:
+              - column: {name: account_id}
+              - column: {name: snapshot_time, descending: true}
+
+        - addForeignKeyConstraint:
+            baseTableName: etrade_balance
+            baseColumnNames: account_id
+            constraintName: fk_etrade_balance_account
+            referencedTableName: etrade_account
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        # E*TRADE Transaction table (upsert by transactionId)
+        - createTable:
+            tableName: etrade_transaction
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: transaction_id, type: varchar(255), constraints: {nullable: false, unique: true}}
+              - column: {name: account_id_from_response, type: varchar(255)}
+              - column: {name: transaction_date, type: bigint}
+              - column: {name: amount, type: "numeric(19,4)"}
+              - column: {name: description, type: text}
+              - column: {name: transaction_type, type: varchar(50)}
+              - column: {name: inst_type, type: varchar(50)}
+              - column: {name: details_uri, type: varchar(500)}
+              # Transaction details (from Get Transaction Details)
+              - column: {name: category_id, type: varchar(255)}
+              - column: {name: category_parent_id, type: varchar(255)}
+              - column: {name: brokerage_transaction_type, type: varchar(50)}
+              # Raw response for reference (optional)
+              - column: {name: raw_response, type: jsonb}
+              - column: {name: details_raw_response, type: jsonb}
+              - column: {name: first_seen_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: last_updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_transaction
+            indexName: idx_etrade_transaction_account_id
+            columns:
+              - column: {name: account_id}
+
+        - createIndex:
+            tableName: etrade_transaction
+            indexName: idx_etrade_transaction_transaction_id
+            columns:
+              - column: {name: transaction_id}
+
+        - createIndex:
+            tableName: etrade_transaction
+            indexName: idx_etrade_transaction_transaction_date
+            columns:
+              - column: {name: transaction_date, descending: true}
+
+        - createIndex:
+            tableName: etrade_transaction
+            indexName: idx_etrade_transaction_account_date
+            columns:
+              - column: {name: account_id}
+              - column: {name: transaction_date, descending: true}
+
+        - addForeignKeyConstraint:
+            baseTableName: etrade_transaction
+            baseColumnNames: account_id
+            constraintName: fk_etrade_transaction_account
+            referencedTableName: etrade_account
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        # E*TRADE Portfolio Position table (upsert by positionId)
+        - createTable:
+            tableName: etrade_portfolio_position
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: account_id, type: uuid, constraints: {nullable: false}}
+              - column: {name: position_id, type: bigint, constraints: {nullable: false}}
+              # Product information
+              - column: {name: symbol, type: varchar(20)}
+              - column: {name: symbol_description, type: varchar(255)}
+              - column: {name: security_type, type: varchar(50)}
+              - column: {name: cusip, type: varchar(20)}
+              - column: {name: exchange, type: varchar(20)}
+              - column: {name: is_quotable, type: boolean}
+              # Position details
+              - column: {name: date_acquired, type: bigint}
+              - column: {name: price_paid, type: "numeric(19,8)"}
+              - column: {name: commissions, type: "numeric(19,8)"}
+              - column: {name: other_fees, type: "numeric(19,8)"}
+              - column: {name: quantity, type: "numeric(19,8)"}
+              - column: {name: position_indicator, type: varchar(20)}
+              - column: {name: position_type, type: varchar(20)}
+              # Market values
+              - column: {name: days_gain, type: "numeric(19,8)"}
+              - column: {name: days_gain_pct, type: "numeric(19,8)"}
+              - column: {name: market_value, type: "numeric(19,8)"}
+              - column: {name: total_cost, type: "numeric(19,8)"}
+              - column: {name: total_gain, type: "numeric(19,8)"}
+              - column: {name: total_gain_pct, type: "numeric(19,8)"}
+              - column: {name: pct_of_portfolio, type: "numeric(19,8)"}
+              - column: {name: cost_per_share, type: "numeric(19,8)"}
+              - column: {name: gain_loss, type: "numeric(19,8)"}
+              - column: {name: gain_loss_percent, type: "numeric(19,8)"}
+              - column: {name: cost_basis, type: "numeric(19,8)"}
+              # Option-specific fields
+              - column: {name: intrinsic_value, type: "numeric(19,8)"}
+              - column: {name: time_value, type: "numeric(19,8)"}
+              - column: {name: multiplier, type: integer}
+              - column: {name: digits, type: integer}
+              # URLs
+              - column: {name: lots_details_uri, type: varchar(500)}
+              - column: {name: quote_details_uri, type: varchar(500)}
+              # Raw response for reference (optional)
+              - column: {name: raw_response, type: jsonb}
+              - column: {name: snapshot_time, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: first_seen_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: last_updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_portfolio_position
+            indexName: idx_etrade_portfolio_position_account_id
+            columns:
+              - column: {name: account_id}
+
+        - createIndex:
+            tableName: etrade_portfolio_position
+            indexName: idx_etrade_portfolio_position_position_id
+            columns:
+              - column: {name: position_id}
+
+        - createIndex:
+            tableName: etrade_portfolio_position
+            indexName: idx_etrade_portfolio_position_account_position_id
+            columns:
+              - column: {name: account_id}
+              - column: {name: position_id}
+
+        - createIndex:
+            tableName: etrade_portfolio_position
+            indexName: idx_etrade_portfolio_position_symbol
+            columns:
+              - column: {name: symbol}
+
+        - createIndex:
+            tableName: etrade_portfolio_position
+            indexName: idx_etrade_portfolio_position_snapshot_time
+            columns:
+              - column: {name: snapshot_time, descending: true}
+
+        - addForeignKeyConstraint:
+            baseTableName: etrade_portfolio_position
+            baseColumnNames: account_id
+            constraintName: fk_etrade_portfolio_position_account
+            referencedTableName: etrade_account
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        # Unique constraint for position upsert (account_id + position_id)
+        - addUniqueConstraint:
+            tableName: etrade_portfolio_position
+            constraintName: uk_etrade_portfolio_position_account_position
+            columnNames: account_id,position_id

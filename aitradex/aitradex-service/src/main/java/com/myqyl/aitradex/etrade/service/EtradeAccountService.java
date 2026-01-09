@@ -9,11 +9,24 @@ import com.myqyl.aitradex.etrade.accounts.dto.PortfolioRequest;
 import com.myqyl.aitradex.etrade.accounts.dto.PortfolioResponse;
 import com.myqyl.aitradex.etrade.client.EtradeApiClientAccountAPI;
 import com.myqyl.aitradex.etrade.client.EtradeAccountClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myqyl.aitradex.etrade.accounts.dto.CashBalance;
+import com.myqyl.aitradex.etrade.accounts.dto.ComputedBalance;
+import com.myqyl.aitradex.etrade.accounts.dto.MarginBalance;
+import com.myqyl.aitradex.etrade.accounts.dto.PositionDto;
 import com.myqyl.aitradex.etrade.domain.EtradeAccount;
+import com.myqyl.aitradex.etrade.domain.EtradeBalance;
+import com.myqyl.aitradex.etrade.domain.EtradePortfolioPosition;
+import com.myqyl.aitradex.etrade.domain.EtradeTransaction;
 import com.myqyl.aitradex.etrade.repository.EtradeAccountRepository;
+import com.myqyl.aitradex.etrade.repository.EtradeBalanceRepository;
+import com.myqyl.aitradex.etrade.repository.EtradePortfolioPositionRepository;
+import com.myqyl.aitradex.etrade.repository.EtradeTransactionRepository;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -35,14 +48,26 @@ public class EtradeAccountService {
   private final EtradeAccountRepository accountRepository;
   private final EtradeApiClientAccountAPI accountsApi;
   private final EtradeAccountClient accountClient; // Legacy client for backward compatibility
+  private final EtradeBalanceRepository balanceRepository;
+  private final EtradeTransactionRepository transactionRepository;
+  private final EtradePortfolioPositionRepository positionRepository;
+  private final ObjectMapper objectMapper;
 
   public EtradeAccountService(
       EtradeAccountRepository accountRepository,
       EtradeApiClientAccountAPI accountsApi,
-      EtradeAccountClient accountClient) {
+      EtradeAccountClient accountClient,
+      EtradeBalanceRepository balanceRepository,
+      EtradeTransactionRepository transactionRepository,
+      EtradePortfolioPositionRepository positionRepository,
+      ObjectMapper objectMapper) {
     this.accountRepository = accountRepository;
     this.accountsApi = accountsApi;
     this.accountClient = accountClient;
+    this.balanceRepository = balanceRepository;
+    this.transactionRepository = transactionRepository;
+    this.positionRepository = positionRepository;
+    this.objectMapper = objectMapper;
   }
 
   /**
@@ -89,7 +114,10 @@ public class EtradeAccountService {
   }
 
   /**
-   * Gets account balance from E*TRADE using the Accounts API.
+   * Gets account balance from E*TRADE using the Accounts API and persists as a new snapshot.
+   * 
+   * Always creates a new balance entry (append-only snapshot/history).
+   * Each call generates a new row, even if values are unchanged.
    * 
    * @param accountId Internal account UUID
    * @param accountIdKey E*TRADE account ID key
@@ -98,20 +126,32 @@ public class EtradeAccountService {
    * @param realTimeNAV Whether to get real-time NAV (default: true)
    * @return BalanceResponse DTO
    */
+  @Transactional
   public BalanceResponse getAccountBalance(UUID accountId, String accountIdKey, 
                                            String instType, String accountType, Boolean realTimeNAV) {
     BalanceRequest request = new BalanceRequest(instType, accountType, realTimeNAV);
-    return accountsApi.getAccountBalance(accountId, accountIdKey, request);
+    BalanceResponse balanceResponse = accountsApi.getAccountBalance(accountId, accountIdKey, request);
+    
+    // Persist balance snapshot (always create new row)
+    persistBalanceSnapshot(accountId, balanceResponse);
+    
+    return balanceResponse;
   }
 
   /**
-   * Gets account balance from E*TRADE (simplified version with defaults).
+   * Gets account balance from E*TRADE (simplified version with defaults) and persists as a new snapshot.
    * 
    * @return BalanceResponse DTO
    */
+  @Transactional
   public BalanceResponse getAccountBalance(UUID accountId, String accountIdKey) {
     BalanceRequest request = new BalanceRequest();
-    return accountsApi.getAccountBalance(accountId, accountIdKey, request);
+    BalanceResponse balanceResponse = accountsApi.getAccountBalance(accountId, accountIdKey, request);
+    
+    // Persist balance snapshot (always create new row)
+    persistBalanceSnapshot(accountId, balanceResponse);
+    
+    return balanceResponse;
   }
 
   /**
@@ -126,7 +166,10 @@ public class EtradeAccountService {
   }
 
   /**
-   * Gets account portfolio from E*TRADE using the Accounts API.
+   * Gets account portfolio from E*TRADE using the Accounts API and persists positions.
+   * 
+   * Upserts portfolio positions by positionId.
+   * Each position is inserted if it doesn't exist, or updated if it exists.
    * 
    * @param accountId Internal account UUID
    * @param accountIdKey E*TRADE account ID key
@@ -140,6 +183,7 @@ public class EtradeAccountService {
    * @param view View type (e.g., "QUICK", "COMPLETE") (optional)
    * @return PortfolioResponse DTO
    */
+  @Transactional
   public PortfolioResponse getAccountPortfolio(UUID accountId, String accountIdKey, Integer count,
                                                String sortBy, String sortOrder, Integer pageNumber,
                                                String marketSession, Boolean totalsRequired,
@@ -153,17 +197,28 @@ public class EtradeAccountService {
     request.setTotalsRequired(totalsRequired);
     request.setLotsRequired(lotsRequired);
     request.setView(view);
-    return accountsApi.viewPortfolio(accountId, accountIdKey, request);
+    PortfolioResponse portfolioResponse = accountsApi.viewPortfolio(accountId, accountIdKey, request);
+    
+    // Persist portfolio positions (upsert by positionId)
+    persistPortfolioPositions(accountId, portfolioResponse);
+    
+    return portfolioResponse;
   }
 
   /**
-   * Gets account portfolio from E*TRADE (simplified version with defaults).
+   * Gets account portfolio from E*TRADE (simplified version with defaults) and persists positions.
    * 
    * @return PortfolioResponse DTO
    */
+  @Transactional
   public PortfolioResponse getAccountPortfolio(UUID accountId, String accountIdKey) {
     PortfolioRequest request = new PortfolioRequest();
-    return accountsApi.viewPortfolio(accountId, accountIdKey, request);
+    PortfolioResponse portfolioResponse = accountsApi.viewPortfolio(accountId, accountIdKey, request);
+    
+    // Persist portfolio positions (upsert by positionId)
+    persistPortfolioPositions(accountId, portfolioResponse);
+    
+    return portfolioResponse;
   }
 
   /**
@@ -216,7 +271,10 @@ public class EtradeAccountService {
   }
 
   /**
-   * Gets account transactions from E*TRADE.
+   * Gets account transactions from E*TRADE and persists them.
+   * 
+   * Upserts transactions by transactionId.
+   * Each transaction is inserted if it doesn't exist, or updated if it exists.
    * 
    * @param accountId Internal account UUID
    * @param marker Pagination marker (optional)
@@ -227,42 +285,77 @@ public class EtradeAccountService {
    * @param accept Response format ("xml" or "json") (optional)
    * @param storeId Store ID filter (optional)
    */
+  @Transactional
   public Map<String, Object> getAccountTransactions(UUID accountId, String marker, Integer count,
                                                      String startDate, String endDate, String sortOrder,
                                                      String accept, String storeId) {
     EtradeAccountDto account = getAccount(accountId);
-    return accountClient.getTransactions(accountId, account.accountIdKey(), marker, count,
+    Map<String, Object> result = accountClient.getTransactions(accountId, account.accountIdKey(), marker, count,
                                          startDate, endDate, sortOrder, accept, storeId);
+    
+    // Persist transactions (upsert by transactionId)
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> transactions = (List<Map<String, Object>>) result.get("transactions");
+    if (transactions != null) {
+      for (Map<String, Object> transactionData : transactions) {
+        persistTransaction(accountId, transactionData);
+      }
+    }
+    
+    return result;
   }
 
   /**
-   * Gets account transactions from E*TRADE (simplified version).
+   * Gets account transactions from E*TRADE (simplified version) and persists them.
    */
+  @Transactional
   public List<Map<String, Object>> getAccountTransactions(UUID accountId, String marker, Integer count) {
     EtradeAccountDto account = getAccount(accountId);
-    return accountClient.getTransactions(accountId, account.accountIdKey(), marker, count);
+    List<Map<String, Object>> transactions = accountClient.getTransactions(accountId, account.accountIdKey(), marker, count);
+    
+    // Persist transactions (upsert by transactionId)
+    for (Map<String, Object> transactionData : transactions) {
+      persistTransaction(accountId, transactionData);
+    }
+    
+    return transactions;
   }
 
   /**
-   * Gets transaction details from E*TRADE.
+   * Gets transaction details from E*TRADE and persists/updates the transaction details.
+   * 
+   * Upserts transaction details by transactionId.
+   * If transaction exists, updates it with details. If not, creates a new transaction record.
    * 
    * @param accountId Internal account UUID
    * @param transactionId Transaction ID
    * @param accept Response format ("xml" or "json") (optional)
    * @param storeId Store ID filter (optional)
    */
+  @Transactional
   public Map<String, Object> getTransactionDetails(UUID accountId, String transactionId,
                                                     String accept, String storeId) {
     EtradeAccountDto account = getAccount(accountId);
-    return accountClient.getTransactionDetails(accountId, account.accountIdKey(), transactionId, accept, storeId);
+    Map<String, Object> details = accountClient.getTransactionDetails(accountId, account.accountIdKey(), transactionId, accept, storeId);
+    
+    // Persist/update transaction details (upsert by transactionId)
+    persistTransactionDetails(accountId, transactionId, details);
+    
+    return details;
   }
 
   /**
-   * Gets transaction details from E*TRADE (simplified version).
+   * Gets transaction details from E*TRADE (simplified version) and persists/updates the transaction details.
    */
+  @Transactional
   public Map<String, Object> getTransactionDetails(UUID accountId, String transactionId) {
     EtradeAccountDto account = getAccount(accountId);
-    return accountClient.getTransactionDetails(accountId, account.accountIdKey(), transactionId);
+    Map<String, Object> details = accountClient.getTransactionDetails(accountId, account.accountIdKey(), transactionId);
+    
+    // Persist/update transaction details (upsert by transactionId)
+    persistTransactionDetails(accountId, transactionId, details);
+    
+    return details;
   }
 
   /**
@@ -279,6 +372,339 @@ public class EtradeAccountService {
             () -> {
               throw new RuntimeException("Account not found: " + accountId);
             });
+  }
+
+  /**
+   * Persists a balance snapshot (always creates a new row - append-only history).
+   */
+  private void persistBalanceSnapshot(UUID accountId, BalanceResponse balanceResponse) {
+    try {
+      EtradeBalance balance = new EtradeBalance();
+      balance.setAccountId(accountId);
+      balance.setSnapshotTime(OffsetDateTime.now());
+      
+      // Account metadata
+      balance.setAccountIdFromResponse(balanceResponse.getAccountId());
+      balance.setAccountType(balanceResponse.getAccountType());
+      balance.setAccountDescription(balanceResponse.getAccountDescription());
+      balance.setAccountMode(balanceResponse.getAccountMode());
+      
+      // Cash section
+      CashBalance cash = balanceResponse.getCash();
+      if (cash != null) {
+        balance.setCashBalance(toBigDecimal(cash.getCashBalance()));
+        balance.setCashAvailable(toBigDecimal(cash.getCashAvailable()));
+        balance.setUnclearedDeposits(toBigDecimal(cash.getUnclearedDeposits()));
+        balance.setCashSweep(toBigDecimal(cash.getCashSweep()));
+      }
+      
+      // Margin section
+      MarginBalance margin = balanceResponse.getMargin();
+      if (margin != null) {
+        balance.setMarginBalance(toBigDecimal(margin.getMarginBalance()));
+        balance.setMarginAvailable(toBigDecimal(margin.getMarginAvailable()));
+        balance.setMarginBuyingPower(toBigDecimal(margin.getMarginBuyingPower()));
+        balance.setDayTradingBuyingPower(toBigDecimal(margin.getDayTradingBuyingPower()));
+      }
+      
+      // Computed section
+      ComputedBalance computed = balanceResponse.getComputed();
+      if (computed != null) {
+        balance.setTotalValue(toBigDecimal(computed.getTotalValue()));
+        balance.setNetValue(toBigDecimal(computed.getNetValue()));
+        balance.setSettledCash(toBigDecimal(computed.getSettledCash()));
+        balance.setOpenCalls(toBigDecimal(computed.getOpenCalls()));
+        balance.setOpenPuts(toBigDecimal(computed.getOpenPuts()));
+      }
+      
+      // Optional: Store raw response as JSON
+      try {
+        balance.setRawResponse(objectMapper.writeValueAsString(balanceResponse));
+      } catch (Exception e) {
+        log.warn("Failed to serialize balance response to JSON", e);
+      }
+      
+      balanceRepository.save(balance);
+      log.debug("Persisted balance snapshot for account {}", accountId);
+    } catch (Exception e) {
+      log.error("Failed to persist balance snapshot for account {}", accountId, e);
+      // Don't throw - persistence failure should not break the API call
+    }
+  }
+
+  /**
+   * Persists/updates a transaction (upsert by transactionId).
+   */
+  private void persistTransaction(UUID accountId, Map<String, Object> transactionData) {
+    try {
+      String transactionId = (String) transactionData.get("transactionId");
+      if (transactionId == null || transactionId.isEmpty()) {
+        log.warn("Transaction data missing transactionId, skipping persistence");
+        return;
+      }
+      
+      Optional<EtradeTransaction> existing = transactionRepository.findByTransactionId(transactionId);
+      EtradeTransaction transaction;
+      
+      if (existing.isPresent()) {
+        // Update existing transaction
+        transaction = existing.get();
+        transaction.setLastUpdatedAt(OffsetDateTime.now());
+      } else {
+        // Create new transaction
+        transaction = new EtradeTransaction();
+        transaction.setAccountId(accountId);
+        transaction.setTransactionId(transactionId);
+        transaction.setFirstSeenAt(OffsetDateTime.now());
+        transaction.setLastUpdatedAt(OffsetDateTime.now());
+      }
+      
+      // Update fields from transaction data
+      transaction.setAccountIdFromResponse((String) transactionData.get("accountId"));
+      Object transactionDateObj = transactionData.get("transactionDate");
+      if (transactionDateObj != null) {
+        if (transactionDateObj instanceof Long) {
+          transaction.setTransactionDate((Long) transactionDateObj);
+        } else if (transactionDateObj instanceof String) {
+          try {
+            transaction.setTransactionDate(Long.parseLong((String) transactionDateObj));
+          } catch (NumberFormatException e) {
+            log.warn("Invalid transaction date format: {}", transactionDateObj);
+          }
+        }
+      }
+      transaction.setAmount(toBigDecimal(transactionData.get("amount")));
+      transaction.setDescription((String) transactionData.get("description"));
+      transaction.setTransactionType((String) transactionData.get("transactionType"));
+      transaction.setInstType((String) transactionData.get("instType"));
+      transaction.setDetailsUri((String) transactionData.get("detailsURI"));
+      
+      // Optional: Store raw response as JSON
+      try {
+        transaction.setRawResponse(objectMapper.writeValueAsString(transactionData));
+      } catch (Exception e) {
+        log.warn("Failed to serialize transaction data to JSON", e);
+      }
+      
+      transactionRepository.save(transaction);
+      log.debug("Persisted transaction {} for account {}", transactionId, accountId);
+    } catch (Exception e) {
+      log.error("Failed to persist transaction for account {}", accountId, e);
+      // Don't throw - persistence failure should not break the API call
+    }
+  }
+
+  /**
+   * Persists/updates transaction details (upsert by transactionId).
+   */
+  private void persistTransactionDetails(UUID accountId, String transactionId, Map<String, Object> details) {
+    try {
+      Optional<EtradeTransaction> existing = transactionRepository.findByTransactionId(transactionId);
+      EtradeTransaction transaction;
+      
+      if (existing.isPresent()) {
+        // Update existing transaction with details
+        transaction = existing.get();
+        transaction.setLastUpdatedAt(OffsetDateTime.now());
+      } else {
+        // Create new transaction (shouldn't happen, but handle gracefully)
+        transaction = new EtradeTransaction();
+        transaction.setAccountId(accountId);
+        transaction.setTransactionId(transactionId);
+        transaction.setFirstSeenAt(OffsetDateTime.now());
+        transaction.setLastUpdatedAt(OffsetDateTime.now());
+      }
+      
+      // Update basic fields if not already set
+      if (transaction.getAccountIdFromResponse() == null) {
+        transaction.setAccountIdFromResponse((String) details.get("accountId"));
+      }
+      if (transaction.getTransactionDate() == null) {
+        Object transactionDateObj = details.get("transactionDate");
+        if (transactionDateObj != null) {
+          if (transactionDateObj instanceof Long) {
+            transaction.setTransactionDate((Long) transactionDateObj);
+          } else if (transactionDateObj instanceof String) {
+            try {
+              transaction.setTransactionDate(Long.parseLong((String) transactionDateObj));
+            } catch (NumberFormatException e) {
+              log.warn("Invalid transaction date format: {}", transactionDateObj);
+            }
+          }
+        }
+      }
+      if (transaction.getAmount() == null) {
+        transaction.setAmount(toBigDecimal(details.get("amount")));
+      }
+      if (transaction.getDescription() == null) {
+        transaction.setDescription((String) details.get("description"));
+      }
+      
+      // Update detail-specific fields
+      @SuppressWarnings("unchecked")
+      Map<String, Object> category = (Map<String, Object>) details.get("category");
+      if (category != null) {
+        transaction.setCategoryId((String) category.get("categoryId"));
+        transaction.setCategoryParentId((String) category.get("parentId"));
+      }
+      
+      @SuppressWarnings("unchecked")
+      Map<String, Object> brokerage = (Map<String, Object>) details.get("brokerage");
+      if (brokerage != null) {
+        transaction.setBrokerageTransactionType((String) brokerage.get("transactionType"));
+      }
+      
+      // Store details raw response
+      try {
+        transaction.setDetailsRawResponse(objectMapper.writeValueAsString(details));
+      } catch (Exception e) {
+        log.warn("Failed to serialize transaction details to JSON", e);
+      }
+      
+      transactionRepository.save(transaction);
+      log.debug("Persisted transaction details for transaction {} in account {}", transactionId, accountId);
+    } catch (Exception e) {
+      log.error("Failed to persist transaction details for transaction {} in account {}", transactionId, accountId, e);
+      // Don't throw - persistence failure should not break the API call
+    }
+  }
+
+  /**
+   * Persists/updates portfolio positions (upsert by positionId).
+   */
+  private void persistPortfolioPositions(UUID accountId, PortfolioResponse portfolioResponse) {
+    try {
+      List<PositionDto> positions = portfolioResponse.getAllPositions();
+      if (positions == null || positions.isEmpty()) {
+        log.debug("No positions to persist for account {}", accountId);
+        return;
+      }
+      
+      OffsetDateTime snapshotTime = OffsetDateTime.now();
+      
+      for (PositionDto positionDto : positions) {
+        if (positionDto.getPositionId() == null) {
+          log.warn("Position missing positionId, skipping persistence");
+          continue;
+        }
+        
+        Optional<EtradePortfolioPosition> existing = positionRepository.findByAccountIdAndPositionId(
+            accountId, positionDto.getPositionId());
+        EtradePortfolioPosition position;
+        
+        if (existing.isPresent()) {
+          // Update existing position
+          position = existing.get();
+          position.setLastUpdatedAt(OffsetDateTime.now());
+          position.setSnapshotTime(snapshotTime);
+        } else {
+          // Create new position
+          position = new EtradePortfolioPosition();
+          position.setAccountId(accountId);
+          position.setPositionId(positionDto.getPositionId());
+          position.setFirstSeenAt(OffsetDateTime.now());
+          position.setLastUpdatedAt(OffsetDateTime.now());
+          position.setSnapshotTime(snapshotTime);
+        }
+        
+        // Update all position fields from DTO
+        updatePositionFromDto(position, positionDto);
+        
+        // Optional: Store raw response as JSON
+        try {
+          position.setRawResponse(objectMapper.writeValueAsString(positionDto));
+        } catch (Exception e) {
+          log.warn("Failed to serialize position to JSON", e);
+        }
+        
+        positionRepository.save(position);
+        log.debug("Persisted position {} for account {}", positionDto.getPositionId(), accountId);
+      }
+      
+      log.info("Persisted {} positions for account {}", positions.size(), accountId);
+    } catch (Exception e) {
+      log.error("Failed to persist portfolio positions for account {}", accountId, e);
+      // Don't throw - persistence failure should not break the API call
+    }
+  }
+
+  /**
+   * Updates position entity from PositionDto.
+   */
+  private void updatePositionFromDto(EtradePortfolioPosition position, PositionDto dto) {
+    // Product information
+    if (dto.getProduct() != null) {
+      position.setSymbol(dto.getProduct().getSymbol());
+      position.setSecurityType(dto.getProduct().getSecurityType());
+    }
+    // PositionDto has cusip, exchange, isQuotable directly, not in ProductDto
+    position.setCusip(dto.getCusip());
+    position.setExchange(dto.getExchange());
+    position.setIsQuotable(dto.getIsQuotable());
+    position.setSymbolDescription(dto.getSymbolDescription());
+    
+    // Position details
+    position.setDateAcquired(dto.getDateAcquired());
+    position.setPricePaid(toBigDecimal(dto.getPricePaid()));
+    position.setCommissions(toBigDecimal(dto.getCommissions()));
+    position.setOtherFees(toBigDecimal(dto.getOtherFees()));
+    position.setQuantity(toBigDecimal(dto.getQuantity()));
+    position.setPositionIndicator(dto.getPositionIndicator());
+    position.setPositionType(dto.getPositionType());
+    
+    // Market values
+    position.setDaysGain(toBigDecimal(dto.getDaysGain()));
+    position.setDaysGainPct(toBigDecimal(dto.getDaysGainPct()));
+    position.setMarketValue(toBigDecimal(dto.getMarketValue()));
+    position.setTotalCost(toBigDecimal(dto.getTotalCost()));
+    position.setTotalGain(toBigDecimal(dto.getTotalGain()));
+    position.setTotalGainPct(toBigDecimal(dto.getTotalGainPct()));
+    position.setPctOfPortfolio(toBigDecimal(dto.getPctOfPortfolio()));
+    position.setCostPerShare(toBigDecimal(dto.getCostPerShare()));
+    position.setGainLoss(toBigDecimal(dto.getGainLoss()));
+    position.setGainLossPercent(toBigDecimal(dto.getGainLossPercent()));
+    position.setCostBasis(toBigDecimal(dto.getCostBasis()));
+    
+    // Option-specific fields
+    position.setIntrinsicValue(toBigDecimal(dto.getIntrinsicValue()));
+    position.setTimeValue(toBigDecimal(dto.getTimeValue()));
+    position.setMultiplier(dto.getMultiplier());
+    position.setDigits(dto.getDigits());
+    
+    // URLs
+    position.setLotsDetailsUri(dto.getLotsDetails());
+    position.setQuoteDetailsUri(dto.getQuoteDetails());
+  }
+
+  /**
+   * Helper method to convert Object to BigDecimal safely.
+   */
+  private BigDecimal toBigDecimal(Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof BigDecimal) {
+      return (BigDecimal) value;
+    }
+    if (value instanceof Double) {
+      return BigDecimal.valueOf((Double) value);
+    }
+    if (value instanceof Long) {
+      return BigDecimal.valueOf((Long) value);
+    }
+    if (value instanceof Integer) {
+      return BigDecimal.valueOf((Integer) value);
+    }
+    if (value instanceof String) {
+      try {
+        return new BigDecimal((String) value);
+      } catch (NumberFormatException e) {
+        log.warn("Invalid number format: {}", value);
+        return null;
+      }
+    }
+    log.warn("Cannot convert {} to BigDecimal", value.getClass().getName());
+    return null;
   }
 
   private EtradeAccountDto toDto(EtradeAccount account) {
