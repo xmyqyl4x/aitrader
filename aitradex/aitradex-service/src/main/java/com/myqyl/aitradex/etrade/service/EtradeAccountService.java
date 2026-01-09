@@ -1,6 +1,13 @@
 package com.myqyl.aitradex.etrade.service;
 
 import com.myqyl.aitradex.api.dto.EtradeAccountDto;
+import com.myqyl.aitradex.etrade.accounts.dto.AccountListResponse;
+import com.myqyl.aitradex.etrade.accounts.dto.BalanceRequest;
+import com.myqyl.aitradex.etrade.accounts.dto.BalanceResponse;
+import com.myqyl.aitradex.etrade.accounts.dto.EtradeAccountModel;
+import com.myqyl.aitradex.etrade.accounts.dto.PortfolioRequest;
+import com.myqyl.aitradex.etrade.accounts.dto.PortfolioResponse;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAccountAPI;
 import com.myqyl.aitradex.etrade.client.EtradeAccountClient;
 import com.myqyl.aitradex.etrade.domain.EtradeAccount;
 import com.myqyl.aitradex.etrade.repository.EtradeAccountRepository;
@@ -16,6 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service for managing E*TRADE accounts.
+ * 
+ * Delegates to EtradeApiClientAccountAPI for Accounts API calls using DTOs.
+ * Maintains backward compatibility with Map-based methods through the legacy EtradeAccountClient.
  */
 @Service
 public class EtradeAccountService {
@@ -23,12 +33,15 @@ public class EtradeAccountService {
   private static final Logger log = LoggerFactory.getLogger(EtradeAccountService.class);
 
   private final EtradeAccountRepository accountRepository;
-  private final EtradeAccountClient accountClient;
+  private final EtradeApiClientAccountAPI accountsApi;
+  private final EtradeAccountClient accountClient; // Legacy client for backward compatibility
 
   public EtradeAccountService(
       EtradeAccountRepository accountRepository,
+      EtradeApiClientAccountAPI accountsApi,
       EtradeAccountClient accountClient) {
     this.accountRepository = accountRepository;
+    this.accountsApi = accountsApi;
     this.accountClient = accountClient;
   }
 
@@ -76,28 +89,44 @@ public class EtradeAccountService {
   }
 
   /**
-   * Gets account balance from E*TRADE.
+   * Gets account balance from E*TRADE using the Accounts API.
    * 
    * @param accountId Internal account UUID
    * @param accountIdKey E*TRADE account ID key
    * @param instType Institution type (default: "BROKERAGE")
    * @param accountType Account type filter (optional)
    * @param realTimeNAV Whether to get real-time NAV (default: true)
+   * @return BalanceResponse DTO
    */
-  public Map<String, Object> getAccountBalance(UUID accountId, String accountIdKey, 
-                                                 String instType, String accountType, Boolean realTimeNAV) {
-    return accountClient.getBalance(accountId, accountIdKey, instType, accountType, realTimeNAV);
+  public BalanceResponse getAccountBalance(UUID accountId, String accountIdKey, 
+                                           String instType, String accountType, Boolean realTimeNAV) {
+    BalanceRequest request = new BalanceRequest(instType, accountType, realTimeNAV);
+    return accountsApi.getAccountBalance(accountId, accountIdKey, request);
   }
 
   /**
    * Gets account balance from E*TRADE (simplified version with defaults).
+   * 
+   * @return BalanceResponse DTO
    */
-  public Map<String, Object> getAccountBalance(UUID accountId, String accountIdKey) {
-    return accountClient.getBalance(accountId, accountIdKey);
+  public BalanceResponse getAccountBalance(UUID accountId, String accountIdKey) {
+    BalanceRequest request = new BalanceRequest();
+    return accountsApi.getAccountBalance(accountId, accountIdKey, request);
   }
 
   /**
-   * Gets account portfolio from E*TRADE.
+   * Gets account balance as Map (legacy method for backward compatibility).
+   * 
+   * @deprecated Use getAccountBalance() returning BalanceResponse instead
+   */
+  @Deprecated
+  public Map<String, Object> getAccountBalanceAsMap(UUID accountId, String accountIdKey, 
+                                                      String instType, String accountType, Boolean realTimeNAV) {
+    return accountClient.getBalance(accountId, accountIdKey, instType, accountType, realTimeNAV);
+  }
+
+  /**
+   * Gets account portfolio from E*TRADE using the Accounts API.
    * 
    * @param accountId Internal account UUID
    * @param accountIdKey E*TRADE account ID key
@@ -109,37 +138,64 @@ public class EtradeAccountService {
    * @param totalsRequired Whether to include totals (optional)
    * @param lotsRequired Whether to include lot details (optional)
    * @param view View type (e.g., "QUICK", "COMPLETE") (optional)
+   * @return PortfolioResponse DTO
    */
-  public Map<String, Object> getAccountPortfolio(UUID accountId, String accountIdKey, Integer count,
-                                                  String sortBy, String sortOrder, Integer pageNumber,
-                                                  String marketSession, Boolean totalsRequired,
-                                                  Boolean lotsRequired, String view) {
+  public PortfolioResponse getAccountPortfolio(UUID accountId, String accountIdKey, Integer count,
+                                               String sortBy, String sortOrder, Integer pageNumber,
+                                               String marketSession, Boolean totalsRequired,
+                                               Boolean lotsRequired, String view) {
+    PortfolioRequest request = new PortfolioRequest();
+    request.setCount(count);
+    request.setSortBy(sortBy);
+    request.setSortOrder(sortOrder);
+    request.setPageNumber(pageNumber);
+    request.setMarketSession(marketSession);
+    request.setTotalsRequired(totalsRequired);
+    request.setLotsRequired(lotsRequired);
+    request.setView(view);
+    return accountsApi.viewPortfolio(accountId, accountIdKey, request);
+  }
+
+  /**
+   * Gets account portfolio from E*TRADE (simplified version with defaults).
+   * 
+   * @return PortfolioResponse DTO
+   */
+  public PortfolioResponse getAccountPortfolio(UUID accountId, String accountIdKey) {
+    PortfolioRequest request = new PortfolioRequest();
+    return accountsApi.viewPortfolio(accountId, accountIdKey, request);
+  }
+
+  /**
+   * Gets account portfolio as Map (legacy method for backward compatibility).
+   * 
+   * @deprecated Use getAccountPortfolio() returning PortfolioResponse instead
+   */
+  @Deprecated
+  public Map<String, Object> getAccountPortfolioAsMap(UUID accountId, String accountIdKey, Integer count,
+                                                       String sortBy, String sortOrder, Integer pageNumber,
+                                                       String marketSession, Boolean totalsRequired,
+                                                       Boolean lotsRequired, String view) {
     return accountClient.getPortfolio(accountId, accountIdKey, count, sortBy, sortOrder, pageNumber,
                                       marketSession, totalsRequired, lotsRequired, view);
   }
 
   /**
-   * Gets account portfolio from E*TRADE (simplified version with defaults).
-   */
-  public Map<String, Object> getAccountPortfolio(UUID accountId, String accountIdKey) {
-    return accountClient.getPortfolio(accountId, accountIdKey);
-  }
-
-  /**
-   * Syncs account list from E*TRADE and updates database.
+   * Syncs account list from E*TRADE and updates database using the Accounts API.
    */
   @Transactional
   public List<EtradeAccountDto> syncAccounts(UUID userId, UUID accountId) {
-    List<Map<String, Object>> accounts = accountClient.getAccountList(accountId);
+    AccountListResponse response = accountsApi.listAccounts(accountId);
+    List<EtradeAccountModel> accounts = response.getAccountList();
     
-    for (Map<String, Object> accountData : accounts) {
-      String accountIdKey = (String) accountData.get("accountIdKey");
+    for (EtradeAccountModel accountData : accounts) {
+      String accountIdKey = accountData.getAccountIdKey();
       accountRepository.findByAccountIdKey(accountIdKey)
           .ifPresentOrElse(
               account -> {
-                account.setAccountType((String) accountData.get("accountType"));
-                account.setAccountName((String) accountData.get("accountName"));
-                account.setAccountStatus((String) accountData.get("accountStatus"));
+                account.setAccountType(accountData.getAccountType());
+                account.setAccountName(accountData.getAccountName());
+                account.setAccountStatus(accountData.getAccountStatus());
                 account.setLastSyncedAt(OffsetDateTime.now());
                 accountRepository.save(account);
               },
@@ -147,9 +203,9 @@ public class EtradeAccountService {
                 EtradeAccount account = new EtradeAccount();
                 account.setUserId(userId);
                 account.setAccountIdKey(accountIdKey);
-                account.setAccountType((String) accountData.get("accountType"));
-                account.setAccountName((String) accountData.get("accountName"));
-                account.setAccountStatus((String) accountData.get("accountStatus"));
+                account.setAccountType(accountData.getAccountType());
+                account.setAccountName(accountData.getAccountName());
+                account.setAccountStatus(accountData.getAccountStatus());
                 account.setLinkedAt(OffsetDateTime.now());
                 account.setLastSyncedAt(OffsetDateTime.now());
                 accountRepository.save(account);

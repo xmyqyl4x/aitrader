@@ -1,6 +1,8 @@
 package com.myqyl.aitradex.api.controller;
 
 import com.myqyl.aitradex.api.dto.EtradeAccountDto;
+import com.myqyl.aitradex.etrade.accounts.dto.BalanceResponse;
+import com.myqyl.aitradex.etrade.accounts.dto.PortfolioResponse;
 import com.myqyl.aitradex.etrade.service.EtradeAccountService;
 import java.util.List;
 import java.util.Map;
@@ -51,24 +53,28 @@ public class EtradeAccountController {
 
   /**
    * Gets account balance.
+   * 
+   * @return BalanceResponse DTO
    */
   @GetMapping("/{accountId}/balance")
-  public ResponseEntity<Map<String, Object>> getBalance(
+  public ResponseEntity<BalanceResponse> getBalance(
       @PathVariable UUID accountId,
       @RequestParam(required = false) String instType,
       @RequestParam(required = false) String accountType,
       @RequestParam(required = false) Boolean realTimeNAV) {
     EtradeAccountDto account = accountService.getAccount(accountId);
-    Map<String, Object> balance = accountService.getAccountBalance(accountId, account.accountIdKey(), 
-                                                                    instType, accountType, realTimeNAV);
+    BalanceResponse balance = accountService.getAccountBalance(accountId, account.accountIdKey(), 
+                                                               instType, accountType, realTimeNAV);
     return ResponseEntity.ok(balance);
   }
 
   /**
    * Gets account portfolio.
+   * 
+   * @return PortfolioResponse DTO
    */
   @GetMapping("/{accountId}/portfolio")
-  public ResponseEntity<Map<String, Object>> getPortfolio(
+  public ResponseEntity<PortfolioResponse> getPortfolio(
       @PathVariable UUID accountId,
       @RequestParam(required = false) Integer count,
       @RequestParam(required = false) String sortBy,
@@ -79,9 +85,9 @@ public class EtradeAccountController {
       @RequestParam(required = false) Boolean lotsRequired,
       @RequestParam(required = false) String view) {
     EtradeAccountDto account = accountService.getAccount(accountId);
-    Map<String, Object> portfolio = accountService.getAccountPortfolio(accountId, account.accountIdKey(),
-                                                                        count, sortBy, sortOrder, pageNumber,
-                                                                        marketSession, totalsRequired, lotsRequired, view);
+    PortfolioResponse portfolio = accountService.getAccountPortfolio(accountId, account.accountIdKey(),
+                                                                     count, sortBy, sortOrder, pageNumber,
+                                                                     marketSession, totalsRequired, lotsRequired, view);
     return ResponseEntity.ok(portfolio);
   }
 
