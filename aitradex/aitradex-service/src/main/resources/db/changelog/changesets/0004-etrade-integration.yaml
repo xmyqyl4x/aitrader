@@ -165,3 +165,55 @@ databaseChangeLog:
             referencedTableName: etrade_account
             referencedColumnNames: id
             onDelete: SET NULL
+
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: etrade_audit_log
+            constraintName: fk_etrade_audit_log_account
+        - dropIndex:
+            indexName: idx_etrade_audit_log_created_at
+            tableName: etrade_audit_log
+        - dropIndex:
+            indexName: idx_etrade_audit_log_action
+            tableName: etrade_audit_log
+        - dropIndex:
+            indexName: idx_etrade_audit_log_account_id
+            tableName: etrade_audit_log
+        - dropTable:
+            tableName: etrade_audit_log
+        - dropForeignKeyConstraint:
+            baseTableName: etrade_order
+            constraintName: fk_etrade_order_account
+        - dropIndex:
+            indexName: idx_etrade_order_placed_at
+            tableName: etrade_order
+        - dropIndex:
+            indexName: idx_etrade_order_status
+            tableName: etrade_order
+        - dropIndex:
+            indexName: idx_etrade_order_symbol
+            tableName: etrade_order
+        - dropIndex:
+            indexName: idx_etrade_order_etrade_order_id
+            tableName: etrade_order
+        - dropIndex:
+            indexName: idx_etrade_order_account_id
+            tableName: etrade_order
+        - dropTable:
+            tableName: etrade_order
+        - dropForeignKeyConstraint:
+            baseTableName: etrade_oauth_token
+            constraintName: fk_etrade_oauth_token_account
+        - dropIndex:
+            indexName: idx_etrade_oauth_token_account_id
+            tableName: etrade_oauth_token
+        - dropTable:
+            tableName: etrade_oauth_token
+        - dropIndex:
+            indexName: idx_etrade_account_account_id_key
+            tableName: etrade_account
+        - dropIndex:
+            indexName: idx_etrade_account_user_id
+            tableName: etrade_account
+        - dropTable:
+            tableName: etrade_account

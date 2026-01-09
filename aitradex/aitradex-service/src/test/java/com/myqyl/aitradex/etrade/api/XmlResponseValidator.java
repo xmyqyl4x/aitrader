@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -19,10 +20,22 @@ import org.xml.sax.InputSource;
 public class XmlResponseValidator {
 
   private static final Logger log = LoggerFactory.getLogger(XmlResponseValidator.class);
-  private static final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+  private static final DocumentBuilderFactory factory;
 
   static {
-    factory.setNamespaceAware(true);
+    factory = DocumentBuilderFactory.newInstance();
+    try {
+      // Disable XXE (XML External Entity) processing for security
+      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+      factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+      factory.setXIncludeAware(false);
+      factory.setExpandEntityReferences(false);
+      factory.setNamespaceAware(true);
+    } catch (ParserConfigurationException e) {
+      throw new RuntimeException("Failed to configure XML parser securely", e);
+    }
   }
 
   /**
