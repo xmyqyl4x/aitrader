@@ -1,17 +1,17 @@
 package com.myqyl.aitradex.api.controller;
 
+import com.myqyl.aitradex.etrade.alerts.dto.*;
 import com.myqyl.aitradex.etrade.service.EtradeAlertsService;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * Controller for E*TRADE alerts operations.
+ * 
+ * Refactored to use DTOs/Models instead of Maps.
+ * New endpoints use Alerts API DTOs.
  */
 @RestController
 @RequestMapping("/api/etrade/alerts")
@@ -25,41 +25,57 @@ public class EtradeAlertsController {
   }
 
   /**
-   * Lists alerts for an account.
+   * Lists alerts for an account using DTOs.
    */
   @GetMapping
-  public ResponseEntity<List<Map<String, Object>>> listAlerts(
+  public ResponseEntity<AlertsResponse> listAlerts(
       @RequestParam UUID accountId,
       @RequestParam(required = false) Integer count,
       @RequestParam(required = false) String category,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String direction,
       @RequestParam(required = false) String search) {
-    List<Map<String, Object>> alerts = alertsService.listAlerts(accountId, count, category, 
-                                                                  status, direction, search);
-    return ResponseEntity.ok(alerts);
+    ListAlertsRequest request = new ListAlertsRequest();
+    request.setCount(count);
+    request.setCategory(category);
+    request.setStatus(status);
+    request.setDirection(direction);
+    request.setSearch(search);
+    
+    AlertsResponse response = alertsService.listAlerts(accountId, request);
+    return ResponseEntity.ok(response);
   }
 
   /**
-   * Gets alert details by alert ID.
+   * Gets alert details by alert ID using DTOs.
    */
   @GetMapping("/{alertId}")
-  public ResponseEntity<Map<String, Object>> getAlertDetails(
+  public ResponseEntity<AlertDetailsDto> getAlertDetails(
       @RequestParam UUID accountId,
       @PathVariable String alertId,
-      @RequestParam(required = false) Boolean htmlTags) {
-    Map<String, Object> details = alertsService.getAlertDetails(accountId, alertId, htmlTags);
+      @RequestParam(required = false) Boolean tags) {
+    GetAlertDetailsRequest request = new GetAlertDetailsRequest();
+    request.setId(alertId);
+    request.setTags(tags);
+    
+    AlertDetailsDto details = alertsService.getAlertDetails(accountId, request);
     return ResponseEntity.ok(details);
   }
 
   /**
-   * Deletes one or more alerts.
+   * Deletes one or more alerts using DTOs.
+   * Alert IDs are provided as a comma-separated path parameter per E*TRADE API documentation.
    */
-  @DeleteMapping
-  public ResponseEntity<Map<String, Object>> deleteAlerts(
+  @DeleteMapping("/{alertIdList}")
+  public ResponseEntity<DeleteAlertsResponse> deleteAlerts(
       @RequestParam UUID accountId,
-      @RequestBody List<String> alertIds) {
-    Map<String, Object> result = alertsService.deleteAlerts(accountId, alertIds);
-    return ResponseEntity.ok(result);
+      @PathVariable String alertIdList) {
+    DeleteAlertsRequest request = new DeleteAlertsRequest();
+    // Parse comma-separated alert IDs from path parameter
+    String[] alertIds = alertIdList.split(",");
+    request.setAlertIds(java.util.Arrays.asList(alertIds));
+    
+    DeleteAlertsResponse response = alertsService.deleteAlerts(accountId, request);
+    return ResponseEntity.ok(response);
   }
 }

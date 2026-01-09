@@ -5,10 +5,13 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.myqyl.aitradex.etrade.api.integration.EtradeApiIntegrationTestBase;
-import com.myqyl.aitradex.etrade.client.EtradeAlertsClient;
-import java.util.*;
+import com.myqyl.aitradex.etrade.alerts.dto.*;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAlertsAPI;
+import com.myqyl.aitradex.etrade.service.EtradeAlertsService;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -17,188 +20,206 @@ import org.springframework.http.MediaType;
 /**
  * Integration tests for E*TRADE Alerts API endpoints.
  * 
- * These tests validate our application's alerts functionality by:
- * - Calling our REST API endpoints (/api/etrade/alerts/*)
- * - Mocking the underlying E*TRADE client calls
- * - Validating request building, response parsing, error handling
- * 
- * Tests do NOT call E*TRADE's public endpoints directly.
+ * These tests validate our Alerts REST API endpoints by:
+ * - Calling our REST API endpoints (via MockMvc)
+ * - Mocking the underlying Alerts API client
+ * - Validating request/response handling, error handling, etc.
  */
 @DisplayName("E*TRADE Alerts API Integration Tests")
 class EtradeAlertsApiIntegrationTest extends EtradeApiIntegrationTestBase {
 
-  // ============================================================================
-  // 1. LIST ALERTS TESTS
-  // ============================================================================
+  @MockBean
+  private EtradeAlertsService alertsService;
 
-  @Test
-  @DisplayName("List Alerts - Success")
-  void listAlerts_success() throws Exception {
-    // Mock E*TRADE client response
-    List<Map<String, Object>> mockAlerts = List.of(
-        createMockAlert("ALERT123", "Price Alert", "ACTIVE", "PRICE"),
-        createMockAlert("ALERT456", "News Alert", "READ", "NEWS")
-    );
-    when(alertsClient.listAlerts(eq(testAccountId), isNull(), isNull(), isNull(), isNull(), isNull()))
-        .thenReturn(mockAlerts);
+  @MockBean
+  private EtradeApiClientAlertsAPI alertsApi;
 
-    // Call our application endpoint
-    mockMvc.perform(get("/api/etrade/alerts")
-            .param("accountId", testAccountId.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isArray())
-        .andExpect(jsonPath("$[0].id").value("ALERT123"))
-        .andExpect(jsonPath("$[0].subject").value("Price Alert"))
-        .andExpect(jsonPath("$[1].id").value("ALERT456"));
-
-    verify(alertsClient, times(1)).listAlerts(eq(testAccountId), isNull(), isNull(), isNull(), isNull(), isNull());
+  @BeforeEach
+  void setUpAlerts() {
+    // Additional setup for Alerts tests if needed
   }
 
   @Test
-  @DisplayName("List Alerts - With Filters")
-  void listAlerts_withFilters() throws Exception {
-    List<Map<String, Object>> mockAlerts = List.of(
-        createMockAlert("ALERT789", "Price Alert", "ACTIVE", "PRICE")
-    );
-    when(alertsClient.listAlerts(eq(testAccountId), eq(10), eq("PRICE"), eq("ACTIVE"), eq("DESC"), isNull()))
-        .thenReturn(mockAlerts);
+  @DisplayName("GET /api/etrade/alerts should return alerts list")
+  void listAlerts_shouldReturnAlertsList() throws Exception {
+    UUID accountId = testAccountId;
+
+    AlertsResponse response = createTestAlertsResponse();
+
+    when(alertsService.listAlerts(eq(accountId), any(ListAlertsRequest.class)))
+        .thenReturn(response);
 
     mockMvc.perform(get("/api/etrade/alerts")
-            .param("accountId", testAccountId.toString())
-            .param("count", "10")
-            .param("category", "PRICE")
-            .param("status", "ACTIVE")
-            .param("direction", "DESC"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isArray())
-        .andExpect(jsonPath("$[0].category").value("PRICE"));
-
-    verify(alertsClient, times(1)).listAlerts(eq(testAccountId), eq(10), eq("PRICE"), eq("ACTIVE"), eq("DESC"), isNull());
-  }
-
-  @Test
-  @DisplayName("List Alerts - With Search")
-  void listAlerts_withSearch() throws Exception {
-    List<Map<String, Object>> mockAlerts = List.of(
-        createMockAlert("ALERT999", "AAPL Price Alert", "ACTIVE", "PRICE")
-    );
-    when(alertsClient.listAlerts(eq(testAccountId), isNull(), isNull(), isNull(), isNull(), eq("AAPL")))
-        .thenReturn(mockAlerts);
-
-    mockMvc.perform(get("/api/etrade/alerts")
-            .param("accountId", testAccountId.toString())
+            .param("accountId", accountId.toString())
+            .param("count", "25")
+            .param("category", "STOCK")
+            .param("status", "UNREAD")
+            .param("direction", "DESC")
             .param("search", "AAPL"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].subject").value("AAPL Price Alert"));
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.totalAlerts").value(148))
+        .andExpect(jsonPath("$.alerts").isArray())
+        .andExpect(jsonPath("$.alerts[0].id").value(6774))
+        .andExpect(jsonPath("$.alerts[0].subject").value("Transfer failed-Insufficient Funds"))
+        .andExpect(jsonPath("$.alerts[0].status").value("UNREAD"));
 
-    verify(alertsClient, times(1)).listAlerts(eq(testAccountId), isNull(), isNull(), isNull(), isNull(), eq("AAPL"));
-  }
-
-  // ============================================================================
-  // 2. GET ALERT DETAILS TESTS
-  // ============================================================================
-
-  @Test
-  @DisplayName("Get Alert Details - Success")
-  void getAlertDetails_success() throws Exception {
-    // Mock E*TRADE client response
-    Map<String, Object> mockDetails = createMockAlertDetails("ALERT123", "Price Alert", "ACTIVE", "PRICE", "AAPL reached $150");
-    when(alertsClient.getAlertDetails(eq(testAccountId), eq("ALERT123"), isNull()))
-        .thenReturn(mockDetails);
-
-    // Call our application endpoint
-    mockMvc.perform(get("/api/etrade/alerts/{alertId}", "ALERT123")
-            .param("accountId", testAccountId.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value("ALERT123"))
-        .andExpect(jsonPath("$.subject").value("Price Alert"))
-        .andExpect(jsonPath("$.message").value("AAPL reached $150"));
-
-    verify(alertsClient, times(1)).getAlertDetails(eq(testAccountId), eq("ALERT123"), isNull());
+    verify(alertsService, times(1)).listAlerts(eq(accountId), any(ListAlertsRequest.class));
   }
 
   @Test
-  @DisplayName("Get Alert Details - With HTML Tags")
-  void getAlertDetails_withHtmlTags() throws Exception {
-    Map<String, Object> mockDetails = createMockAlertDetails("ALERT123", "Price Alert", "ACTIVE", "PRICE", "<p>AAPL reached $150</p>");
-    when(alertsClient.getAlertDetails(eq(testAccountId), eq("ALERT123"), eq(true)))
-        .thenReturn(mockDetails);
+  @DisplayName("GET /api/etrade/alerts/{alertId} should return alert details")
+  void getAlertDetails_shouldReturnAlertDetails() throws Exception {
+    UUID accountId = testAccountId;
+    String alertId = "6773";
 
-    mockMvc.perform(get("/api/etrade/alerts/{alertId}", "ALERT123")
-            .param("accountId", testAccountId.toString())
-            .param("htmlTags", "true"))
+    AlertDetailsDto details = createTestAlertDetails();
+
+    when(alertsService.getAlertDetails(eq(accountId), any(GetAlertDetailsRequest.class)))
+        .thenReturn(details);
+
+    mockMvc.perform(get("/api/etrade/alerts/{alertId}", alertId)
+            .param("accountId", accountId.toString())
+            .param("tags", "true"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.message").value("<p>AAPL reached $150</p>"));
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(6773))
+        .andExpect(jsonPath("$.subject").value("AAPL down by at least 2.00%"))
+        .andExpect(jsonPath("$.symbol").value("AAPL"))
+        .andExpect(jsonPath("$.msgText").exists())
+        .andExpect(jsonPath("$.next").exists())
+        .andExpect(jsonPath("$.prev").exists());
 
-    verify(alertsClient, times(1)).getAlertDetails(eq(testAccountId), eq("ALERT123"), eq(true));
-  }
-
-  // ============================================================================
-  // 3. DELETE ALERTS TESTS
-  // ============================================================================
-
-  @Test
-  @DisplayName("Delete Alerts - Success")
-  void deleteAlerts_success() throws Exception {
-    // Mock E*TRADE client response
-    Map<String, Object> mockResult = Map.of("success", true, "message", "Alerts deleted successfully");
-    when(alertsClient.deleteAlerts(eq(testAccountId), eq(List.of("ALERT123", "ALERT456"))))
-        .thenReturn(mockResult);
-
-    // Call our application endpoint
-    mockMvc.perform(delete("/api/etrade/alerts")
-            .param("accountId", testAccountId.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(List.of("ALERT123", "ALERT456"))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.message").value("Alerts deleted successfully"));
-
-    verify(alertsClient, times(1)).deleteAlerts(eq(testAccountId), eq(List.of("ALERT123", "ALERT456")));
+    verify(alertsService, times(1)).getAlertDetails(eq(accountId), any(GetAlertDetailsRequest.class));
   }
 
   @Test
-  @DisplayName("Delete Alerts - Single Alert")
-  void deleteAlerts_singleAlert() throws Exception {
-    Map<String, Object> mockResult = Map.of("success", true, "message", "Alert deleted");
-    when(alertsClient.deleteAlerts(eq(testAccountId), eq(List.of("ALERT123"))))
-        .thenReturn(mockResult);
+  @DisplayName("DELETE /api/etrade/alerts/{alertIdList} should delete alerts")
+  void deleteAlerts_shouldDeleteAlerts() throws Exception {
+    UUID accountId = testAccountId;
+    String alertIdList = "6772,6774";
 
-    mockMvc.perform(delete("/api/etrade/alerts")
-            .param("accountId", testAccountId.toString())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(List.of("ALERT123"))))
+    DeleteAlertsResponse response = createTestDeleteAlertsResponse();
+
+    when(alertsService.deleteAlerts(eq(accountId), any(DeleteAlertsRequest.class)))
+        .thenReturn(response);
+
+    mockMvc.perform(delete("/api/etrade/alerts/{alertIdList}", alertIdList)
+            .param("accountId", accountId.toString()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true));
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.result").value("Success"))
+        .andExpect(jsonPath("$.failedAlerts").isArray())
+        .andExpect(jsonPath("$.failedAlerts").isEmpty());
 
-    verify(alertsClient, times(1)).deleteAlerts(eq(testAccountId), eq(List.of("ALERT123")));
+    verify(alertsService, times(1)).deleteAlerts(eq(accountId), any(DeleteAlertsRequest.class));
   }
 
-  // ============================================================================
-  // HELPER METHODS
-  // ============================================================================
+  @Test
+  @DisplayName("DELETE /api/etrade/alerts/{alertIdList} should handle failed alerts")
+  void deleteAlerts_shouldHandleFailedAlerts() throws Exception {
+    UUID accountId = testAccountId;
+    String alertIdList = "6772,6775";
 
-  private Map<String, Object> createMockAlert(String id, String subject, String status, String category) {
-    Map<String, Object> alert = new HashMap<>();
-    alert.put("id", id);
-    alert.put("subject", subject);
-    alert.put("status", status);
-    alert.put("category", category);
-    alert.put("dateTime", "2024-01-15T10:00:00-05:00");
-    alert.put("priority", "HIGH");
-    return alert;
+    DeleteAlertsResponse response = createTestDeleteAlertsResponseWithFailures();
+
+    when(alertsService.deleteAlerts(eq(accountId), any(DeleteAlertsRequest.class)))
+        .thenReturn(response);
+
+    mockMvc.perform(delete("/api/etrade/alerts/{alertIdList}", alertIdList)
+            .param("accountId", accountId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.result").value("Success"))
+        .andExpect(jsonPath("$.failedAlerts").isArray())
+        .andExpect(jsonPath("$.failedAlerts[0].id").value(6775))
+        .andExpect(jsonPath("$.failedAlerts[0].reason").value("Alert not found"));
+
+    verify(alertsService, times(1)).deleteAlerts(eq(accountId), any(DeleteAlertsRequest.class));
   }
 
-  private Map<String, Object> createMockAlertDetails(String id, String subject, String status, 
-                                                      String category, String message) {
-    Map<String, Object> details = new HashMap<>();
-    details.put("id", id);
-    details.put("subject", subject);
-    details.put("status", status);
-    details.put("category", category);
-    details.put("message", message);
-    details.put("dateTime", "2024-01-15T10:00:00-05:00");
-    details.put("priority", "HIGH");
+  @Test
+  @DisplayName("GET /api/etrade/alerts should handle empty alerts")
+  void listAlerts_shouldHandleEmptyAlerts() throws Exception {
+    UUID accountId = testAccountId;
+
+    AlertsResponse response = new AlertsResponse();
+    response.setTotalAlerts(0L);
+    response.setAlerts(List.of());
+
+    when(alertsService.listAlerts(eq(accountId), any(ListAlertsRequest.class)))
+        .thenReturn(response);
+
+    mockMvc.perform(get("/api/etrade/alerts")
+            .param("accountId", accountId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.totalAlerts").value(0))
+        .andExpect(jsonPath("$.alerts").isArray())
+        .andExpect(jsonPath("$.alerts").isEmpty());
+  }
+
+  // Helper methods
+
+  private AlertsResponse createTestAlertsResponse() {
+    AlertsResponse response = new AlertsResponse();
+    response.setTotalAlerts(148L);
+
+    AlertDto alert1 = new AlertDto();
+    alert1.setId(6774L);
+    alert1.setCreateTime(1529426402L);
+    alert1.setSubject("Transfer failed-Insufficient Funds");
+    alert1.setStatus("UNREAD");
+
+    AlertDto alert2 = new AlertDto();
+    alert2.setId(6773L);
+    alert2.setCreateTime(1529416825L);
+    alert2.setSubject("AAPL down by at least 2.00%");
+    alert2.setStatus("UNREAD");
+
+    AlertDto alert3 = new AlertDto();
+    alert3.setId(6772L);
+    alert3.setCreateTime(1529393902L);
+    alert3.setSubject("External Account Added");
+    alert3.setStatus("UNREAD");
+
+    response.setAlerts(Arrays.asList(alert1, alert2, alert3));
+
+    return response;
+  }
+
+  private AlertDetailsDto createTestAlertDetails() {
+    AlertDetailsDto details = new AlertDetailsDto();
+    details.setId(6773L);
+    details.setCreateTime(1529416825L);
+    details.setSubject("AAPL down by at least 2.00%");
+    details.setSymbol("AAPL");
+    details.setMsgText("APPLE INC COM (AAPL) stock has met your target percentage decrease of 2.00%.");
+    details.setReadTime(0L);
+    details.setDeleteTime(0L);
+    details.setNext("https://api.etrade.com/v1/user/alerts/6772");
+    details.setPrev("https://api.etrade.com/v1/user/alerts/6774");
+
     return details;
+  }
+
+  private DeleteAlertsResponse createTestDeleteAlertsResponse() {
+    DeleteAlertsResponse response = new DeleteAlertsResponse();
+    response.setResult("Success");
+    response.setFailedAlerts(List.of());
+    return response;
+  }
+
+  private DeleteAlertsResponse createTestDeleteAlertsResponseWithFailures() {
+    DeleteAlertsResponse response = new DeleteAlertsResponse();
+    response.setResult("Success");
+
+    FailedAlertDto failedAlert = new FailedAlertDto();
+    failedAlert.setId(6775L);
+    failedAlert.setReason("Alert not found");
+
+    response.setFailedAlerts(List.of(failedAlert));
+
+    return response;
   }
 }

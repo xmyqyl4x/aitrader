@@ -204,4 +204,8 @@ public class EtradeProperties {
   public String getAlertsDeleteUrl() {
     return baseUrl + "/v1/user/alerts";
   }
+
+  public String getAlertsDeleteUrl(String alertIdList) {
+    return baseUrl + "/v1/user/alerts/" + alertIdList;
+  }
 }
