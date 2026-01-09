@@ -121,6 +121,14 @@ public class EtradeProperties {
     return baseUrl + "/oauth/access_token";
   }
 
+  public String getOAuthRenewAccessTokenUrl() {
+    return baseUrl + "/oauth/renew_access_token";
+  }
+
+  public String getOAuthRevokeAccessTokenUrl() {
+    return baseUrl + "/oauth/revoke_access_token";
+  }
+
   public String getAccountsListUrl() {
     return baseUrl + "/v1/accounts/list";
   }

@@ -1,9 +1,11 @@
 package com.myqyl.aitradex.etrade.api;
 
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAuthorizationAPI;
 import com.myqyl.aitradex.etrade.config.EtradeProperties;
 import com.myqyl.aitradex.etrade.oauth.EtradeOAuth1Template;
 import com.myqyl.aitradex.etrade.oauth.EtradeOAuthService;
 import com.myqyl.aitradex.etrade.oauth.EtradeTokenEncryption;
+import com.myqyl.aitradex.etrade.repository.EtradeAuditLogRepository;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -48,12 +50,16 @@ public class EtradeAccessTokenHelper {
       EtradeOAuth1Template oauthTemplate = new EtradeOAuth1Template(consumerKey, consumerSecret);
       EtradeTokenEncryption tokenEncryption = new EtradeTokenEncryption(encryptionKey);
       
+      // Create Authorization API client (with null audit repository for standalone use)
+      EtradeApiClientAuthorizationAPI authorizationApi = new EtradeApiClientAuthorizationAPI(
+          properties, oauthTemplate, null);
+      
       // Create OAuth service (with null repository - exchangeForAccessToken will fail on save, 
       // but we can extract the token from the response before that)
       // Actually, we need to catch the exception or modify approach
       // For now, let's use a mock repository approach or catch the save exception
       EtradeOAuthService oauthService = new EtradeOAuthService(
-          properties, oauthTemplate, tokenEncryption, null);
+          properties, authorizationApi, tokenEncryption, null);
 
       // Step 1: Get request token
       UUID testUserId = UUID.randomUUID();

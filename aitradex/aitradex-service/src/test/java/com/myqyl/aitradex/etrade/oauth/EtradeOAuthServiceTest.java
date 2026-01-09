@@ -4,35 +4,36 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.myqyl.aitradex.etrade.authorization.dto.*;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAuthorizationAPI;
 import com.myqyl.aitradex.etrade.config.EtradeProperties;
 import com.myqyl.aitradex.etrade.domain.EtradeOAuthToken;
 import com.myqyl.aitradex.etrade.repository.EtradeOAuthTokenRepository;
-import java.lang.reflect.Field;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * Unit tests for EtradeOAuthService.
+ * 
+ * Updated to test the refactored service that delegates to EtradeApiClientAuthorizationAPI.
  */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("EtradeOAuthService Tests")
 class EtradeOAuthServiceTest {
 
   @Mock
   private EtradeProperties properties;
 
   @Mock
-  private EtradeOAuth1Template oauthTemplate;
+  private EtradeApiClientAuthorizationAPI authorizationApi;
 
   @Mock
   private EtradeTokenEncryption tokenEncryption;
@@ -40,66 +41,39 @@ class EtradeOAuthServiceTest {
   @Mock
   private EtradeOAuthTokenRepository tokenRepository;
 
-  @Mock
-  private HttpClient httpClient;
-
-  @Mock
-  private HttpResponse<String> httpResponse;
-
   private EtradeOAuthService oauthService;
   private static final UUID TEST_USER_ID = UUID.randomUUID();
   private static final UUID TEST_ACCOUNT_ID = UUID.randomUUID();
 
   @BeforeEach
-  void setUp() throws Exception {
-    oauthService = new EtradeOAuthService(properties, oauthTemplate, tokenEncryption, tokenRepository);
-
-    // Inject mock HttpClient using reflection
-    Field httpClientField = EtradeOAuthService.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(oauthService, httpClient);
+  void setUp() {
+    oauthService = new EtradeOAuthService(properties, authorizationApi, tokenEncryption, tokenRepository);
 
     // Setup properties
-    when(properties.getOAuthRequestTokenUrl())
-        .thenReturn("https://apisb.etrade.com/oauth/request_token");
-    when(properties.getOAuthAccessTokenUrl())
-        .thenReturn("https://apisb.etrade.com/oauth/access_token");
-    when(properties.getAuthorizeUrl())
-        .thenReturn("https://us.etrade.com/e/t/etws/authorize");
-    when(properties.getConsumerKey())
-        .thenReturn("test_consumer_key");
+    when(properties.getEnvironment())
+        .thenReturn(EtradeProperties.Environment.SANDBOX);
     when(properties.getCallbackUrl())
         .thenReturn("http://localhost:4200/etrade-review-trade/callback");
-
-    // Setup OAuth template
-    when(oauthTemplate.generateAuthorizationHeader(
-        eq("GET"), anyString(), any(), isNull(), isNull()))
-        .thenReturn("OAuth oauth_consumer_key=\"test\", oauth_signature=\"sig1\", ...");
-
-    when(oauthTemplate.parseOAuthResponse(anyString()))
-        .thenAnswer(invocation -> {
-          String response = invocation.getArgument(0);
-          Map<String, String> params = new java.util.HashMap<>();
-          if (response.contains("oauth_token=")) {
-            params.put("oauth_token", "request_token_123");
-            params.put("oauth_token_secret", "request_secret_123");
-          }
-          if (response.contains("access_token")) {
-            params.put("oauth_token", "access_token_456");
-            params.put("oauth_token_secret", "access_secret_456");
-          }
-          return params;
-        });
+    when(properties.getConsumerKey())
+        .thenReturn("test_consumer_key");
+    when(properties.getAuthorizeUrl())
+        .thenReturn("https://us.etrade.com/e/t/etws/authorize");
   }
 
   @Test
-  void getRequestToken_successful_returnsAuthorizationUrl() throws Exception {
-    String mockResponse = "oauth_token=request_token_123&oauth_token_secret=request_secret_123";
+  @DisplayName("getRequestToken should return RequestTokenResponse on success")
+  void getRequestTokenShouldReturnRequestTokenResponseOnSuccess() {
+    // Mock Authorization API response
+    RequestTokenResponse apiResponse = new RequestTokenResponse(
+        "request_token_123", "request_secret_456", "true");
+    when(authorizationApi.getRequestToken(any(RequestTokenRequest.class)))
+        .thenReturn(apiResponse);
 
-    when(httpResponse.statusCode()).thenReturn(200);
-    when(httpResponse.body()).thenReturn(mockResponse);
-    when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-        .thenReturn(httpResponse);
+    // Mock authorization URL generation
+    AuthorizeApplicationResponse authorizeResponse = new AuthorizeApplicationResponse(
+        "https://us.etrade.com/e/t/etws/authorize?key=test_consumer_key&token=request_token_123");
+    when(authorizationApi.authorizeApplication(any(AuthorizeApplicationRequest.class)))
+        .thenReturn(authorizeResponse);
 
     EtradeOAuthService.RequestTokenResponse response = oauthService.getRequestToken(TEST_USER_ID);
 
@@ -108,56 +82,41 @@ class EtradeOAuthServiceTest {
     assertTrue(response.getAuthorizationUrl().contains("authorize"));
     assertTrue(response.getAuthorizationUrl().contains("request_token_123"));
     assertEquals("request_token_123", response.getRequestToken());
-    assertEquals("request_secret_123", response.getRequestTokenSecret());
+    assertEquals("request_secret_456", response.getRequestTokenSecret());
 
-    // Verify GET method is used
-    ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-    verify(httpClient).send(requestCaptor.capture(), any());
-    assertEquals("GET", requestCaptor.getValue().method());
+    verify(authorizationApi, times(1)).getRequestToken(any(RequestTokenRequest.class));
+    verify(authorizationApi, times(1)).authorizeApplication(any(AuthorizeApplicationRequest.class));
   }
 
   @Test
-  void getRequestToken_httpError_throwsException() throws Exception {
-    when(httpResponse.statusCode()).thenReturn(500);
-    when(httpResponse.body()).thenReturn("Internal Server Error");
-    when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-        .thenReturn(httpResponse);
+  @DisplayName("getRequestToken should handle API exceptions")
+  void getRequestTokenShouldHandleApiExceptions() {
+    com.myqyl.aitradex.etrade.exception.EtradeApiException apiException =
+        new com.myqyl.aitradex.etrade.exception.EtradeApiException(500, "API_ERROR", "API Error");
+    when(authorizationApi.getRequestToken(any(RequestTokenRequest.class)))
+        .thenThrow(apiException);
 
     RuntimeException exception = assertThrows(RuntimeException.class, () ->
         oauthService.getRequestToken(TEST_USER_ID));
 
-    assertTrue(exception.getMessage().contains("Failed to get request token"));
+    assertTrue(exception.getMessage().contains("OAuth request token failed"));
+    assertTrue(exception.getCause() == apiException);
   }
 
   @Test
-  void getRequestToken_invalidResponse_throwsException() throws Exception {
-    when(httpResponse.statusCode()).thenReturn(200);
-    when(httpResponse.body()).thenReturn("invalid_response");
-    when(oauthTemplate.parseOAuthResponse("invalid_response"))
-        .thenReturn(Map.of()); // Empty map
-
-    RuntimeException exception = assertThrows(RuntimeException.class, () ->
-        oauthService.getRequestToken(TEST_USER_ID));
-
-    assertTrue(exception.getMessage().contains("Invalid request token response"));
-  }
-
-  @Test
-  void exchangeForAccessToken_successful_storesToken() throws Exception {
-    String mockResponse = "oauth_token=access_token_456&oauth_token_secret=access_secret_456";
-
-    when(httpResponse.statusCode()).thenReturn(200);
-    when(httpResponse.body()).thenReturn(mockResponse);
-    when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-        .thenReturn(httpResponse);
+  @DisplayName("exchangeForAccessToken should store token on success")
+  void exchangeForAccessTokenShouldStoreTokenOnSuccess() {
+    // Mock Authorization API response
+    AccessTokenResponse apiResponse = new AccessTokenResponse(
+        "access_token_456", "access_secret_456");
+    when(authorizationApi.getAccessToken(any(AccessTokenRequest.class)))
+        .thenReturn(apiResponse);
 
     // Mock encryption
     when(tokenEncryption.encrypt("access_token_456")).thenReturn("encrypted_access_token");
     when(tokenEncryption.encrypt("access_secret_456")).thenReturn("encrypted_access_secret");
 
     // Mock repository
-    when(tokenRepository.findByAccountId(TEST_ACCOUNT_ID))
-        .thenReturn(Optional.empty());
     when(tokenRepository.save(any(EtradeOAuthToken.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -171,29 +130,28 @@ class EtradeOAuthServiceTest {
     // Verify token is saved
     verify(tokenRepository, times(1)).save(any(EtradeOAuthToken.class));
     verify(tokenEncryption, times(2)).encrypt(anyString());
-
-    // Verify GET method is used
-    ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-    verify(httpClient).send(requestCaptor.capture(), any());
-    assertEquals("GET", requestCaptor.getValue().method());
+    verify(authorizationApi, times(1)).getAccessToken(any(AccessTokenRequest.class));
   }
 
   @Test
-  void exchangeForAccessToken_httpError_throwsException() throws Exception {
-    when(httpResponse.statusCode()).thenReturn(401);
-    when(httpResponse.body()).thenReturn("Unauthorized");
-    when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-        .thenReturn(httpResponse);
+  @DisplayName("exchangeForAccessToken should handle API exceptions")
+  void exchangeForAccessTokenShouldHandleApiExceptions() {
+    com.myqyl.aitradex.etrade.exception.EtradeApiException apiException =
+        new com.myqyl.aitradex.etrade.exception.EtradeApiException(401, "AUTH_ERROR", "Unauthorized");
+    when(authorizationApi.getAccessToken(any(AccessTokenRequest.class)))
+        .thenThrow(apiException);
 
     RuntimeException exception = assertThrows(RuntimeException.class, () ->
         oauthService.exchangeForAccessToken(
             "request_token_123", "request_secret_123", "verifier_789", TEST_ACCOUNT_ID));
 
-    assertTrue(exception.getMessage().contains("Failed to exchange access token"));
+    assertTrue(exception.getMessage().contains("Access token exchange failed"));
+    assertTrue(exception.getCause() == apiException);
   }
 
   @Test
-  void getAccessToken_returnsDecryptedToken() {
+  @DisplayName("getAccessToken should return decrypted token")
+  void getAccessTokenShouldReturnDecryptedToken() {
     EtradeOAuthToken token = new EtradeOAuthToken();
     token.setAccountId(TEST_ACCOUNT_ID);
     token.setAccessTokenEncrypted("encrypted_access_token");
@@ -215,7 +173,8 @@ class EtradeOAuthServiceTest {
   }
 
   @Test
-  void getAccessToken_noToken_throwsException() {
+  @DisplayName("getAccessToken should throw exception when token not found")
+  void getAccessTokenShouldThrowExceptionWhenTokenNotFound() {
     when(tokenRepository.findByAccountId(TEST_ACCOUNT_ID))
         .thenReturn(Optional.empty());
 
@@ -223,5 +182,56 @@ class EtradeOAuthServiceTest {
         oauthService.getAccessToken(TEST_ACCOUNT_ID));
 
     assertTrue(exception.getMessage().contains("No access token found"));
+  }
+
+  @Test
+  @DisplayName("renewAccessToken should call Authorization API and return response")
+  void renewAccessTokenShouldCallAuthorizationApiAndReturnResponse() {
+    // Mock token retrieval
+    EtradeOAuthToken token = new EtradeOAuthToken();
+    token.setAccountId(TEST_ACCOUNT_ID);
+    token.setAccessTokenEncrypted("encrypted_token");
+    token.setAccessTokenSecretEncrypted("encrypted_secret");
+    when(tokenRepository.findByAccountId(TEST_ACCOUNT_ID))
+        .thenReturn(Optional.of(token));
+    when(tokenEncryption.decrypt("encrypted_token")).thenReturn("access_token");
+    when(tokenEncryption.decrypt("encrypted_secret")).thenReturn("access_secret");
+
+    // Mock Authorization API response
+    RenewAccessTokenResponse apiResponse = new RenewAccessTokenResponse("Access Token has been renewed");
+    when(authorizationApi.renewAccessToken(any(RenewAccessTokenRequest.class)))
+        .thenReturn(apiResponse);
+
+    RenewAccessTokenResponse result = oauthService.renewAccessToken(TEST_ACCOUNT_ID);
+
+    assertNotNull(result);
+    assertTrue(result.isSuccess());
+    verify(authorizationApi, times(1)).renewAccessToken(any(RenewAccessTokenRequest.class));
+  }
+
+  @Test
+  @DisplayName("revokeAccessToken should call Authorization API and delete token")
+  void revokeAccessTokenShouldCallAuthorizationApiAndDeleteToken() {
+    // Mock token retrieval
+    EtradeOAuthToken token = new EtradeOAuthToken();
+    token.setAccountId(TEST_ACCOUNT_ID);
+    token.setAccessTokenEncrypted("encrypted_token");
+    token.setAccessTokenSecretEncrypted("encrypted_secret");
+    when(tokenRepository.findByAccountId(TEST_ACCOUNT_ID))
+        .thenReturn(Optional.of(token));
+    when(tokenEncryption.decrypt("encrypted_token")).thenReturn("access_token");
+    when(tokenEncryption.decrypt("encrypted_secret")).thenReturn("access_secret");
+
+    // Mock Authorization API response
+    RevokeAccessTokenResponse apiResponse = new RevokeAccessTokenResponse("Revoked Access Token");
+    when(authorizationApi.revokeAccessToken(any(RevokeAccessTokenRequest.class)))
+        .thenReturn(apiResponse);
+
+    RevokeAccessTokenResponse result = oauthService.revokeAccessToken(TEST_ACCOUNT_ID);
+
+    assertNotNull(result);
+    assertTrue(result.isSuccess());
+    verify(authorizationApi, times(1)).revokeAccessToken(any(RevokeAccessTokenRequest.class));
+    verify(tokenRepository, times(1)).deleteByAccountId(TEST_ACCOUNT_ID);
   }
 }

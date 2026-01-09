@@ -1,5 +1,7 @@
 package com.myqyl.aitradex.api.controller;
 
+import com.myqyl.aitradex.etrade.authorization.dto.RenewAccessTokenResponse;
+import com.myqyl.aitradex.etrade.authorization.dto.RevokeAccessTokenResponse;
 import com.myqyl.aitradex.etrade.oauth.EtradeOAuthService;
 import com.myqyl.aitradex.etrade.service.EtradeAccountService;
 import java.util.HashMap;
@@ -160,6 +162,45 @@ public class EtradeOAuthController {
     }
     
     return ResponseEntity.ok(status);
+  }
+
+  /**
+   * Renews access token for an account after two hours or more of inactivity.
+   */
+  @PostMapping("/renew-token")
+  public ResponseEntity<Map<String, Object>> renewAccessToken(@RequestParam UUID accountId) {
+    try {
+      var response = oauthService.renewAccessToken(accountId);
+      Map<String, Object> result = new HashMap<>();
+      result.put("success", response.isSuccess());
+      result.put("message", response.getMessage());
+      return ResponseEntity.ok(result);
+    } catch (Exception e) {
+      log.error("Failed to renew access token for account {}", accountId, e);
+      Map<String, Object> error = new HashMap<>();
+      error.put("error", "Failed to renew access token: " + e.getMessage());
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+  }
+
+  /**
+   * Revokes access token for an account.
+   * Once revoked, it no longer grants access to E*TRADE data.
+   */
+  @PostMapping("/revoke-token")
+  public ResponseEntity<Map<String, Object>> revokeAccessToken(@RequestParam UUID accountId) {
+    try {
+      var response = oauthService.revokeAccessToken(accountId);
+      Map<String, Object> result = new HashMap<>();
+      result.put("success", response.isSuccess());
+      result.put("message", response.getMessage());
+      return ResponseEntity.ok(result);
+    } catch (Exception e) {
+      log.error("Failed to revoke access token for account {}", accountId, e);
+      Map<String, Object> error = new HashMap<>();
+      error.put("error", "Failed to revoke access token: " + e.getMessage());
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
   }
 
   /**

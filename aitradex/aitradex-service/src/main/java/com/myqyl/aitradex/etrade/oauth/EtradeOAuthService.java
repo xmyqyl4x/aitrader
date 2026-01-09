@@ -1,13 +1,11 @@
 package com.myqyl.aitradex.etrade.oauth;
 
+import com.myqyl.aitradex.etrade.authorization.dto.*;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAuthorizationAPI;
 import com.myqyl.aitradex.etrade.config.EtradeProperties;
 import com.myqyl.aitradex.etrade.domain.EtradeOAuthToken;
+import com.myqyl.aitradex.etrade.exception.EtradeApiException;
 import com.myqyl.aitradex.etrade.repository.EtradeOAuthTokenRepository;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,80 +16,68 @@ import org.springframework.stereotype.Service;
 
 /**
  * Service for managing E*TRADE OAuth 1.0 flow.
+ * 
+ * This service now delegates to EtradeApiClientAuthorizationAPI for authorization API calls,
+ * using proper DTOs/Models instead of Maps.
  */
 @Service
 public class EtradeOAuthService {
 
   private static final Logger log = LoggerFactory.getLogger(EtradeOAuthService.class);
-  private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
   private final EtradeProperties properties;
-  private final EtradeOAuth1Template oauthTemplate;
+  private final EtradeApiClientAuthorizationAPI authorizationApi;
   private final EtradeTokenEncryption tokenEncryption;
   private final EtradeOAuthTokenRepository tokenRepository;
-  private final HttpClient httpClient;
 
   public EtradeOAuthService(
       EtradeProperties properties,
-      EtradeOAuth1Template oauthTemplate,
+      EtradeApiClientAuthorizationAPI authorizationApi,
       EtradeTokenEncryption tokenEncryption,
       EtradeOAuthTokenRepository tokenRepository) {
     this.properties = properties;
-    this.oauthTemplate = oauthTemplate;
+    this.authorizationApi = authorizationApi;
     this.tokenEncryption = tokenEncryption;
     this.tokenRepository = tokenRepository;
-    this.httpClient = HttpClient.newBuilder()
-        .connectTimeout(REQUEST_TIMEOUT)
-        .build();
   }
 
   /**
    * Step 1: Get request token and return authorization URL.
    * Returns both the URL and the request token data for storage.
+   * 
+   * This method now uses the Authorization API client with proper DTOs.
    */
   public RequestTokenResponse getRequestToken(UUID userId) {
     try {
-      String url = properties.getOAuthRequestTokenUrl();
-      Map<String, String> params = new HashMap<>();
       // For sandbox/testing, use "oob" (out-of-band) instead of callback URL
       // This allows manual verifier input for testing
       String callback = properties.getEnvironment() == EtradeProperties.Environment.SANDBOX 
           ? "oob" 
           : properties.getCallbackUrl();
-      params.put("oauth_callback", callback);
-
-      // E*TRADE uses GET for request token (matching example app)
-      String authHeader = oauthTemplate.generateAuthorizationHeader("GET", url, params, null, null);
-
-      HttpRequest request = HttpRequest.newBuilder()
-          .uri(URI.create(url))
-          .header("Authorization", authHeader)
-          .header("Content-Type", "application/x-www-form-urlencoded")
-          .GET()
-          .timeout(REQUEST_TIMEOUT)
-          .build();
-
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() != 200) {
-        log.error("Request token failed with status {}: {}", response.statusCode(), response.body());
-        throw new RuntimeException("Failed to get request token: " + response.statusCode());
-      }
-
-      Map<String, String> tokenParams = oauthTemplate.parseOAuthResponse(response.body());
-      String requestToken = tokenParams.get("oauth_token");
-      String requestTokenSecret = tokenParams.get("oauth_token_secret");
-
-      if (requestToken == null || requestTokenSecret == null) {
-        throw new RuntimeException("Invalid request token response");
-      }
-
+      
+      // Create request DTO
+      RequestTokenRequest request = new RequestTokenRequest(callback);
+      
+      // Call Authorization API client
+      com.myqyl.aitradex.etrade.authorization.dto.RequestTokenResponse apiResponse = 
+          authorizationApi.getRequestToken(request);
+      
       log.info("Request token obtained for user {}", userId);
 
-      // Build authorization URL
-      String authorizationUrl = properties.getAuthorizeUrl() + "?key=" + properties.getConsumerKey() + "&token=" + requestToken;
+      // Build authorization URL using Authorization API
+      AuthorizeApplicationRequest authorizeRequest = new AuthorizeApplicationRequest(
+          properties.getConsumerKey(), 
+          apiResponse.getOauthToken());
+      AuthorizeApplicationResponse authorizeResponse = authorizationApi.authorizeApplication(authorizeRequest);
       
-      return new RequestTokenResponse(authorizationUrl, requestToken, requestTokenSecret);
+      // Convert to legacy response format for backward compatibility
+      return new RequestTokenResponse(
+          authorizeResponse.getAuthorizationUrl(),
+          apiResponse.getOauthToken(),
+          apiResponse.getOauthTokenSecret());
+    } catch (EtradeApiException e) {
+      log.error("Failed to get request token", e);
+      throw new RuntimeException("OAuth request token failed: " + e.getErrorMessage(), e);
     } catch (Exception e) {
       log.error("Failed to get request token", e);
       throw new RuntimeException("OAuth request token failed", e);
@@ -99,7 +85,8 @@ public class EtradeOAuthService {
   }
 
   /**
-   * Helper class for request token response.
+   * Helper class for request token response (backward compatibility).
+   * This wraps the DTO response and adds authorization URL for convenience.
    */
   public static class RequestTokenResponse {
     private final String authorizationUrl;
@@ -136,46 +123,25 @@ public class EtradeOAuthService {
 
   /**
    * Step 2: Exchange request token + verifier for access token.
+   * 
+   * This method now uses the Authorization API client with proper DTOs.
+   * 
+   * @return Map containing oauth_token and oauth_token_secret for backward compatibility
    */
   public Map<String, String> exchangeForAccessToken(String requestToken, String requestTokenSecret, 
                                                      String verifier, UUID accountId) {
     try {
-      String url = properties.getOAuthAccessTokenUrl();
-      Map<String, String> params = new HashMap<>();
-      params.put("oauth_verifier", verifier);
-
-      // E*TRADE uses GET for access token (matching example app)
-      String authHeader = oauthTemplate.generateAuthorizationHeader("GET", url, params, 
-                                                                   requestToken, requestTokenSecret);
-
-      HttpRequest request = HttpRequest.newBuilder()
-          .uri(URI.create(url))
-          .header("Authorization", authHeader)
-          .header("Content-Type", "application/x-www-form-urlencoded")
-          .GET()
-          .timeout(REQUEST_TIMEOUT)
-          .build();
-
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() != 200) {
-        log.error("Access token exchange failed with status {}: {}", response.statusCode(), response.body());
-        throw new RuntimeException("Failed to exchange access token: " + response.statusCode());
-      }
-
-      Map<String, String> tokenParams = oauthTemplate.parseOAuthResponse(response.body());
-      String accessToken = tokenParams.get("oauth_token");
-      String accessTokenSecret = tokenParams.get("oauth_token_secret");
-
-      if (accessToken == null || accessTokenSecret == null) {
-        throw new RuntimeException("Invalid access token response");
-      }
-
+      // Create request DTO
+      AccessTokenRequest request = new AccessTokenRequest(requestToken, requestTokenSecret, verifier);
+      
+      // Call Authorization API client
+      AccessTokenResponse apiResponse = authorizationApi.getAccessToken(request);
+      
       // Store encrypted tokens
       EtradeOAuthToken token = new EtradeOAuthToken();
       token.setAccountId(accountId);
-      token.setAccessTokenEncrypted(tokenEncryption.encrypt(accessToken));
-      token.setAccessTokenSecretEncrypted(tokenEncryption.encrypt(accessTokenSecret));
+      token.setAccessTokenEncrypted(tokenEncryption.encrypt(apiResponse.getOauthToken()));
+      token.setAccessTokenSecretEncrypted(tokenEncryption.encrypt(apiResponse.getOauthTokenSecret()));
       token.setRequestToken(requestToken);
       token.setRequestTokenSecret(requestTokenSecret);
       token.setOauthVerifier(verifier);
@@ -183,10 +149,81 @@ public class EtradeOAuthService {
       tokenRepository.save(token);
       log.info("Access token stored for account {}", accountId);
 
+      // Return Map for backward compatibility
+      Map<String, String> tokenParams = new HashMap<>();
+      tokenParams.put("oauth_token", apiResponse.getOauthToken());
+      tokenParams.put("oauth_token_secret", apiResponse.getOauthTokenSecret());
       return tokenParams;
+    } catch (EtradeApiException e) {
+      log.error("Failed to exchange access token", e);
+      throw new RuntimeException("Access token exchange failed: " + e.getErrorMessage(), e);
     } catch (Exception e) {
       log.error("Failed to exchange access token", e);
       throw new RuntimeException("Access token exchange failed", e);
+    }
+  }
+
+  /**
+   * Renew access token after two hours or more of inactivity.
+   * 
+   * Uses the Authorization API client with proper DTOs.
+   * 
+   * @param accountId The account ID associated with the access token
+   * @return RenewAccessTokenResponse DTO containing renewal status
+   */
+  public RenewAccessTokenResponse renewAccessToken(UUID accountId) {
+    try {
+      // Get access token for account
+      AccessTokenPair tokenPair = getAccessToken(accountId);
+      
+      // Create request DTO
+      RenewAccessTokenRequest request = new RenewAccessTokenRequest(
+          tokenPair.getAccessToken(),
+          tokenPair.getAccessTokenSecret());
+      
+      // Call Authorization API client
+      return authorizationApi.renewAccessToken(request);
+    } catch (EtradeApiException e) {
+      log.error("Failed to renew access token for account {}", accountId, e);
+      throw new RuntimeException("Renew access token failed: " + e.getErrorMessage(), e);
+    } catch (Exception e) {
+      log.error("Failed to renew access token for account {}", accountId, e);
+      throw new RuntimeException("Renew access token failed", e);
+    }
+  }
+
+  /**
+   * Revoke access token for an account.
+   * 
+   * Uses the Authorization API client with proper DTOs.
+   * 
+   * @param accountId The account ID associated with the access token
+   * @return RevokeAccessTokenResponse DTO containing revocation status
+   */
+  public RevokeAccessTokenResponse revokeAccessToken(UUID accountId) {
+    try {
+      // Get access token for account
+      AccessTokenPair tokenPair = getAccessToken(accountId);
+      
+      // Create request DTO
+      RevokeAccessTokenRequest request = new RevokeAccessTokenRequest(
+          tokenPair.getAccessToken(),
+          tokenPair.getAccessTokenSecret());
+      
+      // Call Authorization API client
+      RevokeAccessTokenResponse response = authorizationApi.revokeAccessToken(request);
+      
+      // Delete token from database after successful revocation
+      tokenRepository.deleteByAccountId(accountId);
+      log.info("Access token revoked and deleted for account {}", accountId);
+      
+      return response;
+    } catch (EtradeApiException e) {
+      log.error("Failed to revoke access token for account {}", accountId, e);
+      throw new RuntimeException("Revoke access token failed: " + e.getErrorMessage(), e);
+    } catch (Exception e) {
+      log.error("Failed to revoke access token for account {}", accountId, e);
+      throw new RuntimeException("Revoke access token failed", e);
     }
   }
 

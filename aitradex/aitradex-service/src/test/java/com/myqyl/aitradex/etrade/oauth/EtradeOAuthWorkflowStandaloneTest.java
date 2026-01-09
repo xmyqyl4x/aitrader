@@ -3,6 +3,7 @@ package com.myqyl.aitradex.etrade.oauth;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAuthorizationAPI;
 import com.myqyl.aitradex.etrade.config.EtradeProperties;
 import com.myqyl.aitradex.etrade.oauth.EtradeOAuthService.RequestTokenResponse;
 import java.net.URI;
@@ -68,8 +69,12 @@ class EtradeOAuthWorkflowStandaloneTest {
     oauthTemplate = new EtradeOAuth1Template(consumerKey, consumerSecret);
     tokenEncryption = new EtradeTokenEncryption(encryptionKey);
     
+    // Create Authorization API client (with null audit repository for standalone use)
+    EtradeApiClientAuthorizationAPI authorizationApi = new EtradeApiClientAuthorizationAPI(
+        properties, oauthTemplate, null);
+    
     // Create OAuth service with mocked repository (we won't use it for steps 1-2)
-    oauthService = new EtradeOAuthService(properties, oauthTemplate, tokenEncryption, null);
+    oauthService = new EtradeOAuthService(properties, authorizationApi, tokenEncryption, null);
     
     log.info("Running OAuth workflow standalone tests against E*TRADE sandbox: {}", properties.getBaseUrl());
     log.info("Consumer Key: {}", maskKey(properties.getConsumerKey()));
