@@ -15,149 +15,50 @@ The AITradex application is a well-structured trading platform with a Spring Boo
 
 | Severity | Count | Key Areas |
 |----------|-------|-----------|
-| **CRITICAL** | 8 | Security (credentials, authentication, encryption) |
-| **HIGH** | 15 | Input validation, error handling, memory leaks |
+| **CRITICAL** | 5 | Security (XXE, redirect injection), memory leaks, database rollbacks |
+| **HIGH** | 15 | Input validation, error handling, null pointers |
 | **MEDIUM** | 18 | Code quality, API consistency, testing gaps |
 | **LOW** | 6 | Naming conventions, documentation |
+
+### Acknowledged Issues (No Fix Required)
+
+The following issues have been identified and acknowledged but do not require fixes at this time:
+- Hardcoded API Keys/Secrets in configuration files
+- No Authentication/Authorization framework
+- AES/ECB encryption mode for token storage
 
 ---
 
 ## 1. SECURITY VULNERABILITIES
 
-### 1.1 CRITICAL: Hardcoded Credentials and API Keys
+### 1.1 Hardcoded Credentials and API Keys (ACKNOWLEDGED - NO FIX REQUIRED)
+
+**Status:** Acknowledged - intentionally left as-is for development convenience.
 
 **Files Affected:**
 - `aitradex-service/src/main/resources/application.yml` (lines 29-50)
 - `aitradex-service/src/main/resources/application-dev.properties` (lines 41-53)
 - `aitradex-service/src/test/resources/application-test.yml` (line 9)
 
-**Issues Found:**
-```yaml
-# Exposed in source code:
-app:
-  alpha-vantage:
-    api-key: ${ALPHA_VANTAGE_API_KEY:B8IQ3ONTC1RTKRH7}
-  etrade:
-    consumer-key: ${ETRADE_CONSUMER_KEY:a83b0321f09e97fc8f4315ad5fbcd489}
-    consumer-secret: ${ETRADE_CONSUMER_SECRET:c4d304698d156d4c3681c73de0c4e400060cac46ee1504259b324695daa77dd4}
-    encryption-key: ${ETRADE_ENCRYPTION_KEY:default-encryption-key-change-in-production-min-32-chars}
-spring:
-  datasource:
-    password: ${SPRING_DATASOURCE_PASSWORD:aitradex_pass}
-```
-
-**Recommended Fix:**
-```yaml
-# Remove all default values for secrets
-app:
-  alpha-vantage:
-    api-key: ${ALPHA_VANTAGE_API_KEY}
-  etrade:
-    consumer-key: ${ETRADE_CONSUMER_KEY}
-    consumer-secret: ${ETRADE_CONSUMER_SECRET}
-    encryption-key: ${ETRADE_ENCRYPTION_KEY}
-spring:
-  datasource:
-    password: ${SPRING_DATASOURCE_PASSWORD}
-```
-
-**Additional Steps:**
-1. Rotate all exposed API keys immediately
-2. Create `.env.example` documenting required environment variables
-3. Add secrets to `.gitignore`
-4. Consider using AWS Secrets Manager or HashiCorp Vault
+**Description:** Default values for API keys and secrets are configured in source files. Environment variables can override these defaults in production deployments.
 
 ---
 
-### 1.2 CRITICAL: No Authentication/Authorization Framework
+### 1.2 No Authentication/Authorization Framework (ACKNOWLEDGED - NO FIX REQUIRED)
 
-**Finding:** No Spring Security configuration exists. All 23 REST endpoints are completely unprotected.
+**Status:** Acknowledged - authentication will be addressed in a future phase.
 
-**Impact:** Any unauthenticated user can access sensitive financial data and perform trading operations.
-
-**Recommended Fix:**
-
-Add Spring Security dependency to `pom.xml`:
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-security</artifactId>
-</dependency>
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-</dependency>
-```
-
-Create security configuration:
-```java
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
-public class SecurityConfig {
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-            .csrf(csrf -> csrf.disable()) // For REST APIs
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health", "/actuator/health").permitAll()
-                .requestMatchers("/api/etrade/oauth/**").permitAll()
-                .requestMatchers("/api/**").authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
-            .build();
-    }
-}
-```
+**Description:** No Spring Security configuration exists. All 23 REST endpoints are currently unprotected. This is acceptable for the current development/MVP phase.
 
 ---
 
-### 1.3 CRITICAL: Weak Encryption (ECB Mode)
+### 1.3 Weak Encryption (ECB Mode) (ACKNOWLEDGED - NO FIX REQUIRED)
+
+**Status:** Acknowledged - current implementation is sufficient for development purposes.
 
 **File:** `aitradex-service/src/main/java/com/myqyl/aitradex/etrade/oauth/EtradeTokenEncryption.java` (line 20)
 
-**Issue:** Uses `AES/ECB/PKCS5Padding` which is cryptographically weak.
-
-**Current Code:**
-```java
-private static final String CIPHER_ALGORITHM = "AES/ECB/PKCS5Padding";
-
-private String padKey(String key) {
-    if (key.length() >= 32) {
-        return key.substring(0, 32);
-    }
-    StringBuilder padded = new StringBuilder(key);
-    while (padded.length() < 32) {
-        padded.append('0');  // INSECURE padding
-    }
-    return padded.toString();
-}
-```
-
-**Recommended Fix:**
-```java
-private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
-private static final int GCM_IV_LENGTH = 12;
-private static final int GCM_TAG_LENGTH = 128;
-
-public String encrypt(String plaintext) throws Exception {
-    byte[] iv = new byte[GCM_IV_LENGTH];
-    SecureRandom random = new SecureRandom();
-    random.nextBytes(iv);
-
-    Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-    GCMParameterSpec parameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
-    cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
-
-    byte[] cipherText = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
-    byte[] combined = new byte[iv.length + cipherText.length];
-    System.arraycopy(iv, 0, combined, 0, iv.length);
-    System.arraycopy(cipherText, 0, combined, iv.length, cipherText.length);
-
-    return Base64.getEncoder().encodeToString(combined);
-}
-```
+**Description:** Uses `AES/ECB/PKCS5Padding` for token encryption. While GCM mode would be more secure, the current implementation meets development requirements.
 
 ---
 
@@ -787,12 +688,9 @@ Consolidate to YAML only:
 
 | # | Task | File(s) | Effort |
 |---|------|---------|--------|
-| 1 | Remove hardcoded credentials | application.yml, application-dev.properties | 1 hour |
-| 2 | Rotate exposed API keys | External: Alpha Vantage, E*TRADE | 1 hour |
-| 3 | Add Spring Security | pom.xml, SecurityConfig.java | 4 hours |
-| 4 | Fix AES encryption to GCM | EtradeTokenEncryption.java | 2 hours |
-| 5 | Fix XXE vulnerability | XmlResponseValidator.java | 30 min |
-| 6 | Fix redirect injection | EtradeOAuthController.java | 30 min |
+| 1 | Fix XXE vulnerability | XmlResponseValidator.java | 30 min |
+| 2 | Fix redirect injection | EtradeOAuthController.java | 30 min |
+| 3 | Add Liquibase rollback procedures | Liquibase changesets 0003-0007 | 2 hours |
 
 ### Phase 2: High Priority (Within 1 Sprint)
 
@@ -833,29 +731,33 @@ Consolidate to YAML only:
 ## 9. FILES REQUIRING IMMEDIATE ATTENTION
 
 ### Critical Files:
-1. `aitradex-service/src/main/resources/application.yml`
-2. `aitradex-service/src/main/java/com/myqyl/aitradex/etrade/oauth/EtradeTokenEncryption.java`
-3. `aitradex-service/src/test/java/com/myqyl/aitradex/etrade/api/XmlResponseValidator.java`
-4. `aitradex-service/src/main/java/com/myqyl/aitradex/api/controller/EtradeOAuthController.java`
+1. `aitradex-service/src/test/java/com/myqyl/aitradex/etrade/api/XmlResponseValidator.java` - XXE vulnerability
+2. `aitradex-service/src/main/java/com/myqyl/aitradex/api/controller/EtradeOAuthController.java` - Redirect injection
+3. `aitradex-service/src/main/resources/db/changelog/changesets/` - Missing rollback procedures
 
 ### High Priority Files:
-5. `aitradex-ui/src/app/features/etrade-review-trade/etrade-review-trade.component.ts`
-6. `aitradex-ui/src/app/features/stock-review/stock-review.component.ts`
-7. `aitradex-service/src/main/java/com/myqyl/aitradex/etrade/service/EtradeOrderService.java`
-8. `aitradex-service/src/main/java/com/myqyl/aitradex/service/OrderService.java`
+4. `aitradex-ui/src/app/features/etrade-review-trade/etrade-review-trade.component.ts` - Memory leaks
+5. `aitradex-ui/src/app/features/stock-review/stock-review.component.ts` - Memory leaks
+6. `aitradex-service/src/main/java/com/myqyl/aitradex/etrade/service/EtradeOrderService.java` - Exception handling
+7. `aitradex-service/src/main/java/com/myqyl/aitradex/service/OrderService.java` - Null pointer vulnerabilities
 
 ---
 
 ## 10. CONCLUSION
 
-The AITradex codebase has a solid architectural foundation but requires significant security hardening before production deployment. The most critical issues are:
+The AITradex codebase has a solid architectural foundation with some issues that should be addressed. The most critical issues requiring immediate attention are:
 
-1. **Exposed credentials** that must be rotated and removed from source control
-2. **No authentication** on any API endpoint
-3. **Weak encryption** for sensitive OAuth tokens
-4. **Memory leaks** in Angular components
+1. **XXE vulnerability** in XML parsing that could allow external entity injection
+2. **Redirect injection** in OAuth callback error handling
+3. **Memory leaks** in Angular components due to unsubscribed observables
+4. **Missing database rollback procedures** in Liquibase migrations
 
 Addressing the Phase 1 items should be the immediate priority, followed by systematic resolution of the remaining issues according to the prioritized plan above.
+
+**Note:** The following issues have been acknowledged and are intentionally not addressed at this time:
+- Hardcoded API keys/secrets (development convenience)
+- No authentication/authorization (future phase)
+- AES/ECB encryption mode (acceptable for current use)
 
 ---
 
