@@ -216,3 +216,63 @@ databaseChangeLog:
               - column: {name: expiry_year}
               - column: {name: expiry_month}
               - column: {name: expiry_day}
+
+      rollback:
+        - dropIndex:
+            indexName: idx_etrade_option_contract_underlying_expiry
+            tableName: etrade_option_contract
+        - dropIndex:
+            indexName: idx_etrade_option_contract_underlying_symbol
+            tableName: etrade_option_contract
+        - dropIndex:
+            indexName: idx_etrade_option_contract_osi_key
+            tableName: etrade_option_contract
+        - dropIndex:
+            indexName: idx_etrade_option_contract_option_symbol
+            tableName: etrade_option_contract
+        - dropTable:
+            tableName: etrade_option_contract
+        - dropIndex:
+            indexName: idx_etrade_option_chain_snapshot_request_time
+            tableName: etrade_option_chain_snapshot
+        - dropIndex:
+            indexName: idx_etrade_option_chain_snapshot_symbol_expiry
+            tableName: etrade_option_chain_snapshot
+        - dropIndex:
+            indexName: idx_etrade_option_chain_snapshot_symbol
+            tableName: etrade_option_chain_snapshot
+        - dropTable:
+            tableName: etrade_option_chain_snapshot
+        - dropUniqueConstraint:
+            tableName: etrade_option_expire_date
+            constraintName: uk_etrade_option_expire_date_symbol_expiry
+        - dropIndex:
+            indexName: idx_etrade_option_expire_date_symbol_expiry
+            tableName: etrade_option_expire_date
+        - dropIndex:
+            indexName: idx_etrade_option_expire_date_symbol
+            tableName: etrade_option_expire_date
+        - dropTable:
+            tableName: etrade_option_expire_date
+        - dropIndex:
+            indexName: idx_etrade_quote_snapshot_quote_timestamp
+            tableName: etrade_quote_snapshot
+        - dropIndex:
+            indexName: idx_etrade_quote_snapshot_symbol_request_time
+            tableName: etrade_quote_snapshot
+        - dropIndex:
+            indexName: idx_etrade_quote_snapshot_symbol
+            tableName: etrade_quote_snapshot
+        - dropTable:
+            tableName: etrade_quote_snapshot
+        - dropUniqueConstraint:
+            tableName: etrade_lookup_product
+            constraintName: uk_etrade_lookup_product_symbol_type
+        - dropIndex:
+            indexName: idx_etrade_lookup_product_symbol_type
+            tableName: etrade_lookup_product
+        - dropIndex:
+            indexName: idx_etrade_lookup_product_symbol
+            tableName: etrade_lookup_product
+        - dropTable:
+            tableName: etrade_lookup_product

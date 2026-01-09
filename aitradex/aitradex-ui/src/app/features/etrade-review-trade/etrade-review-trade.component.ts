@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 interface EtradeAccount {
@@ -21,13 +23,61 @@ interface OAuthStatus {
   accountCount: number;
 }
 
+interface AccountBalance {
+  accountId: string;
+  totalAccountValue: number;
+  cashAvailableForInvestment: number;
+  cashBalance: number;
+  marginBuyingPower?: number;
+  netCash?: number;
+}
+
+interface PortfolioPosition {
+  symbol: string;
+  quantity: number;
+  currentPrice: number;
+  marketValue: number;
+  costBasis?: number;
+  pnl?: number;
+}
+
+interface AccountPortfolio {
+  accountId: string;
+  positions: PortfolioPosition[];
+  totalValue: number;
+}
+
+interface Quote {
+  symbol: string;
+  lastTrade: number;
+  bid: number;
+  ask: number;
+  high: number;
+  low: number;
+  volume: number;
+  changeClose?: number;
+  changeClosePercentage?: number;
+}
+
+interface Order {
+  orderId: string;
+  symbol: string;
+  orderAction: string;
+  priceType: string;
+  quantity: number;
+  status: string;
+  placedTime?: string;
+}
+
 @Component({
   selector: 'app-etrade-review-trade',
   templateUrl: './etrade-review-trade.component.html',
   styleUrls: ['./etrade-review-trade.component.scss']
 })
-export class EtradeReviewTradeComponent implements OnInit {
-  
+export class EtradeReviewTradeComponent implements OnInit, OnDestroy {
+
+  private destroy$ = new Subject<void>();
+
   oauthStatus: OAuthStatus = {
     connected: false,
     hasAccounts: false,
@@ -36,22 +86,22 @@ export class EtradeReviewTradeComponent implements OnInit {
   
   accounts: EtradeAccount[] = [];
   selectedAccount: EtradeAccount | null = null;
-  accountBalance: any = null;
-  accountPortfolio: any = null;
-  
+  accountBalance: AccountBalance | null = null;
+  accountPortfolio: AccountPortfolio | null = null;
+
   loading = false;
   error: string | null = null;
   successMessage: string | null = null;
-  
+
   // Order form
   orderForm: FormGroup;
-  
+
   // Quote form
   quoteForm: FormGroup;
-  currentQuote: any = null;
-  
+  currentQuote: Quote | null = null;
+
   // Orders
-  orders: any[] = [];
+  orders: Order[] = [];
 
   constructor(
     private http: HttpClient,
@@ -76,7 +126,7 @@ export class EtradeReviewTradeComponent implements OnInit {
 
   ngOnInit() {
     // Check for OAuth callback params
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       if (params['success']) {
         this.successMessage = 'Account linked successfully!';
         this.checkOAuthStatus();
@@ -85,9 +135,14 @@ export class EtradeReviewTradeComponent implements OnInit {
         this.error = params['error'];
       }
     });
-    
+
     this.checkOAuthStatus();
     this.loadAccounts();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   checkOAuthStatus() {
@@ -224,11 +279,9 @@ export class EtradeReviewTradeComponent implements OnInit {
     
     this.http.post(`${environment.apiUrl}/api/etrade/orders/preview?accountId=${this.selectedAccount.id}`, orderRequest)
       .subscribe({
-        next: preview => {
+        next: () => {
           this.successMessage = 'Order preview generated successfully';
           this.loading = false;
-          // Show preview details (could open modal)
-          console.log('Order preview:', preview);
         },
         error: err => {
           console.error('Failed to preview order', err);
