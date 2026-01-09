@@ -1,0 +1,218 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0007-etrade-market-persistence
+      author: aitradex
+      context: dev,test,prod
+      logicalFilePath: db/changelog/changesets/0007-etrade-market-persistence.yaml
+      changes:
+        # E*TRADE Lookup Product table (upsert by symbol+type)
+        - createTable:
+            tableName: etrade_lookup_product
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: product_type, type: varchar(50)}
+              - column: {name: description, type: varchar(500)}
+              - column: {name: last_seen_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_lookup_product
+            indexName: idx_etrade_lookup_product_symbol
+            columns:
+              - column: {name: symbol}
+        - createIndex:
+            tableName: etrade_lookup_product
+            indexName: idx_etrade_lookup_product_symbol_type
+            columns:
+              - column: {name: symbol}
+              - column: {name: product_type}
+        - addUniqueConstraint:
+            tableName: etrade_lookup_product
+            columnNames: symbol, product_type
+            constraintName: uk_etrade_lookup_product_symbol_type
+
+        # E*TRADE Quote Snapshot table (append-only time-series)
+        - createTable:
+            tableName: etrade_quote_snapshot
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: quote_timestamp, type: bigint} # E*TRADE timestamp (epoch millis)
+              - column: {name: request_time, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: detail_flag, type: varchar(50)} # ALL, FUNDAMENTAL, INTRADAY, OPTIONS, WEEK_52, MF_DETAIL
+              # Quote fields (from AllQuoteDetailsDto)
+              - column: {name: last_trade, type: "numeric(19,8)"}
+              - column: {name: previous_close, type: "numeric(19,8)"}
+              - column: {name: open_price, type: "numeric(19,8)"}
+              - column: {name: high, type: "numeric(19,8)"}
+              - column: {name: low, type: "numeric(19,8)"}
+              - column: {name: high52, type: "numeric(19,8)"}
+              - column: {name: low52, type: "numeric(19,8)"}
+              - column: {name: total_volume, type: bigint}
+              - column: {name: volume, type: bigint}
+              - column: {name: change_close, type: "numeric(19,8)"}
+              - column: {name: change_close_percentage, type: "numeric(19,8)"}
+              - column: {name: bid, type: "numeric(19,8)"}
+              - column: {name: ask, type: "numeric(19,8)"}
+              - column: {name: bid_size, type: bigint}
+              - column: {name: ask_size, type: bigint}
+              - column: {name: company_name, type: varchar(255)}
+              - column: {name: exchange, type: varchar(50)}
+              - column: {name: security_type, type: varchar(50)}
+              - column: {name: quote_type, type: varchar(50)} # REALTIME, DELAYED
+              # Raw response for reference
+              - column: {name: raw_response, type: jsonb}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_quote_snapshot
+            indexName: idx_etrade_quote_snapshot_symbol
+            columns:
+              - column: {name: symbol}
+        - createIndex:
+            tableName: etrade_quote_snapshot
+            indexName: idx_etrade_quote_snapshot_symbol_request_time
+            columns:
+              - column: {name: symbol}
+              - column: {name: request_time, descending: true}
+        - createIndex:
+            tableName: etrade_quote_snapshot
+            indexName: idx_etrade_quote_snapshot_quote_timestamp
+            columns:
+              - column: {name: quote_timestamp, descending: true}
+
+        # E*TRADE Option Expire Date table (upsert by symbol+year+month+day)
+        - createTable:
+            tableName: etrade_option_expire_date
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: expiry_year, type: integer, constraints: {nullable: false}}
+              - column: {name: expiry_month, type: integer, constraints: {nullable: false}}
+              - column: {name: expiry_day, type: integer, constraints: {nullable: false}}
+              - column: {name: expiry_type, type: varchar(50)} # DAILY, WEEKLY, MONTHLY, ALL
+              - column: {name: last_synced_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_option_expire_date
+            indexName: idx_etrade_option_expire_date_symbol
+            columns:
+              - column: {name: symbol}
+        - createIndex:
+            tableName: etrade_option_expire_date
+            indexName: idx_etrade_option_expire_date_symbol_expiry
+            columns:
+              - column: {name: symbol}
+              - column: {name: expiry_year}
+              - column: {name: expiry_month}
+              - column: {name: expiry_day}
+        - addUniqueConstraint:
+            tableName: etrade_option_expire_date
+            columnNames: symbol, expiry_year, expiry_month, expiry_day
+            constraintName: uk_etrade_option_expire_date_symbol_expiry
+
+        # E*TRADE Option Chain Snapshot table (snapshot per symbol+expiry+requestTime)
+        - createTable:
+            tableName: etrade_option_chain_snapshot
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: expiry_year, type: integer}
+              - column: {name: expiry_month, type: integer}
+              - column: {name: expiry_day, type: integer}
+              - column: {name: near_price, type: "numeric(19,8)"}
+              - column: {name: adjusted_flag, type: boolean}
+              - column: {name: option_chain_type, type: varchar(50)} # CALL, PUT, CALLPUT
+              - column: {name: quote_type, type: varchar(50)}
+              - column: {name: timestamp, type: bigint} # E*TRADE timestamp
+              - column: {name: request_time, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              # Raw response for reference
+              - column: {name: raw_response, type: jsonb}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_option_chain_snapshot
+            indexName: idx_etrade_option_chain_snapshot_symbol
+            columns:
+              - column: {name: symbol}
+        - createIndex:
+            tableName: etrade_option_chain_snapshot
+            indexName: idx_etrade_option_chain_snapshot_symbol_expiry
+            columns:
+              - column: {name: symbol}
+              - column: {name: expiry_year}
+              - column: {name: expiry_month}
+              - column: {name: expiry_day}
+        - createIndex:
+            tableName: etrade_option_chain_snapshot
+            indexName: idx_etrade_option_chain_snapshot_request_time
+            columns:
+              - column: {name: request_time, descending: true}
+
+        # E*TRADE Option Contract table (upsert by option symbol/OSI key)
+        - createTable:
+            tableName: etrade_option_contract
+            columns:
+              - column: {name: id, type: uuid, constraints: {primaryKey: true, nullable: false}, defaultValueComputed: gen_random_uuid()}
+              - column: {name: option_symbol, type: varchar(100), constraints: {nullable: false, unique: true}}
+              - column: {name: osi_key, type: varchar(100)} # Option Symbol Identifier
+              - column: {name: underlying_symbol, type: varchar(32), constraints: {nullable: false}}
+              - column: {name: option_type, type: varchar(10)} # CALL, PUT
+              - column: {name: strike_price, type: "numeric(19,8)"}
+              - column: {name: expiry_year, type: integer}
+              - column: {name: expiry_month, type: integer}
+              - column: {name: expiry_day, type: integer}
+              - column: {name: option_category, type: varchar(50)} # STANDARD, ALL, MINI
+              - column: {name: option_root_symbol, type: varchar(50)}
+              - column: {name: display_symbol, type: varchar(100)}
+              - column: {name: adjusted_flag, type: boolean}
+              # Quote fields
+              - column: {name: bid, type: "numeric(19,8)"}
+              - column: {name: ask, type: "numeric(19,8)"}
+              - column: {name: bid_size, type: bigint}
+              - column: {name: ask_size, type: bigint}
+              - column: {name: last_price, type: "numeric(19,8)"}
+              - column: {name: volume, type: bigint}
+              - column: {name: open_interest, type: bigint}
+              - column: {name: net_change, type: "numeric(19,8)"}
+              - column: {name: in_the_money, type: varchar(10)}
+              - column: {name: quote_detail, type: text} # URL to quote endpoint
+              # Option Greeks
+              - column: {name: delta, type: "numeric(19,8)"}
+              - column: {name: gamma, type: "numeric(19,8)"}
+              - column: {name: theta, type: "numeric(19,8)"}
+              - column: {name: vega, type: "numeric(19,8)"}
+              - column: {name: rho, type: "numeric(19,8)"}
+              - column: {name: iv, type: "numeric(19,8)"} # Implied Volatility
+              - column: {name: greeks_current_value, type: boolean}
+              - column: {name: last_synced_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: created_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+              - column: {name: updated_at, type: timestamptz, defaultValueComputed: now(), constraints: {nullable: false}}
+
+        - createIndex:
+            tableName: etrade_option_contract
+            indexName: idx_etrade_option_contract_option_symbol
+            columns:
+              - column: {name: option_symbol}
+        - createIndex:
+            tableName: etrade_option_contract
+            indexName: idx_etrade_option_contract_osi_key
+            columns:
+              - column: {name: osi_key}
+        - createIndex:
+            tableName: etrade_option_contract
+            indexName: idx_etrade_option_contract_underlying_symbol
+            columns:
+              - column: {name: underlying_symbol}
+        - createIndex:
+            tableName: etrade_option_contract
+            indexName: idx_etrade_option_contract_underlying_expiry
+            columns:
+              - column: {name: underlying_symbol}
+              - column: {name: expiry_year}
+              - column: {name: expiry_month}
+              - column: {name: expiry_day}
