@@ -3,9 +3,17 @@ spring:
     name: aitradex-service-test
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/aitradex_test
-    username: aitradex
-    password: aitradex
+    url: jdbc:postgresql://localhost:5432/aitradexdb
+    driver-class-name: org.postgresql.Driver
+    username: aitradex_user
+    password: aitradex_pass
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: aitradexHikariPool-TEST
   
   jpa:
     hibernate:

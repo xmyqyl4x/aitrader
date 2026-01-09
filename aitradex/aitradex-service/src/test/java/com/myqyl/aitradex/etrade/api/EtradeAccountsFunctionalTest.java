@@ -54,8 +54,8 @@ import org.springframework.test.web.servlet.MvcResult;
  *
  * Prerequisites:
  * - Local PostgreSQL database must be running on localhost:5432
- * - Database 'aitradex_test' must exist (or will be created by Liquibase)
- * - User 'aitradex' with password 'aitradex' must have access to the database
+ * - Database 'aitradexdb' must exist (or will be created by Liquibase)
+ * - User 'aitradex_user' with password 'aitradex_pass' must have access to the database
  * - ETRADE_CONSUMER_KEY environment variable set
  * - ETRADE_CONSUMER_SECRET environment variable set
  * - ETRADE_ENCRYPTION_KEY environment variable set
