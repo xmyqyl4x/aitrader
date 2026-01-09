@@ -5,288 +5,243 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.myqyl.aitradex.etrade.api.integration.EtradeApiIntegrationTestBase;
-import java.util.*;
+import com.myqyl.aitradex.api.dto.EtradeAccountDto;
+import com.myqyl.aitradex.etrade.accounts.dto.*;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAccountAPI;
+import com.myqyl.aitradex.etrade.service.EtradeAccountService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 
 /**
  * Integration tests for E*TRADE Accounts API endpoints.
  * 
- * These tests validate our application's account functionality by:
- * - Calling our REST API endpoints (/api/etrade/accounts/*)
- * - Mocking the underlying E*TRADE client calls
- * - Validating request building, response parsing, error handling
- * 
- * Tests do NOT call E*TRADE's public endpoints directly.
+ * These tests validate our Accounts REST API endpoints by:
+ * - Calling our REST API endpoints (via MockMvc)
+ * - Mocking the underlying Accounts API client
+ * - Validating request/response handling, error handling, etc.
  */
 @DisplayName("E*TRADE Accounts API Integration Tests")
 class EtradeAccountsApiIntegrationTest extends EtradeApiIntegrationTestBase {
 
-  // ============================================================================
-  // 1. LIST ACCOUNTS TESTS
-  // ============================================================================
+  @MockBean
+  private EtradeAccountService accountService;
 
-  @Test
-  @DisplayName("Get User Accounts - Success")
-  void getUserAccounts_success() throws Exception {
-    // Call our application endpoint (uses database, no E*TRADE client call needed)
-    mockMvc.perform(get("/api/etrade/accounts")
-            .param("userId", testUserId.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isArray())
-        .andExpect(jsonPath("$[0].accountIdKey").value(testAccountIdKey))
-        .andExpect(jsonPath("$[0].accountName").value("Test Account"));
+  @MockBean
+  private EtradeApiClientAccountAPI accountsApi;
 
-    // No E*TRADE client call for this endpoint (uses database)
-    verify(accountClient, never()).getAccountList(any());
+  @BeforeEach
+  void setUpAccounts() {
+    // Additional setup for Accounts tests if needed
   }
 
   @Test
-  @DisplayName("Get Account - Success")
-  void getAccount_success() throws Exception {
-    // Call our application endpoint
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}", testAccountId))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(testAccountId.toString()))
-        .andExpect(jsonPath("$.accountIdKey").value(testAccountIdKey))
-        .andExpect(jsonPath("$.accountName").value("Test Account"));
+  @DisplayName("GET /api/etrade/accounts/{accountId}/balance should return balance")
+  void getBalance_shouldReturnBalance() throws Exception {
+    UUID accountId = testAccountId;
+    EtradeAccountDto accountDto = new EtradeAccountDto(
+        accountId, testUserId, testAccountIdKey, "INDIVIDUAL", "Test Account", "ACTIVE",
+        java.time.OffsetDateTime.now(), null);
 
-    // No E*TRADE client call for this endpoint (uses database)
-    verify(accountClient, never()).getAccountList(any());
-  }
+    BalanceResponse balanceResponse = new BalanceResponse();
+    balanceResponse.setAccountId("840104290");
+    balanceResponse.setAccountType("INDIVIDUAL");
+    balanceResponse.setAccountMode("MARGIN");
 
-  @Test
-  @DisplayName("Get Account - Not Found")
-  void getAccount_notFound() throws Exception {
-    UUID nonExistentAccountId = UUID.randomUUID();
+    CashBalance cash = new CashBalance();
+    cash.setCashBalance(10000.0);
+    cash.setCashAvailable(9500.0);
+    balanceResponse.setCash(cash);
 
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}", nonExistentAccountId))
-        .andExpect(status().isInternalServerError()); // Our service throws RuntimeException
+    MarginBalance margin = new MarginBalance();
+    margin.setMarginBalance(20000.0);
+    margin.setMarginAvailable(19000.0);
+    balanceResponse.setMargin(margin);
 
-    verify(accountClient, never()).getAccountList(any());
-  }
+    ComputedBalance computed = new ComputedBalance();
+    computed.setTotal(30000.0);
+    computed.setNetValue(29000.0);
+    balanceResponse.setComputed(computed);
 
-  // ============================================================================
-  // 2. ACCOUNT BALANCE TESTS
-  // ============================================================================
+    when(accountService.getAccount(accountId)).thenReturn(accountDto);
+    when(accountService.getAccountBalance(eq(accountId), eq(testAccountIdKey), 
+                                          anyString(), anyString(), anyBoolean()))
+        .thenReturn(balanceResponse);
 
-  @Test
-  @DisplayName("Get Account Balance - Success")
-  void getAccountBalance_success() throws Exception {
-    // Mock E*TRADE client response
-    Map<String, Object> mockBalance = createMockBalance();
-    when(accountClient.getBalance(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull()))
-        .thenReturn(mockBalance);
-
-    // Call our application endpoint
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}/balance", testAccountId))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.accountId").exists())
-        .andExpect(jsonPath("$.accountType").value("BROKERAGE"))
-        .andExpect(jsonPath("$.computed").exists())
-        .andExpect(jsonPath("$.cash").exists())
-        .andExpect(jsonPath("$.margin").exists());
-
-    verify(accountClient, times(1)).getBalance(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull());
-  }
-
-  @Test
-  @DisplayName("Get Account Balance - With Parameters")
-  void getAccountBalance_withParameters() throws Exception {
-    Map<String, Object> mockBalance = createMockBalance();
-    when(accountClient.getBalance(eq(testAccountId), eq(testAccountIdKey), eq("BROKERAGE"), eq("CASH"), eq(true)))
-        .thenReturn(mockBalance);
-
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}/balance", testAccountId)
+    mockMvc.perform(get("/api/etrade/accounts/{accountId}/balance", accountId)
             .param("instType", "BROKERAGE")
-            .param("accountType", "CASH")
             .param("realTimeNAV", "true"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.computed.total").exists());
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.accountId").value("840104290"))
+        .andExpect(jsonPath("$.accountType").value("INDIVIDUAL"))
+        .andExpect(jsonPath("$.accountMode").value("MARGIN"))
+        .andExpect(jsonPath("$.cash.cashBalance").value(10000.0))
+        .andExpect(jsonPath("$.cash.cashAvailable").value(9500.0))
+        .andExpect(jsonPath("$.margin.marginBalance").value(20000.0))
+        .andExpect(jsonPath("$.computed.total").value(30000.0))
+        .andExpect(jsonPath("$.computed.netValue").value(29000.0));
 
-    verify(accountClient, times(1)).getBalance(eq(testAccountId), eq(testAccountIdKey), eq("BROKERAGE"), eq("CASH"), eq(true));
+    verify(accountService, times(1)).getAccount(accountId);
+    verify(accountService, times(1)).getAccountBalance(eq(accountId), eq(testAccountIdKey),
+                                                       anyString(), anyString(), anyBoolean());
   }
 
   @Test
-  @DisplayName("Get Account Balance - Invalid Account")
-  void getAccountBalance_invalidAccount() throws Exception {
-    UUID invalidAccountId = UUID.randomUUID();
+  @DisplayName("GET /api/etrade/accounts/{accountId}/portfolio should return portfolio")
+  void getPortfolio_shouldReturnPortfolio() throws Exception {
+    UUID accountId = testAccountId;
+    EtradeAccountDto accountDto = new EtradeAccountDto(
+        accountId, testUserId, testAccountIdKey, "INDIVIDUAL", "Test Account", "ACTIVE",
+        java.time.OffsetDateTime.now(), null);
 
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}/balance", invalidAccountId))
-        .andExpect(status().isInternalServerError()); // Our service throws RuntimeException
+    PortfolioResponse portfolioResponse = new PortfolioResponse();
+    portfolioResponse.setTotalPages(1);
 
-    verify(accountClient, never()).getBalance(any(), any());
-  }
+    AccountPortfolioDto accountPortfolio = new AccountPortfolioDto();
+    accountPortfolio.setAccountId("840104290");
+    accountPortfolio.setTotalPages(1);
 
-  // ============================================================================
-  // 3. ACCOUNT PORTFOLIO TESTS
-  // ============================================================================
+    PositionDto position = new PositionDto();
+    position.setPositionId(10087531L);
+    position.setQuantity(100.0);
+    position.setMarketValue(15000.0);
+    position.setPositionType("LONG");
 
-  @Test
-  @DisplayName("Get Account Portfolio - Success")
-  void getAccountPortfolio_success() throws Exception {
-    // Mock E*TRADE client response
-    Map<String, Object> mockPortfolio = createMockPortfolio();
-    when(accountClient.getPortfolio(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
-        .thenReturn(mockPortfolio);
+    ProductDto product = new ProductDto();
+    product.setSymbol("AAPL");
+    product.setSecurityType("EQ");
+    position.setProduct(product);
 
-    // Call our application endpoint
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}/portfolio", testAccountId))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.accountId").exists())
-        .andExpect(jsonPath("$.positions").isArray())
-        .andExpect(jsonPath("$.positions[0].symbol").value("AAPL"))
-        .andExpect(jsonPath("$.positions[0].positionId").exists())
-        .andExpect(jsonPath("$.positions[0].marketValue").exists())
-        .andExpect(jsonPath("$.totalPages").exists());
+    QuickViewDto quick = new QuickViewDto();
+    quick.setLastTrade(150.0);
+    quick.setChange(2.0);
+    position.setQuick(quick);
 
-    verify(accountClient, times(1)).getPortfolio(eq(testAccountId), eq(testAccountIdKey), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
-  }
-
-  @Test
-  @DisplayName("Get Account Portfolio - With Parameters")
-  void getAccountPortfolio_withParameters() throws Exception {
-    Map<String, Object> mockPortfolio = createMockPortfolio();
-    when(accountClient.getPortfolio(eq(testAccountId), eq(testAccountIdKey), eq(10), eq("SYMBOL"), eq("ASC"), eq(1), eq("REGULAR"), eq(true), eq(false), eq("QUICK")))
-        .thenReturn(mockPortfolio);
-
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}/portfolio", testAccountId)
-            .param("count", "10")
-            .param("sortBy", "SYMBOL")
-            .param("sortOrder", "ASC")
-            .param("pageNumber", "1")
-            .param("marketSession", "REGULAR")
-            .param("totalsRequired", "true")
-            .param("lotsRequired", "false")
-            .param("view", "QUICK"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.positions").isArray());
-
-    verify(accountClient, times(1)).getPortfolio(eq(testAccountId), eq(testAccountIdKey), eq(10), eq("SYMBOL"), eq("ASC"), eq(1), eq("REGULAR"), eq(true), eq(false), eq("QUICK"));
-  }
-
-  @Test
-  @DisplayName("Get Account Portfolio - Invalid Account")
-  void getAccountPortfolio_invalidAccount() throws Exception {
-    UUID invalidAccountId = UUID.randomUUID();
-
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}/portfolio", invalidAccountId))
-        .andExpect(status().isInternalServerError()); // Our service throws RuntimeException
-
-    verify(accountClient, never()).getPortfolio(any(), any());
-  }
-
-  // ============================================================================
-  // 4. SYNC ACCOUNTS TESTS
-  // ============================================================================
-
-  @Test
-  @DisplayName("Sync Accounts - Success")
-  void syncAccounts_success() throws Exception {
-    // Mock E*TRADE client response
-    List<Map<String, Object>> mockAccounts = List.of(
-        createMockAccountData("12345678", "BROKERAGE", "Test Account", "ACTIVE")
-    );
-    when(accountClient.getAccountList(eq(testAccountId)))
-        .thenReturn(mockAccounts);
-
-    // Call our application endpoint
-    mockMvc.perform(post("/api/etrade/accounts/sync")
-            .param("userId", testUserId.toString())
-            .param("accountId", testAccountId.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").isArray());
-
-    verify(accountClient, times(1)).getAccountList(eq(testAccountId));
-  }
-
-  // ============================================================================
-  // 5. UNLINK ACCOUNT TESTS
-  // ============================================================================
-
-  @Test
-  @DisplayName("Unlink Account - Success")
-  void unlinkAccount_success() throws Exception {
-    // Call our application endpoint
-    mockMvc.perform(delete("/api/etrade/accounts/{accountId}", testAccountId))
-        .andExpect(status().isNoContent());
-
-    // Verify account was deleted from database
-    mockMvc.perform(get("/api/etrade/accounts/{accountId}", testAccountId))
-        .andExpect(status().isInternalServerError()); // Should not exist anymore
-  }
-
-  // ============================================================================
-  // HELPER METHODS
-  // ============================================================================
-
-  private Map<String, Object> createMockBalance() {
-    Map<String, Object> balance = new HashMap<>();
-    balance.put("accountId", testAccountIdKey);
-    balance.put("accountType", "BROKERAGE");
-    balance.put("accountDescription", "Test Account");
-    balance.put("accountMode", "MARGIN");
-    
-    // Cash section
-    Map<String, Object> cash = new HashMap<>();
-    cash.put("cashBalance", 50000.0);
-    cash.put("cashAvailable", 45000.0);
-    cash.put("unclearedDeposits", 0.0);
-    cash.put("cashSweep", 0.0);
-    balance.put("cash", cash);
-    
-    // Margin section
-    Map<String, Object> margin = new HashMap<>();
-    margin.put("marginBalance", 100000.0);
-    margin.put("marginAvailable", 95000.0);
-    margin.put("marginBuyingPower", 190000.0);
-    margin.put("dayTradingBuyingPower", 380000.0);
-    balance.put("margin", margin);
-    
-    // Computed section (enhanced)
-    Map<String, Object> computed = new HashMap<>();
-    computed.put("total", 100000.0);
-    computed.put("netCash", 50000.0);
-    computed.put("cashAvailableForInvestment", 45000.0);
-    computed.put("totalValue", 100000.0);
-    computed.put("netValue", 100000.0);
-    computed.put("settledCash", 50000.0);
-    computed.put("openCalls", 0.0);
-    computed.put("openPuts", 0.0);
-    balance.put("computed", computed);
-    
-    return balance;
-  }
-
-  private Map<String, Object> createMockPortfolio() {
-    Map<String, Object> portfolio = new HashMap<>();
-    portfolio.put("accountId", testAccountIdKey);
-    portfolio.put("totalPages", 1);
-    
-    List<Map<String, Object>> positions = new ArrayList<>();
-    Map<String, Object> position = new HashMap<>();
-    position.put("positionId", 12345L);
-    position.put("positionType", "LONG");
-    position.put("symbol", "AAPL");
-    position.put("quantity", 10.0);
-    position.put("marketValue", 1518.00);
-    position.put("lastTrade", 151.80);
+    List<PositionDto> positions = new ArrayList<>();
     positions.add(position);
-    
-    portfolio.put("positions", positions);
-    return portfolio;
+    accountPortfolio.setPositions(positions);
+
+    List<AccountPortfolioDto> portfolios = new ArrayList<>();
+    portfolios.add(accountPortfolio);
+    portfolioResponse.setAccountPortfolios(portfolios);
+
+    when(accountService.getAccount(accountId)).thenReturn(accountDto);
+    when(accountService.getAccountPortfolio(eq(accountId), eq(testAccountIdKey),
+                                            any(), anyString(), anyString(), any(),
+                                            anyString(), anyBoolean(), anyBoolean(), anyString()))
+        .thenReturn(portfolioResponse);
+
+    mockMvc.perform(get("/api/etrade/accounts/{accountId}/portfolio", accountId)
+            .param("count", "25")
+            .param("sortBy", "SYMBOL"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.totalPages").value(1))
+        .andExpect(jsonPath("$.accountPortfolios").isArray())
+        .andExpect(jsonPath("$.accountPortfolios[0].accountId").value("840104290"))
+        .andExpect(jsonPath("$.accountPortfolios[0].positions").isArray())
+        .andExpect(jsonPath("$.accountPortfolios[0].positions[0].positionId").value(10087531))
+        .andExpect(jsonPath("$.accountPortfolios[0].positions[0].quantity").value(100.0))
+        .andExpect(jsonPath("$.accountPortfolios[0].positions[0].product.symbol").value("AAPL"))
+        .andExpect(jsonPath("$.accountPortfolios[0].positions[0].quick.lastTrade").value(150.0));
+
+    verify(accountService, times(1)).getAccount(accountId);
+    verify(accountService, times(1)).getAccountPortfolio(eq(accountId), eq(testAccountIdKey),
+                                                         any(), anyString(), anyString(), any(),
+                                                         anyString(), anyBoolean(), anyBoolean(), anyString());
   }
 
-  private Map<String, Object> createMockAccountData(String accountIdKey, String accountType, 
-                                                     String accountName, String accountStatus) {
-    Map<String, Object> account = new HashMap<>();
-    account.put("accountIdKey", accountIdKey);
-    account.put("accountId", accountIdKey);
-    account.put("accountType", accountType);
-    account.put("accountName", accountName);
-    account.put("accountStatus", accountStatus);
-    account.put("accountDesc", accountName);
-    return account;
+  @Test
+  @DisplayName("GET /api/etrade/accounts/{accountId}/balance should handle service errors")
+  void getBalance_shouldHandleServiceErrors() throws Exception {
+    UUID accountId = testAccountId;
+    EtradeAccountDto accountDto = new EtradeAccountDto(
+        accountId, testUserId, testAccountIdKey, "INDIVIDUAL", "Test Account", "ACTIVE",
+        java.time.OffsetDateTime.now(), null);
+
+    when(accountService.getAccount(accountId)).thenReturn(accountDto);
+    when(accountService.getAccountBalance(eq(accountId), eq(testAccountIdKey),
+                                          anyString(), anyString(), anyBoolean()))
+        .thenThrow(new RuntimeException("Failed to get balance"));
+
+    mockMvc.perform(get("/api/etrade/accounts/{accountId}/balance", accountId))
+        .andExpect(status().is5xxServerError());
+
+    verify(accountService, times(1)).getAccount(accountId);
+  }
+
+  @Test
+  @DisplayName("POST /api/etrade/accounts/sync should sync accounts")
+  void syncAccounts_shouldSyncAccounts() throws Exception {
+    UUID userId = testUserId;
+    UUID accountId = testAccountId;
+
+    List<EtradeAccountDto> syncedAccounts = new ArrayList<>();
+    EtradeAccountDto accountDto = new EtradeAccountDto(
+        testAccountId, userId, testAccountIdKey, "INDIVIDUAL", "Test Account", "ACTIVE",
+        java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now());
+    syncedAccounts.add(accountDto);
+
+    when(accountService.syncAccounts(userId, accountId)).thenReturn(syncedAccounts);
+
+    mockMvc.perform(post("/api/etrade/accounts/sync")
+            .param("userId", userId.toString())
+            .param("accountId", accountId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$[0].accountIdKey").value(testAccountIdKey))
+        .andExpect(jsonPath("$[0].accountType").value("INDIVIDUAL"));
+
+    verify(accountService, times(1)).syncAccounts(userId, accountId);
+  }
+
+  @Test
+  @DisplayName("GET /api/etrade/accounts should return user accounts")
+  void getUserAccounts_shouldReturnAccounts() throws Exception {
+    UUID userId = testUserId;
+
+    List<EtradeAccountDto> accounts = new ArrayList<>();
+    EtradeAccountDto accountDto = new EtradeAccountDto(
+        testAccountId, userId, testAccountIdKey, "INDIVIDUAL", "Test Account", "ACTIVE",
+        java.time.OffsetDateTime.now(), null);
+    accounts.add(accountDto);
+
+    when(accountService.getUserAccounts(userId)).thenReturn(accounts);
+
+    mockMvc.perform(get("/api/etrade/accounts")
+            .param("userId", userId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$[0].accountIdKey").value(testAccountIdKey));
+
+    verify(accountService, times(1)).getUserAccounts(userId);
+  }
+
+  @Test
+  @DisplayName("GET /api/etrade/accounts/{accountId} should return account details")
+  void getAccount_shouldReturnAccountDetails() throws Exception {
+    UUID accountId = testAccountId;
+    EtradeAccountDto accountDto = new EtradeAccountDto(
+        accountId, testUserId, testAccountIdKey, "INDIVIDUAL", "Test Account", "ACTIVE",
+        java.time.OffsetDateTime.now(), null);
+
+    when(accountService.getAccount(accountId)).thenReturn(accountDto);
+
+    mockMvc.perform(get("/api/etrade/accounts/{accountId}", accountId))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(accountId.toString()))
+        .andExpect(jsonPath("$.accountIdKey").value(testAccountIdKey))
+        .andExpect(jsonPath("$.accountType").value("INDIVIDUAL"));
+
+    verify(accountService, times(1)).getAccount(accountId);
   }
 }

@@ -2,6 +2,7 @@ package com.myqyl.aitradex.etrade.api.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqyl.aitradex.etrade.client.EtradeAccountClient;
+import com.myqyl.aitradex.etrade.client.EtradeApiClientAccountAPI;
 import com.myqyl.aitradex.etrade.client.EtradeOrderClient;
 import com.myqyl.aitradex.etrade.client.EtradeQuoteClient;
 import com.myqyl.aitradex.etrade.domain.EtradeAccount;
@@ -68,6 +69,9 @@ public abstract class EtradeApiIntegrationTestBase {
 
   @MockBean
   protected EtradeAccountClient accountClient;
+
+  @MockBean
+  protected EtradeApiClientAccountAPI accountsApi;
 
   @MockBean
   protected com.myqyl.aitradex.etrade.client.EtradeAlertsClient alertsClient;
