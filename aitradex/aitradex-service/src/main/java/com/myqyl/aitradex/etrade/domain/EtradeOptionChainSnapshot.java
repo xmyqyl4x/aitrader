@@ -53,6 +53,7 @@ public class EtradeOptionChainSnapshot {
   private OffsetDateTime requestTime;
 
   @Column(name = "raw_response", columnDefinition = "jsonb")
+  @org.hibernate.annotations.ColumnTransformer(write = "?::jsonb")
   private String rawResponse;
 
   @CreatedDate

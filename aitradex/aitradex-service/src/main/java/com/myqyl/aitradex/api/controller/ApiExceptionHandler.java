@@ -1,11 +1,11 @@
 package com.myqyl.aitradex.api.controller;
 
 import com.myqyl.aitradex.api.dto.ErrorResponse;
+import com.myqyl.aitradex.etrade.exception.EtradeApiException;
 import com.myqyl.aitradex.exception.NotFoundException;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -44,6 +44,18 @@ public class ApiExceptionHandler {
             OffsetDateTime.now(),
             details);
     return ResponseEntity.badRequest().body(response);
+  }
+
+  @ExceptionHandler(EtradeApiException.class)
+  public ResponseEntity<ErrorResponse> handleEtradeApiException(EtradeApiException ex, WebRequest request) {
+    ErrorResponse response =
+        new ErrorResponse(
+            ex.getErrorCode(),
+            ex.getErrorMessage(),
+            ex.getHttpStatus(),
+            OffsetDateTime.now(),
+            Collections.emptyList());
+    return ResponseEntity.status(ex.getHttpStatus()).body(response);
   }
 
   private static String formatFieldError(FieldError error) {

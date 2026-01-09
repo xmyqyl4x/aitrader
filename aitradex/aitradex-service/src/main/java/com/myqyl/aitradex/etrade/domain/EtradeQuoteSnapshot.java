@@ -93,6 +93,7 @@ public class EtradeQuoteSnapshot {
   private String quoteType; // REALTIME, DELAYED
 
   @Column(name = "raw_response", columnDefinition = "jsonb")
+  @org.hibernate.annotations.ColumnTransformer(write = "?::jsonb")
   private String rawResponse;
 
   @CreatedDate

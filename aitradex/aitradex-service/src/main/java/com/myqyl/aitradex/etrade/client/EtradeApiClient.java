@@ -321,12 +321,15 @@ public class EtradeApiClient {
       com.myqyl.aitradex.etrade.domain.EtradeAuditLog auditLog = 
           new com.myqyl.aitradex.etrade.domain.EtradeAuditLog();
       auditLog.setAccountId(accountId);
-      auditLog.setAction(action);
+      // Truncate action if too long (max 100 chars per database schema)
+      auditLog.setAction(action != null && action.length() > 100 ? 
+          action.substring(0, 100) : action);
       // Note: requestParams field not in entity, storing in requestBody if query params exist
-      auditLog.setRequestBody(requestBody != null ? 
-          (requestBody.length() > 1000 ? requestBody.substring(0, 1000) + "..." : requestBody) : null);
-      auditLog.setResponseBody(responseBody != null ? 
-          (responseBody.length() > 5000 ? responseBody.substring(0, 5000) + "..." : responseBody) : null);
+      // Wrap non-JSON strings (e.g., XML) in a JSON object for JSONB storage
+      String processedRequestBody = processBodyForJsonb(requestBody, 1000);
+      auditLog.setRequestBody(processedRequestBody);
+      String processedResponseBody = processBodyForJsonb(responseBody, 5000);
+      auditLog.setResponseBody(processedResponseBody);
       auditLog.setStatusCode(statusCode);
       auditLog.setErrorMessage(errorMessage);
       auditLog.setDurationMs((int) durationMs);
@@ -341,6 +344,40 @@ public class EtradeApiClient {
       }
     } catch (Exception e) {
       log.warn("Failed to log audit entry", e);
+    }
+  }
+
+  /**
+   * Processes a body string for JSONB storage.
+   * If the string is valid JSON, returns it as-is (truncated if needed).
+   * If the string is XML or other non-JSON, wraps it in a JSON object.
+   * 
+   * @param body The body string to process
+   * @param maxLength Maximum length before truncation
+   * @return JSON string suitable for JSONB storage
+   */
+  private String processBodyForJsonb(String body, int maxLength) {
+    if (body == null || body.isEmpty()) {
+      return null;
+    }
+    
+    // Truncate if needed
+    String truncated = body.length() > maxLength ? body.substring(0, maxLength) + "..." : body;
+    
+    // Check if it's valid JSON
+    try {
+      objectMapper.readTree(truncated);
+      // Valid JSON - return as-is
+      return truncated;
+    } catch (Exception e) {
+      // Not valid JSON (likely XML or plain text) - wrap in JSON object
+      try {
+        return objectMapper.writeValueAsString(Map.of("raw", truncated));
+      } catch (Exception jsonException) {
+        // Fallback: escape and wrap manually
+        String escaped = truncated.replace("\\", "\\\\").replace("\"", "\\\"");
+        return "{\"raw\":\"" + escaped + "\"}";
+      }
     }
   }
 }

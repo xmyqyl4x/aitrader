@@ -64,7 +64,7 @@ public class EtradeQuoteService {
    * @param request GetQuotesRequest DTO containing symbols and query parameters
    * @return QuoteResponse DTO containing list of quotes
    */
-  @Transactional
+  @Transactional(noRollbackFor = com.myqyl.aitradex.etrade.exception.EtradeApiException.class)
   public QuoteResponse getQuotes(UUID accountId, GetQuotesRequest request) {
     QuoteResponse response = marketApi.getQuotes(accountId, request);
     
@@ -103,7 +103,7 @@ public class EtradeQuoteService {
    * @param detailFlag Detail flag (optional)
    * @return EtradeQuoteModel DTO containing quote details
    */
-  @Transactional
+  @Transactional(noRollbackFor = com.myqyl.aitradex.etrade.exception.EtradeApiException.class)
   public EtradeQuoteModel getQuote(UUID accountId, String symbol, String detailFlag) {
     GetQuotesRequest request = new GetQuotesRequest();
     request.setSymbols(symbol);
@@ -137,7 +137,7 @@ public class EtradeQuoteService {
    * @param request LookupProductRequest DTO containing search input
    * @return LookupProductResponse DTO containing list of matching products
    */
-  @Transactional
+  @Transactional(noRollbackFor = com.myqyl.aitradex.etrade.exception.EtradeApiException.class)
   public LookupProductResponse lookupProduct(LookupProductRequest request) {
     LookupProductResponse response = marketApi.lookupProduct(request);
     
@@ -162,7 +162,7 @@ public class EtradeQuoteService {
    * @param request GetOptionChainsRequest DTO containing symbol and option chain parameters
    * @return OptionChainResponse DTO containing option chains
    */
-  @Transactional
+  @Transactional(noRollbackFor = com.myqyl.aitradex.etrade.exception.EtradeApiException.class)
   public OptionChainResponse getOptionChains(GetOptionChainsRequest request) {
     OptionChainResponse response = marketApi.getOptionChains(request);
     
@@ -192,7 +192,7 @@ public class EtradeQuoteService {
    * @param request GetOptionExpireDatesRequest DTO containing symbol and expiry type filter
    * @return OptionExpireDateResponse DTO containing list of expiration dates
    */
-  @Transactional
+  @Transactional(noRollbackFor = com.myqyl.aitradex.etrade.exception.EtradeApiException.class)
   public OptionExpireDateResponse getOptionExpireDates(GetOptionExpireDatesRequest request) {
     OptionExpireDateResponse response = marketApi.getOptionExpireDates(request);
     

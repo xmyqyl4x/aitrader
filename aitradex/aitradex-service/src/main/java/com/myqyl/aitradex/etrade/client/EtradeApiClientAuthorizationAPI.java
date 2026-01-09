@@ -411,7 +411,9 @@ public class EtradeApiClientAuthorizationAPI {
       com.myqyl.aitradex.etrade.domain.EtradeAuditLog auditLog = 
           new com.myqyl.aitradex.etrade.domain.EtradeAuditLog();
       auditLog.setAccountId(accountId);
-      auditLog.setAction(action);
+      // Truncate action if too long (max 100 chars per database schema)
+      auditLog.setAction(action != null && action.length() > 100 ? 
+          action.substring(0, 100) : action);
       auditLog.setRequestBody(requestBody != null ? 
           (requestBody.length() > 1000 ? requestBody.substring(0, 1000) + "..." : requestBody) : null);
       auditLog.setResponseBody(responseBody != null ? 

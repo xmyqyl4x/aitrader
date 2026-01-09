@@ -28,9 +28,11 @@ public class EtradeAuditLog {
   private String resourceId;
 
   @Column(name = "request_body", columnDefinition = "jsonb")
+  @org.hibernate.annotations.ColumnTransformer(write = "?::jsonb")
   private String requestBody;
 
   @Column(name = "response_body", columnDefinition = "jsonb")
+  @org.hibernate.annotations.ColumnTransformer(write = "?::jsonb")
   private String responseBody;
 
   @Column(name = "status_code")

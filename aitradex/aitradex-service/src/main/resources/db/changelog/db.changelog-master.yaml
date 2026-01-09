@@ -14,12 +14,12 @@ databaseChangeLog:
   - include:
       file: changesets/0004-etrade-integration.yaml
       relativeToChangelogFile: true
-         - include:
-             file: changesets/0005-etrade-oauth-tracking.yaml
-             relativeToChangelogFile: true
-         - include:
-             file: changesets/0006-etrade-accounts-persistence.yaml
-             relativeToChangelogFile: true
-         - include:
-             file: changesets/0007-etrade-market-persistence.yaml
-             relativeToChangelogFile: true
+  - include:
+      file: changesets/0005-etrade-oauth-tracking.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/0006-etrade-accounts-persistence.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/0007-etrade-market-persistence.yaml
+      relativeToChangelogFile: true
